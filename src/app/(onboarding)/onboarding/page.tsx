@@ -84,25 +84,21 @@ export default function OnboardingPage() {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '')
 
+      // Generate organization ID client-side
+      const organizationId = crypto.randomUUID()
+
       // Create organization
-      const { data: organization, error: orgError } = await supabase
+      const { error: orgError } = await supabase
         .from('organizations')
         .insert({
+          id: organizationId,
           name: companyName,
           slug: slug,
           industry: industry || null,
         })
-        .select()
-        .single()
 
       if (orgError) {
         setError(orgError.message)
-        setLoading(false)
-        return
-      }
-
-      if (!organization) {
-        setError('Neuspešno kreiranje organizacije')
         setLoading(false)
         return
       }
@@ -113,7 +109,7 @@ export default function OnboardingPage() {
         .insert({
           id: user.id,
           email: user.email || '',
-          organization_id: organization.id,
+          organization_id: organizationId,
           full_name: fullName,
           role: 'owner',
           is_active: true,

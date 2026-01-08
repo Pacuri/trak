@@ -1,281 +1,505 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { TrendingUp, Users, DollarSign, Percent, AlertCircle, TrendingDown, ArrowUpRight, ArrowDownRight } from 'lucide-react'
-import { useUser } from '@/hooks/use-user'
-import { useLeads } from '@/hooks/use-leads'
-import { useOrganization } from '@/hooks/use-organization'
-import { getStageBadgeColor } from '@/lib/utils'
-import type { Lead } from '@/types'
-import Link from 'next/link'
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import {
+  Users,
+  Calendar,
+  CheckCircle,
+  Euro,
+  AlertTriangle,
+  Plus,
+  Globe,
+  Phone
+} from 'lucide-react';
+import Link from 'next/link';
 
-interface StatCardProps {
-  title: string
-  value: string
-  icon: React.ReactNode
-  iconBg: string
-  trend?: {
-    value: number
-    isPositive: boolean
-  }
-}
-
-function StatCard({ title, value, icon, iconBg, trend }: StatCardProps) {
-  return (
-    <div className="rounded-[14px] bg-white p-5 border border-[#E2E8F0] shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center justify-center h-11 w-11 rounded-full" style={{ backgroundColor: iconBg }}>
-          <div className="text-white">
-            {icon}
-          </div>
-        </div>
-        {trend && (
-          <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
-            trend.isPositive ? 'bg-[#ECFDF5] text-[#10B981]' : 'bg-red-50 text-red-600'
-          }`}>
-            {trend.isPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-            {Math.abs(trend.value)}%
-          </div>
-        )}
-      </div>
-      <div>
-        <p className="text-2xl font-bold text-[#1E293B] mb-1">{value}</p>
-        <p className="text-sm text-[#64748B]">{title}</p>
-      </div>
-    </div>
-  )
-}
 
 export default function DashboardPage() {
-  const router = useRouter()
-  const { user } = useUser()
-  const { getLeads } = useLeads()
-  const { stages } = useOrganization()
-  const [todaysLeads, setTodaysLeads] = useState(0)
-  const [thisWeekLeads, setThisWeekLeads] = useState(0)
-  const [conversionRate, setConversionRate] = useState(0)
-  const [pipelineValue, setPipelineValue] = useState(0)
-  const [needsAttention, setNeedsAttention] = useState<Lead[]>([])
-  const [recentLeads, setRecentLeads] = useState<Lead[]>([])
-  const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const [user, setUser] = useState<any>({ full_name: 'Nikola' });
+  const [leads, setLeads] = useState<any[]>([]);
+  const [stages, setStages] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const supabase = createClient();
 
   useEffect(() => {
-    async function loadStats() {
-      if (!user?.organization_id) return
-
-      setLoading(true)
-
-      try {
-        // Get all leads for the organization
-        const allLeads = await getLeads()
-
-        // Calculate today's date boundaries
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        const todayEnd = new Date(today)
-        todayEnd.setHours(23, 59, 59, 999)
-
-        // Calculate this week's date boundaries
-        const weekStart = new Date(today)
-        weekStart.setDate(today.getDate() - today.getDay())
-        weekStart.setHours(0, 0, 0, 0)
-
-        // Filter leads
-        const todayLeads = allLeads.filter((lead) => {
-          const created = new Date(lead.created_at)
-          return created >= today && created <= todayEnd
-        })
-
-        const weekLeads = allLeads.filter((lead) => {
-          const created = new Date(lead.created_at)
-          return created >= weekStart
-        })
-
-        // Calculate conversion rate (won / total with stages)
-        const wonStages = stages.filter((s) => s.is_won).map((s) => s.id)
-        const totalWithStages = allLeads.filter((lead) => lead.stage_id)
-        const wonLeads = totalWithStages.filter((lead) =>
-          wonStages.includes(lead.stage_id || '')
-        )
-        const conversion =
-          totalWithStages.length > 0 ? (wonLeads.length / totalWithStages.length) * 100 : 0
-
-        // Calculate pipeline value (sum of all lead values)
-        const totalValue = allLeads.reduce((sum, lead) => sum + (lead.value || 0), 0)
-
-        // Find leads needing attention (no activity for 3+ days)
-        const threeDaysAgo = new Date()
-        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
-        const attentionLeads = allLeads.filter((lead) => {
-          if (!lead.last_contact_at) {
-            const created = new Date(lead.created_at)
-            return created < threeDaysAgo
-          }
-          const lastContact = new Date(lead.last_contact_at)
-          return lastContact < threeDaysAgo
-        })
-
-        // Get recent leads (last 5, ordered by created_at)
-        const recent = allLeads.slice(0, 5)
-
-        setTodaysLeads(todayLeads.length)
-        setThisWeekLeads(weekLeads.length)
-        setConversionRate(conversion)
-        setPipelineValue(totalValue)
-        setNeedsAttention(attentionLeads.slice(0, 5))
-        setRecentLeads(recent)
-      } catch (err) {
-        console.error('Failed to load stats:', err)
-      } finally {
-        setLoading(false)
+    async function loadData() {
+      // Get current user
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      if (!authUser) {
+        setLoading(false);
+        return;
       }
+
+      // Get user record with org
+      const { data: userData } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      setUser(userData);
+
+      if (!userData?.organization_id) {
+        setLoading(false);
+        return;
+      }
+
+      const orgId = userData.organization_id;
+
+      // Get leads - table is 'leads' not 'crm_leads'
+      const { data: leadsData, error: leadsError } = await supabase
+        .from('leads')
+        .select('*, stage:pipeline_stages(*), source:lead_sources(*)')
+        .eq('organization_id', orgId)
+        .order('created_at', { ascending: false });
+
+      console.log('Leads data:', leadsData, 'Error:', leadsError);
+      setLeads(leadsData || []);
+
+      // Get stages
+      const { data: stagesData, error: stagesError } = await supabase
+        .from('pipeline_stages')
+        .select('*')
+        .eq('organization_id', orgId)
+        .order('position');
+
+      console.log('Stages data:', stagesData, 'Error:', stagesError);
+      setStages(stagesData || []);
+
+      setLoading(false);
     }
+    loadData();
+  }, []);
 
-    loadStats()
-  }, [user, getLeads, stages])
+  // Calculate stats
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const leadsToday = leads.filter(l => new Date(l.created_at) >= today).length;
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const leadsThisMonth = leads.filter(l => new Date(l.created_at) >= monthStart).length;
+
+  const wonStage = stages.find(s => s.is_won);
+  const wonLeads = leads.filter(l => l.stage_id === wonStage?.id).length;
+  const conversionRate = leads.length > 0 ? Math.round((wonLeads / leads.length) * 100) : 0;
+
+  const pipelineValue = leads.reduce((sum, l) => sum + (l.value || 0), 0);
+
+  // Leads needing attention (no activity in 3+ days)
+  const threeDaysAgo = new Date();
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+  const needsAttention = leads.filter(l => {
+    const lastActivity = l.last_contact_at || l.created_at;
+    return new Date(lastActivity) < threeDaysAgo && !l.closed_at;
+  }).slice(0, 5);
+
+  // Recent leads
+  const recentLeads = leads.slice(0, 5);
+
+  // Group leads by stage
+  const leadsByStage = stages.map(stage => ({
+    ...stage,
+    leads: leads.filter(l => l.stage_id === stage.id)
+  }));
+
+  console.log('Stages for pipeline:', leadsByStage);
+
+  const getSourceIcon = (type: string) => {
+    switch (type) {
+      case 'facebook':
+        return (
+          <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#DBEAFE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ color: '#2563EB', fontWeight: 'bold', fontSize: '14px' }}>f</span>
+          </div>
+        );
+      case 'instagram':
+        return (
+          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #8B5CF6, #EC4899)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ color: 'white', fontWeight: 'bold', fontSize: '12px' }}>IG</span>
+          </div>
+        );
+      case 'website':
+        return (
+          <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Globe style={{ width: '16px', height: '16px', color: '#059669' }} />
+          </div>
+        );
+      case 'phone':
+        return (
+          <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#E0F2FE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Phone style={{ width: '16px', height: '16px', color: '#0284C7' }} />
+          </div>
+        );
+      default:
+        return (
+          <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ color: '#6B7280', fontSize: '12px' }}>•</span>
+          </div>
+        );
+    }
+  };
+
+  const getStatusBadge = (stage: any) => {
+    if (!stage) return null;
+    const colors: Record<string, { bg: string; text: string }> = {
+      'new': { bg: '#DBEAFE', text: '#2563EB' },
+      'contacted': { bg: '#EDE9FE', text: '#7C3AED' },
+      'proposal': { bg: '#FFEDD5', text: '#EA580C' },
+      'negotiation': { bg: '#FCE7F3', text: '#DB2777' },
+      'won': { bg: '#D1FAE5', text: '#059669' },
+      'lost': { bg: '#F3F4F6', text: '#6B7280' },
+    };
+    const color = colors[stage.slug] || { bg: '#F3F4F6', text: '#6B7280' };
+    return (
+      <span style={{
+        padding: '4px 12px',
+        borderRadius: '20px',
+        fontSize: '12px',
+        fontWeight: '600',
+        backgroundColor: color.bg,
+        color: color.text
+      }}>
+        {stage.name}
+      </span>
+    );
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return `Danas, ${date.toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (diffDays === 1) {
+      return `Juče, ${date.toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}`;
+    } else {
+      return date.toLocaleDateString('sr-RS');
+    }
+  };
+
+  const getTimeAgo = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffHours < 1) return 'sada';
+    if (diffHours < 24) return `pre ${diffHours}h`;
+    if (diffDays === 1) return 'pre 1 dan';
+    return `pre ${diffDays} dana`;
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return '??';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const getStageColor = (slug: string) => {
+    const colors: Record<string, string> = {
+      'new': '#3B82F6',
+      'contacted': '#8B5CF6',
+      'proposal': '#F97316',
+      'negotiation': '#EC4899',
+      'won': '#10B981',
+      'lost': '#6B7280',
+    };
+    return colors[slug] || '#6B7280';
+  };
+
+  const avatarGradients = [
+    'linear-gradient(135deg, #F59E0B, #EC4899)',
+    'linear-gradient(135deg, #8B5CF6, #3B82F6)',
+    'linear-gradient(135deg, #10B981, #3B82F6)',
+    'linear-gradient(135deg, #F59E0B, #EF4444)',
+    'linear-gradient(135deg, #6366F1, #EC4899)',
+  ];
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '256px' }}>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Section */}
+    <div className="dashboard-container" style={{ padding: '32px', maxWidth: '1600px', margin: '0 auto' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '8px' }}>
+      {/* Welcome Header */}
       <div>
-        <h1 className="text-2xl font-bold text-[#1E293B]">
-          Welcome back{user?.full_name ? `, ${user.full_name}` : user?.email ? `, ${user.email.split('@')[0]}` : ''}!
+        <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#1E293B' }}>
+          Dobrodošli, {user?.full_name || 'Korisnik'}! 👋
         </h1>
-        <p className="mt-1 text-sm text-[#64748B]">
-          Here's what's happening with your leads today.
+        <p style={{ color: '#64748B', marginTop: '4px' }}>
+          Evo šta se danas dešava sa vašim upitima
         </p>
       </div>
 
-      {/* Stats Grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="rounded-[14px] bg-white p-5 border border-[#E2E8F0] shadow-sm animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-24 mb-4"></div>
-              <div className="h-8 bg-gray-200 rounded w-16"></div>
+      {/* Stat Cards - 4 columns */}
+      <div className="stat-cards-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+        {/* Card 1 - Upita danas */}
+        <div style={{ backgroundColor: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', padding: '24px', position: 'relative' }}>
+          <span style={{ position: 'absolute', top: '16px', right: '16px', fontSize: '12px', fontWeight: '600', color: '#10B981' }}>+12%</span>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+            <Users style={{ width: '24px', height: '24px', color: '#3B82F6' }} />
+          </div>
+          <div style={{ fontSize: '32px', fontWeight: '700', color: '#1E293B' }}>{leadsToday}</div>
+          <div style={{ fontSize: '14px', color: '#64748B', marginTop: '4px' }}>Upita danas</div>
+        </div>
+
+        {/* Card 2 - Ovog meseca */}
+        <div style={{ backgroundColor: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', padding: '24px', position: 'relative' }}>
+          <span style={{ position: 'absolute', top: '16px', right: '16px', fontSize: '12px', fontWeight: '600', color: '#10B981' }}>+8%</span>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+            <Calendar style={{ width: '24px', height: '24px', color: '#8B5CF6' }} />
+          </div>
+          <div style={{ fontSize: '32px', fontWeight: '700', color: '#1E293B' }}>{leadsThisMonth}</div>
+          <div style={{ fontSize: '14px', color: '#64748B', marginTop: '4px' }}>Ovog meseca</div>
+        </div>
+
+        {/* Card 3 - Konverzija */}
+        <div style={{ backgroundColor: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', padding: '24px', position: 'relative' }}>
+          <span style={{ position: 'absolute', top: '16px', right: '16px', fontSize: '12px', fontWeight: '600', color: '#10B981' }}>+3%</span>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+            <CheckCircle style={{ width: '24px', height: '24px', color: '#10B981' }} />
+          </div>
+          <div style={{ fontSize: '32px', fontWeight: '700', color: '#1E293B' }}>{conversionRate}%</div>
+          <div style={{ fontSize: '14px', color: '#64748B', marginTop: '4px' }}>Konverzija</div>
+        </div>
+
+        {/* Card 4 - U pipeline-u */}
+        <div style={{ backgroundColor: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', padding: '24px', position: 'relative' }}>
+          <span style={{ position: 'absolute', top: '16px', right: '16px', fontSize: '12px', fontWeight: '600', color: '#10B981' }}>+15%</span>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+            <Euro style={{ width: '24px', height: '24px', color: '#F97316' }} />
+          </div>
+          <div style={{ fontSize: '32px', fontWeight: '700', color: '#1E293B' }}>€{pipelineValue.toLocaleString()}</div>
+          <div style={{ fontSize: '14px', color: '#64748B', marginTop: '4px' }}>U pipeline-u</div>
+        </div>
+      </div>
+
+      {/* Two Column Section - Table (2fr) + Attention (1fr) */}
+      <div className="two-column-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+        {/* Left - Recent Leads Table */}
+        <div style={{ backgroundColor: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', overflow: 'hidden', padding: 0 }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h3 style={{ fontWeight: '600', color: '#1E293B', fontSize: '16px' }}>Poslednji upiti</h3>
+            <Link href="/dashboard/leads" style={{ fontSize: '13px', color: '#3B82F6', fontWeight: '500', textDecoration: 'none' }}>
+              Vidi sve →
+            </Link>
+          </div>
+          <div className="table-wrapper" style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #F1F5F9' }}>
+                  <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Kontakt</th>
+                  <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Izvor</th>
+                  <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</th>
+                  <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Vrednost</th>
+                  <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Datum</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentLeads.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '32px 16px', textAlign: 'center', color: '#64748B' }}>
+                      Nema upita
+                    </td>
+                  </tr>
+                ) : (
+                  recentLeads.map((lead) => (
+                    <tr 
+                      key={lead.id} 
+                      style={{ borderBottom: '1px solid #F1F5F9', cursor: 'pointer' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FAFAFA'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <td style={{ padding: '16px 20px' }}>
+                        <div style={{ fontWeight: '600', color: '#1E293B' }}>{lead.name || 'Nepoznato'}</div>
+                        <div style={{ fontSize: '13px', color: '#64748B' }}>{lead.destination || lead.email || '-'}</div>
+                      </td>
+                      <td style={{ padding: '16px 20px' }}>
+                        {getSourceIcon(lead.source?.type || lead.source_type)}
+                      </td>
+                      <td style={{ padding: '16px 20px' }}>
+                        {getStatusBadge(lead.stage)}
+                      </td>
+                      <td style={{ padding: '16px 20px', fontWeight: '600', color: '#1E293B' }}>
+                        €{(lead.value || 0).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '16px 20px', fontSize: '14px', color: '#94A3B8' }}>
+                        {formatDate(lead.created_at)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right - Needs Attention */}
+        <div style={{ backgroundColor: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', padding: '20px', height: 'fit-content' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertTriangle style={{ width: '20px', height: '20px', color: '#F97316' }} />
+              <h3 style={{ fontWeight: '600', color: '#1E293B', fontSize: '16px' }}>Zahteva pažnju</h3>
+            </div>
+            <span style={{ fontSize: '13px', color: '#94A3B8' }}>{needsAttention.length} upita</span>
+          </div>
+
+          {needsAttention.length === 0 ? (
+            <div style={{ padding: '32px 0', textAlign: 'center' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                <CheckCircle style={{ width: '28px', height: '28px', color: '#10B981' }} />
+              </div>
+              <p style={{ fontWeight: '600', color: '#1E293B' }}>Sve je pod kontrolom!</p>
+              <p style={{ fontSize: '14px', color: '#64748B', marginTop: '4px' }}>Nema upita koji zahtevaju pažnju.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {needsAttention.map((lead, idx) => {
+                const daysAgo = Math.floor((new Date().getTime() - new Date(lead.last_contact_at || lead.created_at).getTime()) / (1000 * 60 * 60 * 24));
+
+                return (
+                  <Link
+                    key={lead.id}
+                    href={`/dashboard/leads/${lead.id}`}
+                    style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '10px', textDecoration: 'none', cursor: 'pointer' }}
+                  >
+                    <div style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '50%',
+                      background: avatarGradients[idx % avatarGradients.length],
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontWeight: '600',
+                      fontSize: '14px',
+                      flexShrink: 0
+                    }}>
+                      {getInitials(lead.name)}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: '600', color: '#1E293B', fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.name || 'Nepoznato'}</p>
+                      <p style={{ fontSize: '13px', color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.destination || '-'} • {lead.stage?.name || '-'}</p>
+                    </div>
+                    <span style={{ fontSize: '12px', fontWeight: '500', color: '#EF4444', whiteSpace: 'nowrap' }}>{daysAgo} dana</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
+          <Link
+            href="/dashboard/leads/new"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              width: '100%',
+              marginTop: '16px',
+              backgroundColor: '#3B82F6',
+              color: 'white',
+              fontWeight: '600',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              textDecoration: 'none',
+              fontSize: '14px'
+            }}
+          >
+            <Plus style={{ width: '20px', height: '20px' }} />
+            Novi upit
+          </Link>
+        </div>
+      </div>
+
+      {/* Pipeline Section */}
+      <div style={{ marginTop: '32px' }}>
+        <div style={{ marginBottom: '20px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1E293B' }}>Pipeline</h2>
+        </div>
+
+        {/* Pipeline Grid - 5 columns */}
+        <div className="pipeline-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
+          {leadsByStage.filter(s => !s.is_lost).map((stage) => (
+            <div key={stage.id} style={{ backgroundColor: '#FAFAFA', borderRadius: '14px', padding: '16px', minHeight: '400px' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingBottom: '12px',
+                marginBottom: '16px',
+                borderBottom: `2px solid ${getStageColor(stage.slug)}`
+              }}>
+                <span style={{ fontWeight: '600', color: '#1E293B', fontSize: '13px' }}>
+                  {stage.name} {stage.is_won && '✓'}
+                </span>
+                <span style={{ fontSize: '12px', color: '#94A3B8', backgroundColor: 'white', padding: '2px 8px', borderRadius: '10px' }}>
+                  {stage.leads.length}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {stage.leads.length === 0 ? (
+                  <p style={{ fontSize: '14px', color: '#94A3B8', textAlign: 'center', padding: '32px 0' }}>Nema upita</p>
+                ) : (
+                  stage.leads.slice(0, 4).map((lead: any) => {
+                    const timeAgo = getTimeAgo(lead.created_at);
+                    const daysOld = Math.floor((new Date().getTime() - new Date(lead.created_at).getTime()) / (1000 * 60 * 60 * 24));
+                    const isOld = daysOld >= 3;
+
+                    return (
+                      <Link
+                        key={lead.id}
+                        href={`/dashboard/leads/${lead.id}`}
+                        style={{
+                          display: 'block',
+                          backgroundColor: 'white',
+                          borderRadius: '10px',
+                          padding: '14px',
+                          border: '1px solid #E2E8F0',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                          textDecoration: 'none',
+                          cursor: 'pointer',
+                          transition: 'box-shadow 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.07)'}
+                        onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)'}
+                      >
+                        <p style={{ fontWeight: '600', color: '#1E293B', fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '4px' }}>{lead.name || 'Nepoznato'}</p>
+                        <p style={{ fontSize: '13px', color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '12px' }}>{lead.destination || '-'}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#10B981' }}>
+                            €{(lead.value || 0).toLocaleString()}
+                          </span>
+                          <span style={{ fontSize: '12px', color: isOld ? '#EF4444' : '#94A3B8', fontWeight: isOld ? '500' : '400' }}>
+                            {timeAgo}
+                          </span>
+                        </div>
+                      </Link>
+                    );
+                  })
+                )}
+                {stage.leads.length > 4 && (
+                  <p style={{ fontSize: '12px', color: '#64748B', textAlign: 'center', paddingTop: '8px' }}>
+                    +{stage.leads.length - 4} više
+                  </p>
+                )}
+              </div>
             </div>
           ))}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Today's Leads"
-            value={todaysLeads.toString()}
-            icon={<Users className="h-5 w-5" />}
-            iconBg="#3B82F6"
-          />
-          <StatCard
-            title="This Week"
-            value={thisWeekLeads.toString()}
-            icon={<TrendingUp className="h-5 w-5" />}
-            iconBg="#8B5CF6"
-          />
-          <StatCard
-            title="Conversion Rate"
-            value={`${conversionRate.toFixed(1)}%`}
-            icon={<Percent className="h-5 w-5" />}
-            iconBg="#10B981"
-          />
-          <StatCard
-            title="Pipeline Value"
-            value={`$${pipelineValue.toLocaleString()}`}
-            icon={<DollarSign className="h-5 w-5" />}
-            iconBg="#F97316"
-          />
-        </div>
-      )}
-
-      {/* Needs Attention Section */}
-      <div className="rounded-[14px] bg-white p-5 border border-[#E2E8F0] shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-[#1E293B]">Needs Attention</h2>
-        </div>
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="h-12 w-12 bg-gray-200 rounded-full animate-pulse mb-4"></div>
-            <div className="h-4 bg-gray-200 rounded w-48 animate-pulse"></div>
-          </div>
-        ) : needsAttention.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Users className="h-12 w-12 text-[#94A3B8]" />
-            <p className="mt-4 text-sm text-[#64748B]">No items need attention right now.</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {needsAttention.map((lead) => (
-              <Link
-                key={lead.id}
-                href={`/dashboard/leads/${lead.id}`}
-                className="flex items-center justify-between p-3 rounded-[10px] border border-[#E2E8F0] hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="h-5 w-5 text-[#F59E0B]" />
-                  <div>
-                    <p className="text-sm font-medium text-[#1E293B]">{lead.name}</p>
-                    <p className="text-xs text-[#64748B]">
-                      Last contact: {lead.last_contact_at ? formatDate(lead.last_contact_at) : formatDate(lead.created_at)}
-                    </p>
-                  </div>
-                </div>
-                {lead.stage && (
-                  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStageBadgeColor(lead.stage.name)}`}>
-                    {lead.stage.name}
-                  </span>
-                )}
-              </Link>
-            ))}
-          </div>
-        )}
       </div>
-
-      {/* Recent Leads Section */}
-      <div className="rounded-[14px] bg-white p-5 border border-[#E2E8F0] shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-[#1E293B]">Recent Leads</h2>
-        </div>
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="h-12 w-12 bg-gray-200 rounded-full animate-pulse mb-4"></div>
-            <div className="h-4 bg-gray-200 rounded w-48 animate-pulse"></div>
-          </div>
-        ) : recentLeads.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Users className="h-12 w-12 text-[#94A3B8]" />
-            <p className="mt-4 text-sm text-[#64748B]">No recent leads to display.</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {recentLeads.map((lead) => (
-              <Link
-                key={lead.id}
-                href={`/dashboard/leads/${lead.id}`}
-                className="flex items-center justify-between p-3 rounded-[10px] border border-[#E2E8F0] hover:bg-gray-50 transition-colors"
-              >
-                <div>
-                  <p className="text-sm font-medium text-[#1E293B]">{lead.name}</p>
-                  <p className="text-xs text-[#64748B]">{formatDate(lead.created_at)}</p>
-                </div>
-                {lead.stage && (
-                  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStageBadgeColor(lead.stage.name)}`}>
-                    {lead.stage.name}
-                  </span>
-                )}
-              </Link>
-            ))}
-          </div>
-        )}
       </div>
     </div>
-  )
+  );
 }
