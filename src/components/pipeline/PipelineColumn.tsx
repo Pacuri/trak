@@ -86,15 +86,15 @@ export default function PipelineColumn({ stage, leads, onLeadClick }: PipelineCo
                       className={snapshot.isDragging ? 'rotate-2 scale-105' : ''}
                       style={{
                         ...provided.draggableProps.style,
-                        transition: snapshot.isDragging ? 'none' : 'transform 0.2s ease',
+                        transition: snapshot.isDragging ? 'none' : 'all 0.2s ease',
                       }}
                     >
-                      <PipelineCard
-                        lead={lead}
-                        onClick={() => onLeadClick(lead.id)}
-                      />
-                    </div>
-                  )}
+                        <PipelineCard
+                          lead={lead}
+                          onClick={() => onLeadClick(lead.id)}
+                        />
+                      </div>
+                    )}
                 </Draggable>
               ))}
               {provided.placeholder}

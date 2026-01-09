@@ -13,15 +13,20 @@ import {
   Phone
 } from 'lucide-react';
 import Link from 'next/link';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { useRouter } from 'next/navigation';
 
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>({ full_name: 'Nikola' });
   const [leads, setLeads] = useState<any[]>([]);
   const [stages, setStages] = useState<any[]>([]);
+  const [leadsByStage, setLeadsByStage] = useState<Array<any>>([]);
   const [loading, setLoading] = useState(true);
+  const [renderKey, setRenderKey] = useState(0);
 
   const supabase = createClient();
+  const router = useRouter();
 
   useEffect(() => {
     async function loadData() {
@@ -69,6 +74,15 @@ export default function DashboardPage() {
       console.log('Stages data:', stagesData, 'Error:', stagesError);
       setStages(stagesData || []);
 
+      // Initialize leadsByStage state
+      if (stagesData && leadsData) {
+        const grouped = stagesData.map(stage => ({
+          ...stage,
+          leads: leadsData.filter((l: any) => l.stage_id === stage.id)
+        }));
+        setLeadsByStage(grouped);
+      }
+
       setLoading(false);
     }
     loadData();
@@ -99,13 +113,88 @@ export default function DashboardPage() {
   // Recent leads
   const recentLeads = leads.slice(0, 5);
 
-  // Group leads by stage
-  const leadsByStage = stages.map(stage => ({
-    ...stage,
-    leads: leads.filter(l => l.stage_id === stage.id)
-  }));
-
   console.log('Stages for pipeline:', leadsByStage);
+
+  // Separate function for DB update (fire and forget)
+  const updateLeadStageInDB = async (leadId: string, newStageId: string) => {
+    const { error } = await supabase
+      .from('leads')
+      .update({ stage_id: newStageId })
+      .eq('id', leadId);
+      
+    if (error) {
+      console.error('Failed to update lead stage:', error);
+      // Optionally refetch data to resync
+      const { data: leadsData } = await supabase
+        .from('leads')
+        .select('*, stage:pipeline_stages(*), source:lead_sources(*)')
+        .eq('organization_id', user?.organization_id)
+        .order('created_at', { ascending: false });
+      if (leadsData) {
+        setLeads(leadsData);
+        const grouped = stages.map(stage => ({
+          ...stage,
+          leads: leadsData.filter((l: any) => l.stage_id === stage.id)
+        }));
+        setLeadsByStage(grouped);
+      }
+    }
+  };
+
+  // Handle drag end for pipeline
+  const handleDragEnd = (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+    
+    // Dropped outside - just return, drag library will reset
+    if (!destination) return;
+    
+    // Dropped in same position - just return, no state update needed
+    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
+    
+    // Update state SYNCHRONOUSLY (compute new state, then set it once)
+    const newLeadsByStage = [...leadsByStage];
+    
+    const sourceColIndex = newLeadsByStage.findIndex(col => col.id === source.droppableId);
+    const destColIndex = newLeadsByStage.findIndex(col => col.id === destination.droppableId);
+    
+    if (sourceColIndex === -1 || destColIndex === -1) return;
+    
+    // Clone the leads arrays
+    const sourceLeads = [...newLeadsByStage[sourceColIndex].leads];
+    const [movedLead] = sourceLeads.splice(source.index, 1);
+    
+    // Create new object with updated stage_id (don't mutate)
+    const updatedLead = { ...movedLead, stage_id: destination.droppableId };
+    
+    const destLeads = sourceColIndex === destColIndex 
+      ? sourceLeads 
+      : [...newLeadsByStage[destColIndex].leads];
+    destLeads.splice(destination.index, 0, updatedLead);
+    
+    // Update the columns
+    newLeadsByStage[sourceColIndex] = { ...newLeadsByStage[sourceColIndex], leads: sourceLeads };
+    if (sourceColIndex !== destColIndex) {
+      newLeadsByStage[destColIndex] = { ...newLeadsByStage[destColIndex], leads: destLeads };
+    }
+    
+    // Set state once
+    setLeadsByStage(newLeadsByStage);
+    
+    // Force re-render to ensure visual update
+    setRenderKey(prev => prev + 1);
+    
+    // Also update leads state for consistency
+    setLeads(prevLeads => 
+      prevLeads.map(lead => 
+        lead.id === draggableId 
+          ? { ...lead, stage_id: destination.droppableId }
+          : lead
+      )
+    );
+    
+    // Database update in background (fire and forget)
+    updateLeadStageInDB(draggableId, destination.droppableId);
+  };
 
   const getSourceIcon = (type: string) => {
     switch (type) {
@@ -428,10 +517,24 @@ export default function DashboardPage() {
           <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1E293B' }}>Pipeline</h2>
         </div>
 
-        {/* Pipeline Grid - 5 columns */}
-        <div className="pipeline-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
+        {/* Pipeline Grid - 5 columns with Drag and Drop */}
+        <DragDropContext onDragEnd={handleDragEnd} key={renderKey}>
+          <div className="pipeline-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
           {leadsByStage.filter(s => !s.is_lost).map((stage) => (
-            <div key={stage.id} style={{ backgroundColor: '#FAFAFA', borderRadius: '14px', padding: '16px', minHeight: '400px' }}>
+            <Droppable droppableId={stage.id} key={stage.id}>
+              {(provided, snapshot) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className={snapshot.isDraggingOver ? 'column-dragging-over' : ''}
+                  style={{
+                    backgroundColor: '#FAFAFA',
+                    borderRadius: '14px',
+                    padding: '16px',
+                    minHeight: '400px',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -452,52 +555,71 @@ export default function DashboardPage() {
                 {stage.leads.length === 0 ? (
                   <p style={{ fontSize: '14px', color: '#94A3B8', textAlign: 'center', padding: '32px 0' }}>Nema upita</p>
                 ) : (
-                  stage.leads.slice(0, 4).map((lead: any) => {
+                  stage.leads.slice(0, 4).map((lead: any, index: number) => {
                     const timeAgo = getTimeAgo(lead.created_at);
                     const daysOld = Math.floor((new Date().getTime() - new Date(lead.created_at).getTime()) / (1000 * 60 * 60 * 24));
                     const isOld = daysOld >= 3;
 
                     return (
-                      <Link
-                        key={lead.id}
-                        href={`/dashboard/leads/${lead.id}`}
-                        style={{
-                          display: 'block',
-                          backgroundColor: 'white',
-                          borderRadius: '10px',
-                          padding: '14px',
-                          border: '1px solid #E2E8F0',
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                          textDecoration: 'none',
-                          cursor: 'pointer',
-                          transition: 'box-shadow 0.2s'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.07)'}
-                        onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)'}
-                      >
-                        <p style={{ fontWeight: '600', color: '#1E293B', fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '4px' }}>{lead.name || 'Nepoznato'}</p>
-                        <p style={{ fontSize: '13px', color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '12px' }}>{lead.destination || '-'}</p>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#10B981' }}>
-                            €{(lead.value || 0).toLocaleString()}
-                          </span>
-                          <span style={{ fontSize: '12px', color: isOld ? '#EF4444' : '#94A3B8', fontWeight: isOld ? '500' : '400' }}>
-                            {timeAgo}
-                          </span>
-                        </div>
-                      </Link>
+                      <Draggable key={lead.id} draggableId={lead.id} index={index}>
+                        {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              onClick={() => router.push(`/dashboard/leads/${lead.id}`)}
+                              style={{
+                                ...provided.draggableProps.style,
+                                display: 'block',
+                                backgroundColor: 'white',
+                                borderRadius: '10px',
+                                padding: '14px',
+                                border: '1px solid #E2E8F0',
+                                boxShadow: snapshot.isDragging ? '0 4px 12px rgba(0,0,0,0.15)' : '0 1px 2px rgba(0,0,0,0.05)',
+                                cursor: 'pointer',
+                                transition: snapshot.isDragging ? 'none' : 'box-shadow 0.2s',
+                                opacity: snapshot.isDragging ? 0.8 : 1,
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!snapshot.isDragging) {
+                                  e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.07)';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!snapshot.isDragging) {
+                                  e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+                                }
+                              }}
+                            >
+                            <p style={{ fontWeight: '600', color: '#1E293B', fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '4px' }}>{lead.name || 'Nepoznato'}</p>
+                            <p style={{ fontSize: '13px', color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '12px' }}>{lead.destination || '-'}</p>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '14px', fontWeight: '600', color: '#10B981' }}>
+                                €{(lead.value || 0).toLocaleString()}
+                              </span>
+                              <span style={{ fontSize: '12px', color: isOld ? '#EF4444' : '#94A3B8', fontWeight: isOld ? '500' : '400' }}>
+                                {timeAgo}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
                     );
                   })
                 )}
+                {provided.placeholder}
                 {stage.leads.length > 4 && (
                   <p style={{ fontSize: '12px', color: '#64748B', textAlign: 'center', paddingTop: '8px' }}>
                     +{stage.leads.length - 4} više
                   </p>
                 )}
               </div>
-            </div>
+              </div>
+            )}
+            </Droppable>
           ))}
-        </div>
+          </div>
+        </DragDropContext>
       </div>
       </div>
     </div>

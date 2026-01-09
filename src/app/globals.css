@@ -115,6 +115,12 @@ body {
   }
 }
 
+/* Drop zone highlighting for drag and drop */
+.column-dragging-over {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+  border: 2px dashed #3B82F6 !important;
+}
+
 @media (max-width: 480px) {
   .stat-cards-grid {
     grid-template-columns: 1fr !important;

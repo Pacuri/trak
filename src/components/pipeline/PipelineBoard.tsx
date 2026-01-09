@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { DragDropContext, DropResult } from '@hello-pangea/dnd'
 import type { PipelineStage, Lead } from '@/types'
 import PipelineColumn from './PipelineColumn'
@@ -17,17 +18,23 @@ export default function PipelineBoard({
   onMoveLead,
   onLeadClick,
 }: PipelineBoardProps) {
-  const handleDragEnd = async (result: DropResult) => {
+  const [renderKey, setRenderKey] = useState(0)
+
+  const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return
 
     const { draggableId, destination } = result
     const newStageId = destination.droppableId === 'null' ? null : destination.droppableId
 
-    await onMoveLead(draggableId, newStageId)
+    // Fire and forget - don't await
+    onMoveLead(draggableId, newStageId)
+    
+    // Force re-render to ensure visual update
+    setRenderKey(prev => prev + 1)
   }
 
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
+    <DragDropContext onDragEnd={handleDragEnd} key={renderKey}>
       <div className="flex gap-4 overflow-x-auto pb-4">
         {stages.map((stage) => (
           <PipelineColumn

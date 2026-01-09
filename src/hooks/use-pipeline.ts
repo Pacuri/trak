@@ -86,6 +86,50 @@ export function usePipeline(): UsePipelineReturn {
         return false
       }
 
+      // Store original state for rollback
+      const originalLeadsByStage = { ...leadsByStage }
+
+      // Find the lead in current state
+      let leadToMove: Lead | null = null
+      let oldStageId: string | null = null
+      for (const stageId in leadsByStage) {
+        const lead = leadsByStage[stageId].find(l => l.id === leadId)
+        if (lead) {
+          leadToMove = lead
+          oldStageId = stageId === 'null' ? null : stageId
+          break
+        }
+      }
+
+      if (!leadToMove) {
+        setError('Lead not found')
+        return false
+      }
+
+      const newStageIdKey = newStageId || 'null'
+      const oldStageIdKey = oldStageId || 'null'
+
+      // 1. UPDATE LOCAL STATE SYNCHRONOUSLY (compute new state, then set it once)
+      const newLeadsByStage = { ...leadsByStage }
+
+      // Remove from old stage
+      if (newLeadsByStage[oldStageIdKey]) {
+        newLeadsByStage[oldStageIdKey] = newLeadsByStage[oldStageIdKey].filter(l => l.id !== leadId)
+      }
+
+      // Ensure new stage array exists
+      if (!newLeadsByStage[newStageIdKey]) {
+        newLeadsByStage[newStageIdKey] = []
+      }
+
+      // Update lead's stage_id and add to new stage
+      const updatedLead = { ...leadToMove!, stage_id: newStageId }
+      newLeadsByStage[newStageIdKey] = [...newLeadsByStage[newStageIdKey], updatedLead]
+
+      // Set state once
+      setLeadsByStage(newLeadsByStage)
+
+      // 2. UPDATE DATABASE IN BACKGROUND (don't await before state update)
       try {
         // Get current user for activity logging
         const {
@@ -94,21 +138,7 @@ export function usePipeline(): UsePipelineReturn {
         } = await supabase.auth.getUser()
 
         if (authError || !authUser) {
-          setError('User not authenticated')
-          return false
-        }
-
-        // Get current lead to check stage
-        const { data: currentLead } = await supabase
-          .from('leads')
-          .select('stage_id')
-          .eq('id', leadId)
-          .eq('organization_id', organizationId)
-          .single()
-
-        if (!currentLead) {
-          setError('Lead not found')
-          return false
+          throw new Error('User not authenticated')
         }
 
         // Update lead stage
@@ -119,29 +149,36 @@ export function usePipeline(): UsePipelineReturn {
           .eq('organization_id', organizationId)
 
         if (updateError) {
-          setError(updateError.message)
-          return false
+          throw updateError
         }
 
-        // Log activity
-        await supabase.from('lead_activities').insert({
+        // Log activity (don't block on this - fire and forget)
+        const { error: activityError } = await supabase.from('lead_activities').insert({
           lead_id: leadId,
           user_id: authUser.id,
           type: 'stage_changed',
           description: 'Stage changed',
-          metadata: { old_stage_id: currentLead.stage_id, new_stage_id: newStageId },
-        })
+          metadata: {
+            old_stage_id: oldStageId,
+            new_stage_id: newStageId
+          }
+        });
 
-        // Refresh leads
-        await fetchLeads()
+        if (activityError) {
+          console.error('Failed to log activity:', activityError);
+        }
 
         return true
-      } catch (err) {
-        setError('Failed to move lead')
+      } catch (err: any) {
+        // 3. REVERT ON ERROR - refetch data
+        console.error('Failed to update lead:', err)
+        setError(err.message || 'Failed to move lead')
+        setLeadsByStage(originalLeadsByStage)
+        await fetchLeads()
         return false
       }
     },
-    [supabase, organizationId, fetchLeads]
+    [supabase, organizationId, fetchLeads, leadsByStage]
   )
 
   return {
