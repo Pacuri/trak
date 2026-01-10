@@ -16,6 +16,8 @@ export interface CreateLeadData {
   phone?: string
   email?: string
   source_id?: string
+  stage_id?: string | null
+  assigned_to?: string | null
   destination?: string
   travel_date?: string
   guests?: number

@@ -213,7 +213,7 @@ export default function DashboardPage() {
 
   // Handle assign change
   const handleAssign = async (leadId: string, userId: string | null) => {
-    await updateLead(leadId, { assigned_to: userId || null } as any);
+    await updateLead(leadId, { assigned_to: userId || null });
     
     // Refresh leads data
     const { data: leadsData } = await supabase
