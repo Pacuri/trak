@@ -1,8 +1,7 @@
 'use client'
 
-import { useState } from 'react'
 import { DragDropContext, DropResult } from '@hello-pangea/dnd'
-import type { PipelineStage, Lead } from '@/types'
+import type { PipelineStage, Lead, User } from '@/types'
 import PipelineColumn from './PipelineColumn'
 
 interface PipelineBoardProps {
@@ -10,6 +9,9 @@ interface PipelineBoardProps {
   leadsByStage: Record<string, Lead[]>
   onMoveLead: (leadId: string, newStageId: string | null) => Promise<void>
   onLeadClick: (leadId: string) => void
+  teamMembers?: User[]
+  onAssign?: (leadId: string, userId: string | null) => void
+  allUserIds?: string[]
 }
 
 export default function PipelineBoard({
@@ -17,9 +19,10 @@ export default function PipelineBoard({
   leadsByStage,
   onMoveLead,
   onLeadClick,
+  teamMembers = [],
+  onAssign,
+  allUserIds = [],
 }: PipelineBoardProps) {
-  const [renderKey, setRenderKey] = useState(0)
-
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return
 
@@ -28,13 +31,10 @@ export default function PipelineBoard({
 
     // Fire and forget - don't await
     onMoveLead(draggableId, newStageId)
-    
-    // Force re-render to ensure visual update
-    setRenderKey(prev => prev + 1)
   }
 
   return (
-    <DragDropContext onDragEnd={handleDragEnd} key={renderKey}>
+    <DragDropContext onDragEnd={handleDragEnd}>
       <div className="flex gap-4 overflow-x-auto pb-4">
         {stages.map((stage) => (
           <PipelineColumn
@@ -42,6 +42,9 @@ export default function PipelineBoard({
             stage={stage}
             leads={leadsByStage[stage.id] || []}
             onLeadClick={onLeadClick}
+            teamMembers={teamMembers}
+            onAssign={onAssign}
+            allUserIds={allUserIds}
           />
         ))}
       </div>

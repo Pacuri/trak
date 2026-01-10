@@ -4,11 +4,15 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, GitBranch } from 'lucide-react'
 import { usePipeline } from '@/hooks/use-pipeline'
+import { useOrganization } from '@/hooks/use-organization'
+import { useLeads } from '@/hooks/use-leads'
 import PipelineBoard from '@/components/pipeline/PipelineBoard'
 
 export default function PipelinePage() {
   const router = useRouter()
-  const { stages, leadsByStage, moveLeadToStage, loading, error } = usePipeline()
+  const { stages, leadsByStage, moveLeadToStage, loading, error, refresh } = usePipeline()
+  const { teamMembers } = useOrganization()
+  const { updateLead } = useLeads()
 
   const handleLeadClick = (leadId: string) => {
     router.push(`/dashboard/leads/${leadId}`)
@@ -17,6 +21,13 @@ export default function PipelinePage() {
   const handleMoveLead = async (leadId: string, newStageId: string | null) => {
     await moveLeadToStage(leadId, newStageId)
   }
+
+  const handleAssign = async (leadId: string, userId: string | null) => {
+    await updateLead(leadId, { assigned_to: userId || null })
+    await refresh() // Refresh pipeline data to show updated assignee
+  }
+
+  const allUserIds = teamMembers.map(m => m.id)
 
   // Calculate totals
   const totalLeads = Object.values(leadsByStage).flat().length
@@ -90,6 +101,9 @@ export default function PipelinePage() {
             leadsByStage={leadsByStage}
             onMoveLead={handleMoveLead}
             onLeadClick={handleLeadClick}
+            teamMembers={teamMembers}
+            onAssign={handleAssign}
+            allUserIds={allUserIds}
           />
         </div>
       )}

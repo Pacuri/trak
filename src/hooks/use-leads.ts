@@ -49,7 +49,7 @@ export function useLeads() {
             *,
             source:lead_sources(id, name),
             stage:pipeline_stages(id, name),
-            assigned_user:users(id, email)
+            assignee:users!assigned_to(id, email, full_name)
           `)
           .eq('organization_id', organizationId)
           .order('created_at', { ascending: false })
@@ -99,7 +99,7 @@ export function useLeads() {
             *,
             source:lead_sources(id, name),
             stage:pipeline_stages(id, name),
-            assigned_user:users(id, email)
+            assignee:users!assigned_to(id, email, full_name)
           `)
           .eq('id', id)
           .eq('organization_id', organizationId)
@@ -143,10 +143,11 @@ export function useLeads() {
           return null
         }
 
-        // Include organization_id in the insert data
+        // Include organization_id and auto-assign to current user
         const insertData = {
           ...data,
           organization_id: organizationId,
+          assigned_to: authUser.id, // Auto-assign to creator
         }
 
         const { data: newLead, error: createError } = await supabase
@@ -225,7 +226,7 @@ export function useLeads() {
             *,
             source:lead_sources(id, name),
             stage:pipeline_stages(id, name),
-            assigned_user:users(id, email)
+            assignee:users!assigned_to(id, email, full_name)
           `)
           .single()
 

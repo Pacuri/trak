@@ -307,7 +307,7 @@ export default function LeadDetailPage() {
 
               <div>
                 <label className="block text-sm font-medium text-[#1E293B] mb-1.5">
-                  Dodeljeno
+                  Zadužen
                 </label>
                 <select
                   value={lead.assigned_to || ''}

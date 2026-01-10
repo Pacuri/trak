@@ -66,7 +66,8 @@ export interface Lead {
   // Joined relations
   stage?: PipelineStage
   source?: LeadSource
-  assigned_user?: User
+  assignee?: User
+  assigned_user?: User // Alias for backward compatibility
 }
 
 export interface LeadActivity {

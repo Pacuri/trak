@@ -1,13 +1,16 @@
 'use client'
 
 import { Droppable, Draggable } from '@hello-pangea/dnd'
-import type { Lead, PipelineStage } from '@/types'
+import type { Lead, PipelineStage, User } from '@/types'
 import PipelineCard from './PipelineCard'
 
 interface PipelineColumnProps {
   stage: PipelineStage
   leads: Lead[]
   onLeadClick: (leadId: string) => void
+  teamMembers?: User[]
+  onAssign?: (leadId: string, userId: string | null) => void
+  allUserIds?: string[]
 }
 
 // Get stage color for top border
@@ -37,7 +40,7 @@ function getStageColor(stageName: string): string {
   }
 }
 
-export default function PipelineColumn({ stage, leads, onLeadClick }: PipelineColumnProps) {
+export default function PipelineColumn({ stage, leads, onLeadClick, teamMembers = [], onAssign, allUserIds = [] }: PipelineColumnProps) {
   const totalValue = leads.reduce((sum, lead) => sum + (lead.value || 0), 0)
   const stageColor = getStageColor(stage.name)
 
@@ -77,7 +80,7 @@ export default function PipelineColumn({ stage, leads, onLeadClick }: PipelineCo
               }`}
             >
               {leads.map((lead, index) => (
-                <Draggable key={lead.id} draggableId={lead.id} index={index}>
+                <Draggable key={String(lead.id)} draggableId={String(lead.id)} index={index}>
                   {(provided, snapshot) => (
                     <div
                       ref={provided.innerRef}
@@ -86,12 +89,21 @@ export default function PipelineColumn({ stage, leads, onLeadClick }: PipelineCo
                       className={snapshot.isDragging ? 'rotate-2 scale-105' : ''}
                       style={{
                         ...provided.draggableProps.style,
-                        transition: snapshot.isDragging ? 'none' : 'all 0.2s ease',
+                        // Reset transform when not dragging
+                        transform: snapshot.isDragging 
+                          ? provided.draggableProps.style?.transform 
+                          : 'none',
+                        transition: snapshot.isDragging 
+                          ? provided.draggableProps.style?.transition 
+                          : 'none',
                       }}
                     >
                         <PipelineCard
                           lead={lead}
                           onClick={() => onLeadClick(lead.id)}
+                          teamMembers={teamMembers}
+                          onAssign={onAssign}
+                          allUserIds={allUserIds}
                         />
                       </div>
                     )}

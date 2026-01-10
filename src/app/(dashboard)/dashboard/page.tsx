@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
   Users,
@@ -15,6 +15,8 @@ import {
 import Link from 'next/link';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useRouter } from 'next/navigation';
+import { getInitials, getAvatarGradient } from '@/lib/avatar-utils';
+import { useLeads } from '@/hooks/use-leads';
 
 
 export default function DashboardPage() {
@@ -22,11 +24,16 @@ export default function DashboardPage() {
   const [leads, setLeads] = useState<any[]>([]);
   const [stages, setStages] = useState<any[]>([]);
   const [leadsByStage, setLeadsByStage] = useState<Array<any>>([]);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [renderKey, setRenderKey] = useState(0);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [dropdownAlignRight, setDropdownAlignRight] = useState(true);
+  const [dropdownPosition, setDropdownPosition] = useState<Record<string, { top: number; left: number; right: number }>>({});
+  const avatarButtonRefs = useRef<Record<string, HTMLButtonElement>>({});
 
   const supabase = createClient();
   const router = useRouter();
+  const { updateLead } = useLeads();
 
   useEffect(() => {
     async function loadData() {
@@ -57,7 +64,7 @@ export default function DashboardPage() {
       // Get leads - table is 'leads' not 'crm_leads'
       const { data: leadsData, error: leadsError } = await supabase
         .from('leads')
-        .select('*, stage:pipeline_stages(*), source:lead_sources(*)')
+        .select('*, stage:pipeline_stages(*), source:lead_sources(*), assignee:users!assigned_to(id, email, full_name)')
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false });
 
@@ -73,6 +80,14 @@ export default function DashboardPage() {
 
       console.log('Stages data:', stagesData, 'Error:', stagesError);
       setStages(stagesData || []);
+
+      // Get team members for avatar colors and assignment
+      const { data: teamData } = await supabase
+        .from('users')
+        .select('id, email, full_name')
+        .eq('organization_id', orgId)
+        .eq('is_active', true);
+      setTeamMembers(teamData || []);
 
       // Initialize leadsByStage state
       if (stagesData && leadsData) {
@@ -127,7 +142,7 @@ export default function DashboardPage() {
       // Optionally refetch data to resync
       const { data: leadsData } = await supabase
         .from('leads')
-        .select('*, stage:pipeline_stages(*), source:lead_sources(*)')
+        .select('*, stage:pipeline_stages(*), source:lead_sources(*), assignee:users!assigned_to(id, email, full_name)')
         .eq('organization_id', user?.organization_id)
         .order('created_at', { ascending: false });
       if (leadsData) {
@@ -177,23 +192,44 @@ export default function DashboardPage() {
       newLeadsByStage[destColIndex] = { ...newLeadsByStage[destColIndex], leads: destLeads };
     }
     
-    // Set state once
-    setLeadsByStage(newLeadsByStage);
-    
-    // Force re-render to ensure visual update
-    setRenderKey(prev => prev + 1);
-    
-    // Also update leads state for consistency
-    setLeads(prevLeads => 
-      prevLeads.map(lead => 
-        lead.id === draggableId 
-          ? { ...lead, stage_id: destination.droppableId }
-          : lead
-      )
-    );
+    // Defer state update to allow drag library to finish cleanup
+    requestAnimationFrame(() => {
+      // Set state once
+      setLeadsByStage(newLeadsByStage);
+      
+      // Also update leads state for consistency
+      setLeads(prevLeads => 
+        prevLeads.map(lead => 
+          lead.id === draggableId 
+            ? { ...lead, stage_id: destination.droppableId }
+            : lead
+        )
+      );
+    });
     
     // Database update in background (fire and forget)
     updateLeadStageInDB(draggableId, destination.droppableId);
+  };
+
+  // Handle assign change
+  const handleAssign = async (leadId: string, userId: string | null) => {
+    await updateLead(leadId, { assigned_to: userId || null } as any);
+    
+    // Refresh leads data
+    const { data: leadsData } = await supabase
+      .from('leads')
+      .select('*, stage:pipeline_stages(*), source:lead_sources(*), assignee:users!assigned_to(id, email, full_name)')
+      .eq('organization_id', user?.organization_id)
+      .order('created_at', { ascending: false });
+    if (leadsData) {
+      setLeads(leadsData);
+      const grouped = stages.map(stage => ({
+        ...stage,
+        leads: leadsData.filter((l: any) => l.stage_id === stage.id)
+      }));
+      setLeadsByStage(grouped);
+    }
+    setOpenDropdownId(null);
   };
 
   const getSourceIcon = (type: string) => {
@@ -389,6 +425,7 @@ export default function DashboardPage() {
                   <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Kontakt</th>
                   <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Izvor</th>
                   <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</th>
+                  <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Zadužen</th>
                   <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Vrednost</th>
                   <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Datum</th>
                 </tr>
@@ -396,12 +433,18 @@ export default function DashboardPage() {
               <tbody>
                 {recentLeads.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ padding: '32px 16px', textAlign: 'center', color: '#64748B' }}>
+                    <td colSpan={6} style={{ padding: '32px 16px', textAlign: 'center', color: '#64748B' }}>
                       Nema upita
                     </td>
                   </tr>
                 ) : (
-                  recentLeads.map((lead) => (
+                  recentLeads.map((lead) => {
+                    const assignee = lead.assignee || lead.assigned_user;
+                    const assigneeIndex = assignee?.id && teamMembers.length > 0 
+                      ? teamMembers.findIndex((m: any) => m.id === assignee.id)
+                      : 0;
+                    
+                    return (
                     <tr 
                       key={lead.id} 
                       style={{ borderBottom: '1px solid #F1F5F9', cursor: 'pointer' }}
@@ -418,6 +461,26 @@ export default function DashboardPage() {
                       <td style={{ padding: '16px 20px' }}>
                         {getStatusBadge(lead.stage)}
                       </td>
+                        <td style={{ padding: '16px 20px' }}>
+                          <div
+                            style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '50%',
+                              background: assignee ? getAvatarGradient(assigneeIndex) : '#E2E8F0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              color: 'white',
+                              cursor: 'default',
+                            }}
+                            title={assignee?.full_name || assignee?.email || 'Nije dodeljeno'}
+                          >
+                            {assignee ? getInitials(assignee.full_name || assignee.email) : '?'}
+                          </div>
+                        </td>
                       <td style={{ padding: '16px 20px', fontWeight: '600', color: '#1E293B' }}>
                         €{(lead.value || 0).toLocaleString()}
                       </td>
@@ -425,7 +488,8 @@ export default function DashboardPage() {
                         {formatDate(lead.created_at)}
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -518,8 +582,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Pipeline Grid - 5 columns with Drag and Drop */}
-        <DragDropContext onDragEnd={handleDragEnd} key={renderKey}>
-          <div className="pipeline-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
+        <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="pipeline-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
           {leadsByStage.filter(s => !s.is_lost).map((stage) => (
             <Droppable droppableId={stage.id} key={stage.id}>
               {(provided, snapshot) => (
@@ -561,23 +625,29 @@ export default function DashboardPage() {
                     const isOld = daysOld >= 3;
 
                     return (
-                      <Draggable key={lead.id} draggableId={lead.id} index={index}>
+                      <Draggable key={String(lead.id)} draggableId={String(lead.id)} index={index}>
                         {(provided, snapshot) => (
                             <div
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
                               onClick={() => router.push(`/dashboard/leads/${lead.id}`)}
-                              style={{
+                        style={{
                                 ...provided.draggableProps.style,
-                                display: 'block',
-                                backgroundColor: 'white',
-                                borderRadius: '10px',
-                                padding: '14px',
-                                border: '1px solid #E2E8F0',
+                          display: 'block',
+                          backgroundColor: 'white',
+                          borderRadius: '10px',
+                          padding: '14px',
+                          border: '1px solid #E2E8F0',
                                 boxShadow: snapshot.isDragging ? '0 4px 12px rgba(0,0,0,0.15)' : '0 1px 2px rgba(0,0,0,0.05)',
                                 cursor: 'pointer',
-                                transition: snapshot.isDragging ? 'none' : 'box-shadow 0.2s',
+                                // Reset transform when not dragging
+                                transform: snapshot.isDragging 
+                                  ? provided.draggableProps.style?.transform 
+                                  : 'none',
+                                transition: snapshot.isDragging 
+                                  ? provided.draggableProps.style?.transition 
+                                  : 'box-shadow 0.2s',
                                 opacity: snapshot.isDragging ? 0.8 : 1,
                               }}
                               onMouseEnter={(e) => {
@@ -591,16 +661,231 @@ export default function DashboardPage() {
                                 }
                               }}
                             >
-                            <p style={{ fontWeight: '600', color: '#1E293B', fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '4px' }}>{lead.name || 'Nepoznato'}</p>
-                            <p style={{ fontSize: '13px', color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '12px' }}>{lead.destination || '-'}</p>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <span style={{ fontSize: '14px', fontWeight: '600', color: '#10B981' }}>
-                                €{(lead.value || 0).toLocaleString()}
-                              </span>
-                              <span style={{ fontSize: '12px', color: isOld ? '#EF4444' : '#94A3B8', fontWeight: isOld ? '500' : '400' }}>
-                                {timeAgo}
-                              </span>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '4px', position: 'relative' }}>
+                              <p style={{ fontWeight: '600', color: '#1E293B', fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '8px' }}>{lead.name || 'Nepoznato'}</p>
+                              {(() => {
+                                const assignee = lead.assignee || lead.assigned_user;
+                                const assigneeIndex = assignee?.id && teamMembers.length > 0 
+                                  ? teamMembers.findIndex((m: any) => m.id === assignee.id)
+                                  : 0;
+                                const allUserIds = teamMembers.map((m: any) => m.id);
+                                const isDropdownOpen = openDropdownId === lead.id;
+                                
+                                return (
+                                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                                    <button
+                                      ref={(el) => {
+                                        if (el) avatarButtonRefs.current[lead.id] = el;
+                                      }}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!isDropdownOpen) {
+                                          // Check position when opening
+                                          const buttonEl = avatarButtonRefs.current[lead.id];
+                                          if (buttonEl) {
+                                            const rect = buttonEl.getBoundingClientRect();
+                                            const dropdownWidth = 200;
+                                            const spaceOnRight = window.innerWidth - rect.right;
+                                            const spaceOnLeft = rect.left;
+                                            const alignRight = spaceOnRight >= dropdownWidth || spaceOnRight > spaceOnLeft;
+                                            setDropdownAlignRight(alignRight);
+                                            setDropdownPosition({
+                                              ...dropdownPosition,
+                                              [lead.id]: {
+                                                top: rect.bottom + 8,
+                                                left: rect.left,
+                                                right: window.innerWidth - rect.right
+                                              }
+                                            });
+                                          }
+                                        }
+                                        setOpenDropdownId(isDropdownOpen ? null : lead.id);
+                                      }}
+                                      style={{
+                                        position: 'relative',
+                                        width: '36px',
+                                        height: '36px',
+                                        borderRadius: '50%',
+                                        background: assignee ? getAvatarGradient(assigneeIndex) : '#E2E8F0',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '12px',
+                                        fontWeight: '600',
+                                        color: 'white',
+                                        border: 'none',
+                                        cursor: teamMembers.length > 0 ? 'pointer' : 'default',
+                                        padding: 0,
+                                        outline: 'none',
+                                      }}
+                                      title={assignee?.full_name || assignee?.email || 'Nije dodeljeno'}
+                                    >
+                                      {assignee ? getInitials(assignee.full_name || assignee.email) : '?'}
+                                      {/* Dropdown indicator */}
+                                      {teamMembers.length > 0 && (
+                                        <div style={{
+                                          position: 'absolute',
+                                          bottom: '-2px',
+                                          right: '-2px',
+                                          width: '15px',
+                                          height: '15px',
+                                          borderRadius: '50%',
+                                          backgroundColor: 'white',
+                                          border: '1.5px solid #E2E8F0',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                        }}>
+                                          <svg 
+                                            width="6" 
+                                            height="6" 
+                                            viewBox="0 0 12 12" 
+                                            fill="none"
+                                          >
+                                            <path 
+                                              d="M3 4.5L6 7.5L9 4.5" 
+                                              stroke="#64748B" 
+                                              strokeWidth="1.5" 
+                                              strokeLinecap="round" 
+                                              strokeLinejoin="round"
+                                            />
+                                          </svg>
+                                        </div>
+                                      )}
+                                    </button>
+
+                                    {/* Dropdown Menu */}
+                                    {isDropdownOpen && teamMembers.length > 0 && dropdownPosition[lead.id] && (
+                                      <div style={{
+                                        position: 'fixed',
+                                        ...(dropdownAlignRight ? { right: `${dropdownPosition[lead.id].right}px` } : { left: `${dropdownPosition[lead.id].left}px` }),
+                                        top: `${dropdownPosition[lead.id].top}px`,
+                                        width: '200px',
+                                        borderRadius: '10px',
+                                        backgroundColor: 'white',
+                                        padding: '4px 0',
+                                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                                        border: '1px solid #E2E8F0',
+                                        zIndex: 9999,
+                                      }}>
+                                        <div style={{ padding: '8px 12px', borderBottom: '1px solid #E2E8F0' }}>
+                                          <p style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', margin: 0 }}>ZADUŽI UPIT</p>
+                                        </div>
+                                        <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleAssign(lead.id, null);
+                                            }}
+                                            style={{
+                                              width: '100%',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '8px',
+                                              padding: '8px 12px',
+                                              fontSize: '13px',
+                                              color: '#1E293B',
+                                              backgroundColor: 'transparent',
+                                              border: 'none',
+                                              cursor: 'pointer',
+                                              textAlign: 'left',
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F1F5F9'}
+                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                          >
+                                            <div style={{
+                                              width: '24px',
+                                              height: '24px',
+                                              borderRadius: '50%',
+                                              background: '#E2E8F0',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              fontSize: '10px',
+                                              fontWeight: '600',
+                                              color: '#64748B',
+                                              flexShrink: 0,
+                                            }}>
+                                              ?
+                                            </div>
+                                            <span>Nije dodeljeno</span>
+                                          </button>
+                                          {teamMembers.map((member: any, index: number) => {
+                                            const memberIndex = allUserIds.indexOf(member.id);
+                                            const isAssigned = assignee?.id === member.id;
+                                            return (
+                                              <button
+                                                key={member.id}
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleAssign(lead.id, member.id);
+                                                }}
+                                                style={{
+                                                  width: '100%',
+                                                  display: 'flex',
+                                                  alignItems: 'center',
+                                                  gap: '8px',
+                                                  padding: '8px 12px',
+                                                  fontSize: '13px',
+                                                  color: '#1E293B',
+                                                  backgroundColor: isAssigned ? '#EFF6FF' : 'transparent',
+                                                  border: 'none',
+                          cursor: 'pointer',
+                                                  textAlign: 'left',
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = isAssigned ? '#EFF6FF' : '#F1F5F9'}
+                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isAssigned ? '#EFF6FF' : 'transparent'}
+                                              >
+                                                <div style={{
+                                                  width: '24px',
+                                                  height: '24px',
+                                                  borderRadius: '50%',
+                                                  background: getAvatarGradient(memberIndex),
+                                                  display: 'flex',
+                                                  alignItems: 'center',
+                                                  justifyContent: 'center',
+                                                  fontSize: '10px',
+                                                  fontWeight: '600',
+                                                  color: 'white',
+                                                  flexShrink: 0,
+                                                }}>
+                                                  {getInitials(member.full_name || member.email)}
+                                                </div>
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                  <p style={{ fontSize: '13px', fontWeight: '500', color: '#1E293B', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {member.full_name || member.email.split('@')[0]}
+                                                  </p>
+                                                  {member.email && member.full_name && (
+                                                    <p style={{ fontSize: '11px', color: '#94A3B8', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                      {member.email}
+                                                    </p>
+                                                  )}
+                                                </div>
+                                                {isAssigned && (
+                                                  <span style={{ fontSize: '12px', color: '#3B82F6', fontWeight: '600' }}>✓</span>
+                                                )}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
+                        <p style={{ fontSize: '13px', color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '12px' }}>{lead.destination || '-'}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#10B981' }}>
+                            €{(lead.value || 0).toLocaleString()}
+                          </span>
+                          <span style={{ fontSize: '12px', color: isOld ? '#EF4444' : '#94A3B8', fontWeight: isOld ? '500' : '400' }}>
+                            {timeAgo}
+                          </span>
+                        </div>
                           </div>
                         )}
                       </Draggable>
@@ -614,11 +899,11 @@ export default function DashboardPage() {
                   </p>
                 )}
               </div>
-              </div>
+            </div>
             )}
             </Droppable>
           ))}
-          </div>
+        </div>
         </DragDropContext>
       </div>
       </div>

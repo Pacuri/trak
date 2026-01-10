@@ -40,7 +40,7 @@ export function usePipeline(): UsePipelineReturn {
           *,
           source:lead_sources(id, name),
           stage:pipeline_stages(id, name),
-          assigned_user:users(id, email)
+          assignee:users!assigned_to(id, email, full_name)
         `)
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
@@ -126,8 +126,11 @@ export function usePipeline(): UsePipelineReturn {
       const updatedLead = { ...leadToMove!, stage_id: newStageId }
       newLeadsByStage[newStageIdKey] = [...newLeadsByStage[newStageIdKey], updatedLead]
 
-      // Set state once
-      setLeadsByStage(newLeadsByStage)
+      // Defer state update to allow drag library to finish cleanup
+      requestAnimationFrame(() => {
+        // Set state once
+        setLeadsByStage(newLeadsByStage)
+      })
 
       // 2. UPDATE DATABASE IN BACKGROUND (don't await before state update)
       try {
