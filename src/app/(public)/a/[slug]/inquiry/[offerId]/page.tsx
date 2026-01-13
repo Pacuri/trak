@@ -1,0 +1,357 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
+import Image from 'next/image'
+import { ArrowLeft, Loader2, Clock, MessageSquare } from 'lucide-react'
+import type { Offer, QualificationData } from '@/types'
+import { useAgencySettings } from '@/hooks/use-agency-settings'
+import { formatDateRange, getBoardLabel, getTransportLabel, formatStarRating, formatResponseTime } from '@/lib/formatting'
+
+export default function InquiryPage() {
+  const params = useParams()
+  const router = useRouter()
+  const slug = params.slug as string
+  const offerId = params.offerId as string
+
+  const [offer, setOffer] = useState<Offer | null>(null)
+  const [qualification, setQualification] = useState<QualificationData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  const { currentResponseTime, isWithinWorkingHours } = useAgencySettings(slug)
+
+  // Form state
+  const [formData, setFormData] = useState({
+    customerName: '',
+    customerEmail: '',
+    customerPhone: '',
+    adults: 2,
+    children: 0,
+    message: '',
+  })
+
+  useEffect(() => {
+    // Get qualification from session storage
+    const storedQualification = sessionStorage.getItem('qualification')
+    if (storedQualification) {
+      const qual = JSON.parse(storedQualification) as QualificationData
+      setQualification(qual)
+      setFormData(prev => ({
+        ...prev,
+        adults: qual.guests.adults,
+        children: qual.guests.children,
+      }))
+    }
+
+    // Fetch offer details
+    const fetchOffer = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(`/api/public/agencies/${slug}/offers?id=${offerId}`)
+        if (!response.ok) throw new Error('Offer not found')
+        
+        const data = await response.json()
+        if (data.offers && data.offers.length > 0) {
+          setOffer(data.offers[0])
+        } else {
+          throw new Error('Offer not found')
+        }
+      } catch (err) {
+        setError('Ponuda nije pronađena')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchOffer()
+  }, [slug, offerId])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!offer) return
+
+    // Basic validation
+    if (!formData.customerName.trim() || !formData.customerEmail.trim() || !formData.customerPhone.trim()) {
+      alert('Molimo popunite sva obavezna polja')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const response = await fetch('/api/public/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slug,
+          offer_id: offer.id,
+          customer_name: formData.customerName,
+          customer_email: formData.customerEmail,
+          customer_phone: formData.customerPhone,
+          adults: formData.adults,
+          children: formData.children,
+          message: formData.message,
+          qualification_data: qualification || undefined,
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to create inquiry')
+
+      // Navigate to confirmation
+      router.push(`/a/${slug}/inquiry/sent`)
+    } catch (err) {
+      console.error('Inquiry error:', err)
+      alert('Greška pri slanju upita. Pokušajte ponovo.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+      </div>
+    )
+  }
+
+  if (error || !offer) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">{error || 'Ponuda nije pronađena'}</p>
+          <Link href={`/a/${slug}/results`} className="text-blue-600 underline">
+            Nazad na rezultate
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  const primaryImage = offer.images?.[0]?.url
+  const totalPrice = offer.price_per_person * (formData.adults + formData.children)
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <Link
+            href={`/a/${slug}/results`}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Nazad na ponude</span>
+          </Link>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Offer summary */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden sticky top-24">
+              {/* Image */}
+              <div className="aspect-video bg-gray-200 relative">
+                {primaryImage ? (
+                  <Image
+                    src={primaryImage}
+                    alt={offer.name}
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                    <span className="text-4xl">🏨</span>
+                  </div>
+                )}
+                <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded text-xs font-medium text-gray-600">
+                  Na upit
+                </div>
+              </div>
+
+              {/* Details */}
+              <div className="p-4 space-y-3">
+                <div>
+                  <h2 className="font-bold text-lg">
+                    {offer.name} {formatStarRating(offer.star_rating)}
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    {offer.city}, {offer.country}
+                  </p>
+                </div>
+
+                <div className="text-sm text-gray-600 space-y-1">
+                  <p>📅 {formatDateRange(offer.departure_date, offer.return_date)}</p>
+                  <p>🍽️ {getBoardLabel(offer.board_type)}</p>
+                  <p>✈️ {getTransportLabel(offer.transport_type)}</p>
+                </div>
+
+                <div className="border-t pt-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Okvirna cena</span>
+                    <span className="font-bold">€{offer.price_per_person}/os</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Response time info */}
+            <div className="mt-4 bg-blue-50 rounded-xl p-4">
+              <div className="flex items-center gap-2 text-blue-800 mb-2">
+                <Clock className="w-5 h-5" />
+                <span className="font-semibold">Vreme odgovora</span>
+              </div>
+              <p className="text-sm text-blue-700">
+                Odgovaramo u roku od{' '}
+                <span className="font-bold">{formatResponseTime(currentResponseTime)}</span>
+                {!isWithinWorkingHours && ' (van radnog vremena)'}
+              </p>
+            </div>
+          </div>
+
+          {/* Form */}
+          <div className="lg:col-span-2">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              Pošaljite upit
+            </h1>
+            <p className="text-gray-600 mb-6">
+              Proverićemo dostupnost i javiti vam se u najkraćem roku.
+            </p>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Contact details */}
+              <div className="bg-white rounded-xl p-6 shadow-sm space-y-4">
+                <h3 className="font-semibold text-gray-900">Vaši podaci</h3>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ime i prezime *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.customerName}
+                    onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+                    required
+                    className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    placeholder="Marko Marković"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email *
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.customerEmail}
+                      onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
+                      required
+                      className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      placeholder="marko@email.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Telefon *
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.customerPhone}
+                      onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
+                      required
+                      className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      placeholder="+381 64 123 4567"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Guest count */}
+              <div className="bg-white rounded-xl p-6 shadow-sm">
+                <h3 className="font-semibold text-gray-900 mb-4">Broj putnika</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Odrasli
+                    </label>
+                    <select
+                      value={formData.adults}
+                      onChange={(e) => setFormData({ ...formData, adults: Number(e.target.value) })}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Deca
+                    </label>
+                    <select
+                      value={formData.children}
+                      onChange={(e) => setFormData({ ...formData, children: Number(e.target.value) })}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    >
+                      {[0, 1, 2, 3, 4].map((n) => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Message */}
+              <div className="bg-white rounded-xl p-6 shadow-sm">
+                <h3 className="font-semibold text-gray-900 mb-4">
+                  <MessageSquare className="w-4 h-4 inline mr-2" />
+                  Poruka (opciono)
+                </h3>
+                <textarea
+                  value={formData.message}
+                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                  rows={3}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  placeholder="Posebni zahtevi, pitanja o ponudi..."
+                />
+              </div>
+
+              {/* Price estimate */}
+              <div className="bg-gray-100 rounded-xl p-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm text-gray-500">Okvirna cena</p>
+                    <p className="text-xs text-gray-400">Tačna cena nakon potvrde</p>
+                  </div>
+                  <span className="text-2xl font-bold text-gray-900">
+                    ~€{totalPrice.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-gray-800 hover:bg-gray-900 disabled:bg-gray-300 text-white py-4 rounded-xl font-semibold text-lg transition-colors flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Šalje se...
+                  </>
+                ) : (
+                  'Pošalji upit'
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
