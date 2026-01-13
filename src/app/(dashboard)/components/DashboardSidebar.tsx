@@ -12,12 +12,20 @@ import {
   X,
   Menu,
   Plug,
+  Package,
+  Calendar,
+  Plane,
+  MessageSquare,
 } from 'lucide-react'
 
 const mainNavigation = [
   { name: 'Početna', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Upiti', href: '/dashboard/leads', icon: Users, badge: true },
   { name: 'Pipeline', href: '/dashboard/pipeline', icon: GitBranch },
+  { name: 'Ponude', href: '/dashboard/offers', icon: Package },
+  { name: 'Rezervacije', href: '/dashboard/reservations', icon: Calendar },
+  { name: 'Aranžmani', href: '/dashboard/trips', icon: Plane },
+  { name: 'Na upit', href: '/dashboard/inquiries', icon: MessageSquare },
   { name: 'Izveštaji', href: '/dashboard/analytics', icon: BarChart3 },
 ]
 
