@@ -1,0 +1,201 @@
+# TRAK Cursor Rules v2.0
+
+You are building TRAK, a complete CRM and booking system for Serbian travel agencies.
+
+**IMPORTANT: Read TRAK_CURSOR_BIBLE_v2.md for full implementation details.**
+
+## Tech Stack
+- Next.js 14+ (App Router)
+- TypeScript (strict)
+- Supabase (PostgreSQL + Realtime)
+- Tailwind CSS
+- shadcn/ui
+- Lucide React icons
+- React Hook Form + Zod
+- Claude API (AI features)
+
+## Language Rules
+- Code, comments, variables: English
+- UI text (buttons, labels): Serbian
+- Database columns: English snake_case
+
+## CRITICAL ANTI-PATTERNS
+
+NEVER do these in agent dashboard:
+1. NO avatars (colored circles with initials)
+2. NO emojis in data (🏖️ Hotel, 👥 10, 💰 €100)
+3. NO colorful icon soup (each icon different color)
+4. NO links for expand/collapse (use buttons)
+
+**Exception:** Emojis ARE allowed in client-facing urgency labels only.
+
+## Two Inventory Types ⭐ NEW
+
+Every offer has `inventory_type`:
+- `owned` (Sopstveni kapacitet): Instant booking, show capacity bar
+- `inquiry` (Na upit): Customer submits inquiry, agent must verify
+
+Results page shows TWO SECTIONS:
+1. "⚡ REZERVIŠITE ODMAH" - owned offers with capacity
+2. "📋 NA UPIT" - inquiry offers with response time
+
+## Color System - Color is Earned
+
+Default is neutral gray. Color only when meaningful.
+
+| Meaning | Border | Background | Text |
+|---------|--------|------------|------|
+| OK | green-500 | green-50 | green-700 |
+| Warning | amber-500 | amber-50 | amber-700 |
+| Error | red-500 | red-50 | red-700 |
+| Info | blue-500 | blue-50 | blue-700 |
+
+### Border Rules
+- Trip column top (4px): blue=default, amber=issues, green=traveling
+- Card left (3px): green=OK, amber=issue, gray=neutral
+
+### Badges
+```tsx
+<Badge className="bg-green-100 text-green-800">✓ Plaćeno</Badge>
+<Badge className="bg-amber-100 text-amber-800">Čeka uplatu</Badge>
+```
+
+## Key Component Patterns
+
+### Two Card Types (Client-Facing)
+
+**InstantOfferCard** (inventory_type='owned'):
+- Shows capacity bar
+- Button: "Rezerviši →"
+- Links to /reserve/[offerId]
+
+**InquiryOfferCard** (inventory_type='inquiry'):
+- NO capacity bar
+- Shows response time
+- Button: "Pošalji upit →"
+- Links to /inquiry/[offerId]
+
+### Inquiry Dashboard (Agent-Facing)
+```
+[🔴 Čeka odgovor (3)] [🟡 Proveravam (2)] [🟢 Odgovoreno (15)]
+
+Each card shows:
+- Customer name + phone
+- Offer name + dates
+- Time since inquiry (urgent if 10+ min)
+- Actions: [Pozovi] [WhatsApp] [✅ Dostupno] [❌ Nije dost.]
+```
+
+## AI Features ⭐ NEW
+
+1. **Message Parsing** - Viber/WhatsApp text → Lead fields
+2. **Screenshot OCR** - Image → text → Lead fields
+3. **Lead Scoring** - 0-100 score + conversion probability
+4. **Smart Matching** - Ranked offers based on qualification
+
+Use Claude Haiku for all AI calls (~€9/month per agency).
+
+## Abandoned Cart ⭐ NEW
+
+Email popup after 10 seconds on results page:
+- Captures email + gives 5% discount code
+- 3 automated follow-up emails (+2h, +24h, +72h)
+- Agency can enable/disable in settings
+
+## Urgency Labels (Client-Facing Only)
+
+Priority order - only ONE label per offer:
+1. 🔥 POSLEDNJA MESTA (≤2 spots)
+2. ⏰ ISTIČE USKORO (≤7 days)
+3. 📈 POPUNJAVA SE (≥70% booked)
+4. 💰 SNIŽENO -X% (≥10% discount)
+5. 🆕 NOVO (≤7 days old)
+6. ⭐ POPULARNO (≥10 views/24h)
+7. 👍 PREPORUČUJEMO (manual)
+
+Target: ~50% with labels, ~50% without.
+
+## Notifications
+
+Real-time via Supabase Realtime:
+```typescript
+supabase.channel('notifications')
+  .on('postgres_changes', { event: 'INSERT', table: 'notifications' }, handler)
+  .subscribe()
+```
+
+For iOS users: default to SMS escalation (Browser push doesn't work reliably).
+
+## Key Serbian Terms
+| English | Serbian |
+|---------|---------|
+| Save | Sačuvaj |
+| Cancel | Otkaži |
+| Submit inquiry | Pošalji upit |
+| Book now | Rezerviši odmah |
+| Available | Dostupno |
+| Not available | Nije dostupno |
+| Awaiting response | Čeka odgovor |
+| Response time | Vreme odgovora |
+| Per person | po osobi |
+| Discount code | Kod za popust |
+
+## File Structure (Matches Current Repo)
+```
+/src
+  /app
+    /(auth)/login, /register
+    /(onboarding)/onboarding
+    /(dashboard)/dashboard           ← Note: double "dashboard"
+      /leads, /pipeline, /settings, /integrations, /analytics  ← EXISTS
+      /offers, /reservations, /inquiries, /trips  ← NEW Phase 2+
+    /(public)                        ← NEW
+      /a/[slug]
+        /qualify, /results, /reserve/[id], /inquiry/[id]
+    /api                             ← NEW
+      /leads, /offers, /reservations, /inquiries
+      /ai (parse-message, parse-screenshot, score-lead, match-offers)
+      /public (email-capture, inquiries)
+  /components
+    /pipeline                        ← EXISTS
+    /offers, /qualification, /inquiry, /reservation, /trips  ← NEW
+    /notifications                   ← NEW
+  /hooks                             ← EXISTS
+    use-leads, use-pipeline, use-user, use-organization
+    use-offers, use-reservations, use-inquiries  ← NEW
+  /lib
+    /supabase                        ← EXISTS
+    /ai, /email, /cron               ← NEW
+  /types                             ← EXISTS (expand)
+  /ai ⭐ NEW
+  /email ⭐ NEW
+  /cron ⭐ NEW
+```
+
+## Database New Tables ⭐ NEW
+
+- `offer_inquiries` - Customer inquiries on on-request offers
+- `abandoned_carts` - Email capture for cart recovery
+- `user_notification_settings` - Per-user notification prefs
+
+Key field additions:
+- `offers.inventory_type` - 'owned' or 'inquiry'
+- `agency_booking_settings.working_hours` - JSONB for response time
+- `agency_booking_settings.abandoned_cart_*` - Cart recovery settings
+
+## Database Capacity Rules
+- Booking creates → available_spots decreases (auto trigger)
+- Booking cancels → available_spots restores (auto trigger)
+- ≤2 spots → triggers "POSLEDNJA MESTA" label
+
+## Before Submitting Checklist
+- [ ] No avatars in agent views
+- [ ] No emojis in agent data display
+- [ ] Correct inventory_type handling
+- [ ] Two sections on results page
+- [ ] Inquiry flow complete
+- [ ] Serbian UI text
+- [ ] AI features use Claude Haiku
+- [ ] Abandoned cart opt-in setting
+
+**For complete code examples, component anatomy, database schema, and API patterns, see TRAK_CURSOR_BIBLE_v2.md**
