@@ -33,12 +33,23 @@ export default function CityStep({ country, value, onChange, onNext }: CityStepP
           `/api/public/agencies/${slug}/cities?country=${encodeURIComponent(country)}`
         )
 
-        if (response.ok) {
+        // Always try to parse JSON, even on error responses
+        const contentType = response.headers.get('content-type')
+        if (contentType && contentType.includes('application/json')) {
           const data = await response.json()
           setPopularCities(data.cities || [])
+          if (data.error) {
+            console.warn('API returned error:', data.error)
+          }
+        } else {
+          // Got HTML or non-JSON response
+          console.error('API returned non-JSON response:', await response.text())
+          setPopularCities([])
         }
       } catch (error) {
         console.error('Error fetching popular cities:', error)
+        // Set empty array on error so user can still type a city
+        setPopularCities([])
       } finally {
         setLoadingCities(false)
       }

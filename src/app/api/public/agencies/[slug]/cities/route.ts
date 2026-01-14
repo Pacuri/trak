@@ -24,6 +24,15 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    // Validate environment variables first
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error('Missing Supabase environment variables')
+      return NextResponse.json(
+        { error: 'Server configuration error', cities: [] },
+        { status: 500 }
+      )
+    }
+
     const { slug } = await params
     const supabase = await createClient()
     const searchParams = request.nextUrl.searchParams
@@ -31,7 +40,7 @@ export async function GET(
 
     if (!country) {
       return NextResponse.json(
-        { error: 'Country parameter is required' },
+        { error: 'Country parameter is required', cities: [] },
         { status: 400 }
       )
     }
@@ -45,10 +54,15 @@ export async function GET(
       .single()
 
     if (settingsError || !settings) {
-      return NextResponse.json(
-        { error: 'Agencija nije pronađena' },
-        { status: 404 }
-      )
+      console.error('Settings error:', settingsError)
+      // Return fallback cities even if agency not found
+      const normalizedCountry = country.trim()
+      const fallbackCities = POPULAR_CITIES_BY_COUNTRY[normalizedCountry] || []
+      const cities = fallbackCities.slice(0, 10).map((city, index) => ({
+        city,
+        isPopular: index === 0,
+      }))
+      return NextResponse.json({ cities })
     }
 
     // Get fallback cities for this country (normalize country name for matching)
@@ -100,9 +114,20 @@ export async function GET(
     })
   } catch (error) {
     console.error('Error fetching cities:', error)
-    return NextResponse.json(
-      { error: 'Greška pri učitavanju gradova' },
-      { status: 500 }
-    )
+    
+    // Return fallback cities on any error to prevent frontend crash
+    const searchParams = request.nextUrl.searchParams
+    const country = searchParams.get('country') || ''
+    const normalizedCountry = country.trim()
+    const fallbackCities = POPULAR_CITIES_BY_COUNTRY[normalizedCountry] || []
+    const cities = fallbackCities.slice(0, 10).map((city, index) => ({
+      city,
+      isPopular: index === 0,
+    }))
+    
+    return NextResponse.json({
+      cities,
+      error: 'Greška pri učitavanju gradova, prikazani su podrazumevani gradovi'
+    })
   }
 }

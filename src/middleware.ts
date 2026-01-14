@@ -67,12 +67,15 @@ export async function middleware(request: NextRequest) {
   // Public agency pages (e.g., /a/qwetix, /a/qwetix/qualify, etc.)
   const isPublicAgencyRoute = pathname.startsWith('/a/')
 
+  // Public API routes (e.g., /api/public/*)
+  const isPublicApiRoute = pathname.startsWith('/api/public/')
+
   // Onboarding route
   const isOnboardingRoute = pathname === '/onboarding'
 
   // If user is not logged in
   if (!user) {
-    if (!isPublicRoute && !isOnboardingRoute && !isPublicAgencyRoute) {
+    if (!isPublicRoute && !isOnboardingRoute && !isPublicAgencyRoute && !isPublicApiRoute) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
     return response

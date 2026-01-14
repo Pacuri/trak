@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Middleware - Public Routes</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .test-item {
+      margin: 15px 0;
+      padding: 15px;
+      border-radius: 8px;
+      background: #f9fafb;
+      border-left: 4px solid #ddd;
+    }
+    .test-item.testing {
+      border-left-color: #3B82F6;
+      background: #eff6ff;
+    }
+    .test-item.success {
+      border-left-color: #10B981;
+      background: #ecfdf5;
+    }
+    .test-item.error {
+      border-left-color: #EF4444;
+      background: #fef2f2;
+    }
+    .test-url {
+      font-family: monospace;
+      font-size: 13px;
+      color: #666;
+      margin: 5px 0;
+    }
+    .test-result {
+      font-size: 14px;
+      margin-top: 8px;
+    }
+    button {
+      background: #3B82F6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 0;
+    }
+    button:hover {
+      background: #2563EB;
+    }
+    button:disabled {
+      background: #9CA3AF;
+      cursor: not-allowed;
+    }
+    .summary {
+      margin-top: 20px;
+      padding: 20px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔒 Middleware Test - Public Routes</h1>
+    <p>Testing that public routes are accessible without authentication:</p>
+    
+    <button onclick="runAllTests()" id="testBtn">Run All Tests</button>
+    
+    <div id="tests"></div>
+    <div id="summary"></div>
+  </div>
+
+  <script>
+    const tests = [
+      {
+        name: 'Public API - Cities',
+        url: '/api/public/agencies/qwetix/cities?country=Grčka',
+        expectJson: true,
+        expectRedirect: false
+      },
+      {
+        name: 'Public API - Offers',
+        url: '/api/public/agencies/qwetix/offers',
+        expectJson: true,
+        expectRedirect: false
+      },
+      {
+        name: 'Public Page - Qualify',
+        url: '/a/qwetix/qualify',
+        expectJson: false,
+        expectRedirect: false
+      },
+      {
+        name: 'Public Page - Results',
+        url: '/a/qwetix/results',
+        expectJson: false,
+        expectRedirect: false
+      },
+      {
+        name: 'Protected Route - Dashboard (should redirect)',
+        url: '/dashboard',
+        expectJson: false,
+        expectRedirect: true
+      }
+    ];
+
+    async function runTest(test) {
+      const testDiv = document.getElementById(`test-${test.name.replace(/\s+/g, '-')}`);
+      testDiv.className = 'test-item testing';
+      
+      try {
+        const response = await fetch(test.url, {
+          redirect: 'manual' // Don't follow redirects
+        });
+        
+        const contentType = response.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        const isRedirect = response.status >= 300 && response.status < 400;
+        
+        let result = `Status: ${response.status}\n`;
+        result += `Content-Type: ${contentType}\n`;
+        
+        // Check expectations
+        let passed = true;
+        
+        if (test.expectRedirect) {
+          if (!isRedirect) {
+            passed = false;
+            result += '\n❌ Expected redirect but got normal response';
+          } else {
+            result += '\n✅ Correctly redirects (protected route)';
+          }
+        } else {
+          if (isRedirect) {
+            passed = false;
+            result += '\n❌ Unexpected redirect! Route should be public';
+          } else {
+            result += '\n✅ No redirect (public route)';
+          }
+        }
+        
+        if (test.expectJson && !test.expectRedirect) {
+          if (!isJson) {
+            passed = false;
+            result += '\n❌ Expected JSON but got ' + contentType;
+          } else {
+            const data = await response.json();
+            result += '\n✅ Valid JSON response';
+            if (data.cities) result += ` (${data.cities.length} cities)`;
+            if (data.offers) result += ` (${data.offers.length} offers)`;
+          }
+        }
+        
+        testDiv.className = passed ? 'test-item success' : 'test-item error';
+        testDiv.querySelector('.test-result').textContent = result;
+        
+        return passed;
+      } catch (error) {
+        testDiv.className = 'test-item error';
+        testDiv.querySelector('.test-result').textContent = `❌ Error: ${error.message}`;
+        return false;
+      }
+    }
+
+    async function runAllTests() {
+      const btn = document.getElementById('testBtn');
+      btn.disabled = true;
+      btn.textContent = 'Testing...';
+      
+      const testsDiv = document.getElementById('tests');
+      testsDiv.innerHTML = '';
+      
+      // Create test divs
+      tests.forEach(test => {
+        const testDiv = document.createElement('div');
+        testDiv.id = `test-${test.name.replace(/\s+/g, '-')}`;
+        testDiv.className = 'test-item';
+        testDiv.innerHTML = `
+          <strong>${test.name}</strong>
+          <div class="test-url">${test.url}</div>
+          <div class="test-result">⏳ Waiting...</div>
+        `;
+        testsDiv.appendChild(testDiv);
+      });
+      
+      // Run tests
+      const results = [];
+      for (const test of tests) {
+        const passed = await runTest(test);
+        results.push(passed);
+        await new Promise(resolve => setTimeout(resolve, 500)); // Delay between tests
+      }
+      
+      // Summary
+      const passed = results.filter(r => r).length;
+      const total = results.length;
+      const summaryDiv = document.getElementById('summary');
+      
+      if (passed === total) {
+        summaryDiv.className = 'summary';
+        summaryDiv.style.background = '#ecfdf5';
+        summaryDiv.style.color = '#065f46';
+        summaryDiv.innerHTML = `✅ All tests passed! (${passed}/${total})`;
+      } else {
+        summaryDiv.className = 'summary';
+        summaryDiv.style.background = '#fef2f2';
+        summaryDiv.style.color = '#991b1b';
+        summaryDiv.innerHTML = `❌ Some tests failed: ${passed}/${total} passed`;
+      }
+      
+      btn.disabled = false;
+      btn.textContent = 'Run All Tests Again';
+    }
+    
+    // Auto-run on load
+    window.addEventListener('load', () => {
+      setTimeout(runAllTests, 500);
+    });
+  </script>
+</body>
+</html>

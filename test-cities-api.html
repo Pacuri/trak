@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Cities API</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #3B82F6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 5px;
+    }
+    button:hover {
+      background: #2563EB;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f9fafb;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    .error {
+      background: #fee;
+      color: #c00;
+    }
+    .success {
+      background: #efe;
+      color: #060;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 Test Cities API</h1>
+    <p>Click a button to test the cities API endpoint:</p>
+    
+    <div>
+      <button onclick="testAPI('Grčka')">Test Grčka</button>
+      <button onclick="testAPI('Turska')">Test Turska</button>
+      <button onclick="testAPI('Egipat')">Test Egipat</button>
+      <button onclick="testAPI('Španija')">Test Španija</button>
+    </div>
+    
+    <div id="result"></div>
+  </div>
+
+  <script>
+    async function testAPI(country) {
+      const resultDiv = document.getElementById('result');
+      resultDiv.textContent = `⏳ Testing /api/public/agencies/qwetix/cities?country=${country}...\n\n`;
+      resultDiv.className = '';
+      
+      try {
+        const url = `/api/public/agencies/qwetix/cities?country=${encodeURIComponent(country)}`;
+        console.log('Fetching:', url);
+        
+        const response = await fetch(url);
+        
+        const contentType = response.headers.get('content-type');
+        console.log('Content-Type:', contentType);
+        console.log('Status:', response.status);
+        
+        let result = `Status: ${response.status} ${response.statusText}\n`;
+        result += `Content-Type: ${contentType}\n\n`;
+        
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          result += 'Response (JSON):\n';
+          result += JSON.stringify(data, null, 2);
+          
+          if (data.cities && data.cities.length > 0) {
+            resultDiv.className = 'success';
+            result += `\n\n✅ SUCCESS: Got ${data.cities.length} cities`;
+          } else {
+            resultDiv.className = 'error';
+            result += '\n\n⚠️ WARNING: No cities returned';
+          }
+        } else {
+          const text = await response.text();
+          result += 'Response (Non-JSON):\n';
+          result += text.substring(0, 500) + (text.length > 500 ? '...' : '');
+          resultDiv.className = 'error';
+          result += '\n\n❌ ERROR: Expected JSON but got ' + contentType;
+        }
+        
+        resultDiv.textContent = result;
+      } catch (error) {
+        resultDiv.className = 'error';
+        resultDiv.textContent = `❌ ERROR:\n${error.message}\n\n${error.stack}`;
+        console.error('Error:', error);
+      }
+    }
+    
+    // Auto-test on load
+    window.addEventListener('load', () => {
+      testAPI('Grčka');
+    });
+  </script>
+</body>
+</html>
