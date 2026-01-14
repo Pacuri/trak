@@ -182,7 +182,7 @@ export default function ResultsPage() {
               className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
             >
               <RefreshCw className="w-4 h-4" />
-              <span>Osvježi</span>
+              <span>Osveži</span>
             </button>
           </div>
         </div>
@@ -221,11 +221,11 @@ export default function ResultsPage() {
           <>
             {/* Fallback message when no exact matches */}
             {isFallback && matchingCount === 0 && offers.length > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-amber-900 mb-2">
-                  Preporučujemo za vas:
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Preporučujemo za vas
                 </h3>
-                <p className="text-amber-700 text-sm">
+                <p className="text-gray-500 text-sm mt-1">
                   Nismo pronašli ponude koje tačno odgovaraju vašoj pretrazi, ali evo naših najboljih ponuda
                 </p>
               </div>
