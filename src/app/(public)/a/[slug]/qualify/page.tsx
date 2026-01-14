@@ -3,13 +3,15 @@
 import { useParams, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react'
-import { useQualification } from '@/hooks/use-qualification'
+import { useQualification, isDatesSubStep } from '@/hooks/use-qualification'
 import QualificationProgress from '@/components/qualification/QualificationProgress'
 import CountryStep from '@/components/qualification/CountryStep'
 import CityStep from '@/components/qualification/CityStep'
 import AdultsStep from '@/components/qualification/AdultsStep'
 import ChildrenStep from '@/components/qualification/ChildrenStep'
-import DatesStep from '@/components/qualification/DatesStep'
+import MonthStep from '@/components/qualification/MonthStep'
+import DurationStep from '@/components/qualification/DurationStep'
+import FlexibilityStep from '@/components/qualification/FlexibilityStep'
 import AccommodationTypeStep from '@/components/qualification/AccommodationTypeStep'
 import BoardTypeStep from '@/components/qualification/BoardTypeStep'
 import TransportTypeStep from '@/components/qualification/TransportTypeStep'
@@ -125,11 +127,28 @@ export default function QualifyPage() {
             onNext={autoAdvance}
           />
         )
-      case 'dates':
+      case 'dates_month':
         return (
-          <DatesStep
+          <MonthStep
             value={data.dates}
             onChange={updateDates}
+            onNext={autoAdvance}
+          />
+        )
+      case 'dates_duration':
+        return (
+          <DurationStep
+            value={data.dates}
+            onChange={updateDates}
+            onNext={autoAdvance}
+          />
+        )
+      case 'dates_flexibility':
+        return (
+          <FlexibilityStep
+            value={data.dates}
+            onChange={updateDates}
+            onNext={autoAdvance}
           />
         )
       case 'accommodation_type':
@@ -203,29 +222,32 @@ export default function QualifyPage() {
             <div />
           )}
 
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={!canProceed() || isSubmitting}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-medium transition-all"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Učitavanje...
-              </>
-            ) : currentStepIndex === totalSteps - 1 ? (
-              <>
-                Pronađi ponude
-                <ArrowRight className="w-4 h-4" />
-              </>
-            ) : (
-              <>
-                Dalje
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
+          {/* Hide "Dalje" button for dates sub-steps (auto-advance only) */}
+          {!isDatesSubStep(currentStep) && (
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={!canProceed() || isSubmitting}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-medium transition-all"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Učitavanje...
+                </>
+              ) : currentStepIndex === totalSteps - 1 ? (
+                <>
+                  Pronađi ponude
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              ) : (
+                <>
+                  Dalje
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          )}
         </div>
       </footer>
     </div>
