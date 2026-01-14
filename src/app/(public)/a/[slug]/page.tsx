@@ -25,9 +25,12 @@ export default async function AgencyLandingPage({ params }: PageProps) {
   // Fetch organization details
   const { data: organization } = await supabase
     .from('organizations')
-    .select('name, logo_url')
+    .select('name')
     .eq('id', agency.organization_id)
     .single()
+
+  const displayName = agency.display_name || organization?.name || 'Turistička agencija'
+  const logoUrl = agency.logo_url
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -35,18 +38,18 @@ export default async function AgencyLandingPage({ params }: PageProps) {
       <header className="bg-white shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
-            {organization?.logo_url ? (
+            {logoUrl ? (
               <img
-                src={organization.logo_url}
-                alt={organization.name}
+                src={logoUrl}
+                alt={displayName}
                 className="h-10 w-10 rounded-full object-cover"
               />
             ) : (
               <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
-                {organization?.name?.[0] || 'A'}
+                {displayName[0] || 'A'}
               </div>
             )}
-            <span className="font-semibold text-gray-900">{organization?.name || 'Turistička agencija'}</span>
+            <span className="font-semibold text-gray-900">{displayName}</span>
           </div>
         </div>
       </header>
@@ -99,7 +102,7 @@ export default async function AgencyLandingPage({ params }: PageProps) {
       {/* Footer */}
       <footer className="bg-white border-t border-gray-100 py-6">
         <div className="max-w-4xl mx-auto px-4 text-center text-sm text-gray-500">
-          {organization?.name || 'Turistička agencija'} • Licencirana turistička agencija
+          {displayName} • Licencirana turistička agencija
         </div>
       </footer>
     </div>
