@@ -149,6 +149,21 @@ body {
   }
 }
 
+/* ===== PUBLIC PAGES SCROLLING ===== */
+/* Override body fixed position for public pages */
+.public-page-container {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.public-page-container > * {
+  min-height: 100%;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

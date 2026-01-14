@@ -45,7 +45,13 @@ export function useBookings() {
 
   const getBookings = useCallback(
     async (filters?: BookingFilters): Promise<Booking[]> => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/badb4ed9-fce4-4d3e-8955-79ca35110574',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-bookings.ts:getBookings:entry',message:'getBookings called',data:{hasUser:!!user,orgId:user?.organization_id,filters},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       if (!user?.organization_id) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/badb4ed9-fce4-4d3e-8955-79ca35110574',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-bookings.ts:getBookings:noOrg',message:'No organization_id - returning empty',data:{hasUser:!!user},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         setError('Organizacija nije pronađena')
         return []
       }
@@ -85,6 +91,10 @@ export function useBookings() {
         }
 
         const { data, error: fetchError } = await query
+
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/badb4ed9-fce4-4d3e-8955-79ca35110574',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-bookings.ts:getBookings:queryResult',message:'Query executed',data:{dataCount:data?.length||0,error:fetchError?.message||null,orgId:user.organization_id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
 
         if (fetchError) {
           setError(fetchError.message)

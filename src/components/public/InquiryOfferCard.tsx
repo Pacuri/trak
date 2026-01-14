@@ -2,12 +2,11 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { MapPin } from 'lucide-react'
+import { MapPin, Clock } from 'lucide-react'
 import type { Offer, QualificationData } from '@/types'
 import { getOfferLabel, getLabelBgColor } from '@/lib/labels'
-import { formatDateRange, getBoardLabel, getTransportLabel, formatStarRating, formatShortDate } from '@/lib/formatting'
+import { getBoardLabel, getTransportLabel, formatStarRating, formatShortDate } from '@/lib/formatting'
 import { differenceInDays } from 'date-fns'
-import ResponseTimeDisplay from './ResponseTimeDisplay'
 
 interface InquiryOfferCardProps {
   offer: Offer
@@ -15,6 +14,8 @@ interface InquiryOfferCardProps {
   slug: string
   responseTimeMinutes?: number
   isWithinWorkingHours?: boolean
+  index?: number
+  isFirstRecommended?: boolean
 }
 
 export default function InquiryOfferCard({
@@ -23,25 +24,32 @@ export default function InquiryOfferCard({
   slug,
   responseTimeMinutes = 30,
   isWithinWorkingHours = true,
+  index = 0,
+  isFirstRecommended = false,
 }: InquiryOfferCardProps) {
-  const label = getOfferLabel(offer)
+  // Get urgency label with frequency control
+  const label = getOfferLabel(offer, index, false)
+  
   const guestCount = qualification.guests.adults + qualification.guests.children
   const totalPrice = offer.price_per_person * guestCount
   const primaryImage = offer.images?.[0]?.url
   const nights = differenceInDays(new Date(offer.return_date), new Date(offer.departure_date))
-  const hasDiscount = offer.original_price && offer.original_price > offer.price_per_person
-  const discountPercent = hasDiscount
-    ? Math.round((1 - offer.price_per_person / (offer.original_price || offer.price_per_person)) * 100)
-    : 0
 
   const locationText = [offer.city, offer.country].filter(Boolean).join(', ')
+  
+  // Format response time
+  const formatResponseTime = (minutes: number) => {
+    if (minutes < 60) return `~${minutes} min`
+    const hours = Math.round(minutes / 60)
+    return `~${hours}h`
+  }
 
   return (
     <Link
       href={`/a/${slug}/offer/${offer.id}`}
       className="block bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all hover:scale-[1.02]"
     >
-      {/* Photo Area - 60% height */}
+      {/* Photo Area */}
       <div className="relative h-48 sm:h-56 md:h-64 bg-gradient-to-br from-gray-300 to-gray-400">
         {primaryImage ? (
           <Image
@@ -62,50 +70,26 @@ export default function InquiryOfferCard({
         {/* Overlay gradient for better text readability */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
-        {/* Top-left: Urgency badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-2">
-          {label && (
-            <span className={`${getLabelBgColor(label.color)} text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg backdrop-blur-sm`}>
+        {/* Top-left: Single urgency badge (if applicable, ~30% of cards) */}
+        {label && (
+          <div className="absolute top-3 left-3">
+            <span className={`${getLabelBgColor(label.color)} text-white px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg`}>
               {label.icon} {label.text}
-            </span>
-          )}
-          {hasDiscount && discountPercent >= 10 && !label && (
-            <span className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg backdrop-blur-sm">
-              💰 -{discountPercent}%
-            </span>
-          )}
-        </div>
-
-        {/* Top-right: Status badge */}
-        <div className="absolute top-3 right-3">
-          <span className="bg-white/90 backdrop-blur-sm text-gray-800 px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
-            Na upit
-          </span>
-        </div>
-
-        {/* Bottom-left: Popularnost/Preporučeno */}
-        {(offer.is_recommended || offer.views_last_24h >= 10) && (
-          <div className="absolute bottom-3 left-3">
-            <span className="bg-blue-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
-              {offer.is_recommended ? 'Preporučeno' : 'Popularnost'}
             </span>
           </div>
         )}
 
-        {/* Bottom-right: Response time indicator */}
-        <div className="absolute bottom-3 right-3">
-          <div className="bg-black/70 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg">
-            <ResponseTimeDisplay
-              responseTimeMinutes={responseTimeMinutes}
-              isWithinWorkingHours={isWithinWorkingHours}
-              compact
-              inline
-            />
+        {/* Show "Preporučeno" ONLY on first recommended card in category */}
+        {!label && isFirstRecommended && offer.is_recommended && (
+          <div className="absolute top-3 left-3">
+            <span className="bg-blue-500 text-white px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg">
+              👍 Preporučeno
+            </span>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Info Area - 40% height */}
+      {/* Info Area */}
       <div className="p-4 sm:p-5 space-y-2">
         {/* Row 1: Location */}
         <div className="flex items-center gap-1.5 text-gray-600">
@@ -135,10 +119,16 @@ export default function InquiryOfferCard({
           </p>
         </div>
 
-        {/* Row 4: Price */}
+        {/* Row 4: Response time indicator */}
+        <div className="flex items-center gap-1.5 text-sm text-gray-500">
+          <Clock className="w-4 h-4" />
+          <span>Odgovor {formatResponseTime(responseTimeMinutes)}</span>
+        </div>
+
+        {/* Row 5: Price */}
         <div className="flex items-baseline justify-between pt-2 border-t border-gray-100">
           <div className="flex items-baseline gap-2">
-            {hasDiscount && (
+            {offer.original_price && offer.original_price > offer.price_per_person && (
               <span className="text-sm text-gray-400 line-through">
                 €{offer.original_price?.toLocaleString('sr-Latn')}
               </span>

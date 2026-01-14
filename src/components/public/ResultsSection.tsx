@@ -28,6 +28,9 @@ export default function ResultsSection({
 }: ResultsSectionProps) {
   if (offers.length === 0) return null
 
+  // Find the first recommended offer index in this section
+  const firstRecommendedIndex = offers.findIndex(offer => offer.is_recommended)
+
   return (
     <section className="space-y-4">
       <div>
@@ -47,13 +50,15 @@ export default function ResultsSection({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {offers.map((offer) =>
+        {offers.map((offer, index) =>
           cardType === 'instant' ? (
             <InstantOfferCard
               key={offer.id}
               offer={offer}
               qualification={qualification}
               slug={slug}
+              index={index}
+              isFirstRecommended={index === firstRecommendedIndex}
             />
           ) : (
             <InquiryOfferCard
@@ -63,6 +68,8 @@ export default function ResultsSection({
               slug={slug}
               responseTimeMinutes={responseTimeMinutes}
               isWithinWorkingHours={isWithinWorkingHours}
+              index={index}
+              isFirstRecommended={index === firstRecommendedIndex}
             />
           )
         )}

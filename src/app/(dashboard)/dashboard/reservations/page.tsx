@@ -15,6 +15,9 @@ export default function ReservationsPage() {
   const [stats, setStats] = useState({ pending: 0, paid: 0, expired: 0, total: 0 })
 
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/badb4ed9-fce4-4d3e-8955-79ca35110574',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'reservations/page.tsx:useEffect',message:'ReservationsPage useEffect triggered',data:{filters},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     loadData()
   }, [filters])
 
@@ -23,6 +26,9 @@ export default function ReservationsPage() {
       getReservations(filters),
       getStats(),
     ])
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/badb4ed9-fce4-4d3e-8955-79ca35110574',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'reservations/page.tsx:loadData:result',message:'loadData received data',data:{reservationsCount:reservationsData.length,stats:statsData},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     setReservations(reservationsData)
     setStats(statsData)
   }

@@ -21,7 +21,13 @@ export function useReservations() {
 
   const getReservations = useCallback(
     async (filters?: ReservationFilters): Promise<Reservation[]> => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/badb4ed9-fce4-4d3e-8955-79ca35110574',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-reservations.ts:getReservations:entry',message:'getReservations called',data:{hasUser:!!user,orgId:user?.organization_id,filters},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       if (!user?.organization_id) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/badb4ed9-fce4-4d3e-8955-79ca35110574',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-reservations.ts:getReservations:noOrg',message:'No organization_id - returning empty',data:{hasUser:!!user},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         setError('Organizacija nije pronađena')
         return []
       }
@@ -57,6 +63,10 @@ export function useReservations() {
         }
 
         const { data, error: fetchError } = await query
+
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/badb4ed9-fce4-4d3e-8955-79ca35110574',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-reservations.ts:getReservations:queryResult',message:'Query executed',data:{dataCount:data?.length||0,error:fetchError?.message||null,orgId:user.organization_id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
 
         if (fetchError) {
           setError(fetchError.message)

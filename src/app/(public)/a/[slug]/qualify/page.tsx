@@ -133,6 +133,7 @@ export default function QualifyPage() {
             value={data.dates}
             onChange={updateDates}
             onNext={autoAdvance}
+            selectedCountry={data.destination.country}
           />
         )
       case 'dates_duration':

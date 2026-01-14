@@ -154,7 +154,8 @@ export default function OfferDetailPage() {
     )
   }
 
-  const label = getOfferLabel(offer)
+  // On detail page, always show label if offer qualifies (showAlways = true)
+  const label = getOfferLabel(offer, 0, true)
   const images = offer.images || []
   const primaryImage = images[0]?.url
   const currentImage = images[currentImageIndex]?.url || primaryImage

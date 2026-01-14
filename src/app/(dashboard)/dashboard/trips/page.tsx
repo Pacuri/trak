@@ -15,14 +15,23 @@ export default function TripsPage() {
   const [weekOffset, setWeekOffset] = useState(0)
 
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/badb4ed9-fce4-4d3e-8955-79ca35110574',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'trips/page.tsx:useEffect',message:'TripsPage useEffect triggered',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     loadData()
   }, [])
 
   const loadData = async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/badb4ed9-fce4-4d3e-8955-79ca35110574',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'trips/page.tsx:loadData:start',message:'loadData called',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     const [bookingsData, statsData] = await Promise.all([
       getBookings({ status: 'confirmed' }),
       getStats(),
     ])
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/badb4ed9-fce4-4d3e-8955-79ca35110574',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'trips/page.tsx:loadData:result',message:'loadData received data',data:{bookingsCount:bookingsData.length,stats:statsData},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     setBookings(bookingsData)
     setStats(statsData)
   }

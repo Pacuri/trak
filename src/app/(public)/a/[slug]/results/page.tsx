@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Loader2, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
@@ -17,13 +17,97 @@ export default function ResultsPage() {
   const [offers, setOffers] = useState<Offer[]>([])
   const [qualification, setQualification] = useState<QualificationData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isFallback, setIsFallback] = useState(false)
+  const [matchingCount, setMatchingCount] = useState(0)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
   
+  const loadMoreRef = useRef<HTMLDivElement>(null)
   const { currentResponseTime, isWithinWorkingHours } = useAgencySettings(slug)
 
+  // Build query params from qualification data
+  const buildQueryParams = useCallback((qualData: QualificationData, pageNum: number) => {
+    const queryParams = new URLSearchParams()
+    queryParams.set('page', String(pageNum))
+    queryParams.set('limit', '6')
+    
+    if (qualData.destination.country) {
+      queryParams.set('country', qualData.destination.country)
+    }
+    if (qualData.destination.city) {
+      queryParams.set('city', qualData.destination.city)
+    }
+    if (qualData.dates.month) {
+      queryParams.set('month', qualData.dates.month)
+    }
+    if (qualData.dates.exactStart) {
+      queryParams.set('departure_from', qualData.dates.exactStart)
+    }
+    if (qualData.dates.exactEnd) {
+      queryParams.set('departure_to', qualData.dates.exactEnd)
+    }
+    if (qualData.budget.min) {
+      queryParams.set('min_price', String(qualData.budget.min))
+    }
+    if (qualData.budget.max) {
+      queryParams.set('max_price', String(qualData.budget.max))
+    }
+    if (qualData.accommodation.type) {
+      queryParams.set('accommodation_type', qualData.accommodation.type)
+    }
+    if (qualData.accommodation.board) {
+      queryParams.set('board_type', qualData.accommodation.board)
+    }
+    if (qualData.accommodation.transport) {
+      queryParams.set('transport_type', qualData.accommodation.transport)
+    }
+    
+    return queryParams
+  }, [])
+
+  // Fetch offers
+  const fetchOffers = useCallback(async (qualData: QualificationData, pageNum: number, append: boolean = false) => {
+    try {
+      if (pageNum === 1) {
+        setLoading(true)
+      } else {
+        setLoadingMore(true)
+      }
+
+      const queryParams = buildQueryParams(qualData, pageNum)
+      const response = await fetch(
+        `/api/public/agencies/${slug}/offers?${queryParams.toString()}`
+      )
+
+      if (!response.ok) throw new Error('Failed to fetch offers')
+
+      const data = await response.json()
+      
+      if (append) {
+        setOffers(prev => [...prev, ...(data.offers || [])])
+      } else {
+        setOffers(data.offers || [])
+        setMatchingCount(data.matchingCount || 0)
+        setIsFallback(data.isFallback || false)
+      }
+      
+      setHasMore(data.hasMore || false)
+      setPage(pageNum)
+    } catch (err) {
+      console.error('Error fetching offers:', err)
+      if (pageNum === 1) {
+        setError('Greška pri učitavanju ponuda')
+      }
+    } finally {
+      setLoading(false)
+      setLoadingMore(false)
+    }
+  }, [slug, buildQueryParams])
+
+  // Initial load
   useEffect(() => {
-    // Get qualification from session storage
     const storedQualification = sessionStorage.getItem('qualification')
     if (!storedQualification) {
       router.push(`/a/${slug}/qualify`)
@@ -32,53 +116,32 @@ export default function ResultsPage() {
 
     const qualData = JSON.parse(storedQualification) as QualificationData
     setQualification(qualData)
+    fetchOffers(qualData, 1)
+  }, [slug, router, fetchOffers])
 
-    // Fetch matching offers
-    const fetchOffers = async () => {
-      try {
-        setLoading(true)
-        const queryParams = new URLSearchParams()
-        if (qualData.destination.country) {
-          queryParams.set('country', qualData.destination.country)
-        }
-        if (qualData.destination.city) {
-          queryParams.set('city', qualData.destination.city)
-        }
-        if (qualData.dates.month) {
-          queryParams.set('month', qualData.dates.month)
-        }
-        if (qualData.dates.exactStart) {
-          queryParams.set('departure_from', qualData.dates.exactStart)
-        }
-        if (qualData.dates.exactEnd) {
-          queryParams.set('departure_to', qualData.dates.exactEnd)
-        }
-        if (qualData.budget.min) {
-          queryParams.set('min_price', String(qualData.budget.min))
-        }
-        if (qualData.budget.max) {
-          queryParams.set('max_price', String(qualData.budget.max))
-        }
+  // Load more function
+  const loadMore = useCallback(() => {
+    if (!qualification || loadingMore || !hasMore) return
+    fetchOffers(qualification, page + 1, true)
+  }, [qualification, loadingMore, hasMore, page, fetchOffers])
 
-        const response = await fetch(
-          `/api/public/agencies/${slug}/offers?${queryParams.toString()}`
-        )
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    if (!loadMoreRef.current) return
 
-        if (!response.ok) throw new Error('Failed to fetch offers')
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+          loadMore()
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    )
 
-        const data = await response.json()
-        setOffers(data.offers || [])
-        setIsFallback(data.isFallback || false)
-      } catch (err) {
-        console.error('Error fetching offers:', err)
-        setError('Greška pri učitavanju ponuda')
-      } finally {
-        setLoading(false)
-      }
-    }
+    observer.observe(loadMoreRef.current)
 
-    fetchOffers()
-  }, [slug, router])
+    return () => observer.disconnect()
+  }, [hasMore, loadingMore, loadMore])
 
   if (loading) {
     return (
@@ -99,7 +162,7 @@ export default function ResultsPage() {
   const guestCount = qualification.guests.adults + qualification.guests.children
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-20">
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-4">
@@ -112,7 +175,10 @@ export default function ResultsPage() {
               <span>Promeni pretragu</span>
             </Link>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => {
+                setPage(1)
+                if (qualification) fetchOffers(qualification, 1)
+              }}
               className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
             >
               <RefreshCw className="w-4 h-4" />
@@ -142,61 +208,85 @@ export default function ResultsPage() {
           <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
             <p className="text-red-600">{error}</p>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => {
+                setError(null)
+                if (qualification) fetchOffers(qualification, 1)
+              }}
               className="mt-4 text-red-600 underline"
             >
               Pokušaj ponovo
             </button>
           </div>
-        ) : offers.length === 0 ? (
-          <div className="bg-gray-50 rounded-xl p-8 text-center">
-            <div className="text-6xl mb-4">🔍</div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">
-              Nema rezultata za vašu pretragu
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Pokušajte sa drugom destinacijom ili datumima
-            </p>
-            <Link
-              href={`/a/${slug}/qualify`}
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Promeni pretragu
-            </Link>
-          </div>
         ) : (
           <>
-            {isFallback && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-6">
+            {/* Fallback message when no exact matches */}
+            {isFallback && matchingCount === 0 && offers.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
                 <h3 className="text-lg font-semibold text-amber-900 mb-2">
-                  Nema tačnih rezultata, ali preporučujemo:
+                  Preporučujemo za vas:
                 </h3>
                 <p className="text-amber-700 text-sm">
-                  Nismo pronašli ponude koje tačno odgovaraju vašoj pretrazi, ali evo naših preporuka za {qualification.destination.country}
+                  Nismo pronašli ponude koje tačno odgovaraju vašoj pretrazi, ali evo naših najboljih ponuda
                 </p>
               </div>
             )}
+
+            {/* Matching offers indicator */}
+            {matchingCount > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                <p className="text-green-800 font-medium">
+                  ✓ Pronašli smo {matchingCount} {matchingCount === 1 ? 'ponudu' : matchingCount < 5 ? 'ponude' : 'ponuda'} koje odgovaraju vašoj pretrazi
+                </p>
+              </div>
+            )}
+
             {/* Instant booking section */}
-            <ResultsSection
-              title="⚡ REZERVIŠITE ODMAH"
-              subtitle="Garantovana dostupnost • Cena zaključana 72h"
-              offers={owned}
-              cardType="instant"
-              qualification={qualification}
-              slug={slug}
-            />
+            {owned.length > 0 && (
+              <ResultsSection
+                title="⚡ REZERVIŠITE ODMAH"
+                subtitle="Garantovana dostupnost • Cena zaključana 72h"
+                offers={owned}
+                cardType="instant"
+                qualification={qualification}
+                slug={slug}
+              />
+            )}
 
             {/* On-request section */}
-            <ResultsSection
-              title="📋 NA UPIT"
-              offers={inquiry}
-              cardType="inquiry"
-              qualification={qualification}
-              slug={slug}
-              responseTimeMinutes={currentResponseTime}
-              isWithinWorkingHours={isWithinWorkingHours}
-            />
+            {inquiry.length > 0 && (
+              <ResultsSection
+                title="📋 NA UPIT"
+                offers={inquiry}
+                cardType="inquiry"
+                qualification={qualification}
+                slug={slug}
+                responseTimeMinutes={currentResponseTime}
+                isWithinWorkingHours={isWithinWorkingHours}
+              />
+            )}
+
+            {/* Load more trigger and spinner */}
+            <div ref={loadMoreRef} className="py-8 flex justify-center">
+              {loadingMore && (
+                <div className="flex items-center gap-3 text-gray-500">
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  <span>Učitavanje više ponuda...</span>
+                </div>
+              )}
+              {!loadingMore && hasMore && (
+                <button
+                  onClick={loadMore}
+                  className="text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Učitaj više ponuda
+                </button>
+              )}
+              {!hasMore && offers.length > 0 && (
+                <p className="text-gray-400 text-sm">
+                  Prikazano svih {offers.length} ponuda
+                </p>
+              )}
+            </div>
           </>
         )}
       </main>

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { Offer, QualificationData } from '@/types'
 
 // GET /api/public/agencies/[slug]/offers
-// Returns filtered offers for qualification matching
+// Returns filtered offers with pagination and relevance sorting
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -28,20 +28,12 @@ export async function GET(
       )
     }
 
-    // Build query with filters
-    let query = supabase
-      .from('offers')
-      .select(`
-        *,
-        images:offer_images(id, url, position, is_primary)
-      `)
-      .eq('organization_id', settings.organization_id)
-      .eq('status', 'active')
-      .gte('departure_date', new Date().toISOString().split('T')[0])
-      .gt('available_spots', 0)
-      .order('departure_date', { ascending: true })
+    // Pagination params
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '6')
+    const offset = (page - 1) * limit
 
-    // Apply filters from query params
+    // Filter params
     const country = searchParams.get('country')
     const city = searchParams.get('city')
     const month = searchParams.get('month')
@@ -54,81 +46,17 @@ export async function GET(
     const transportType = searchParams.get('transportType') || searchParams.get('transport_type')
     const inventoryType = searchParams.get('inventoryType') || searchParams.get('inventory_type')
 
-    if (country) {
-      query = query.ilike('country', `%${country}%`)
-    }
+    // Check if any filters are applied
+    const hasFilters = country || city || month || departureFrom || departureTo || 
+                       minPrice || maxPrice || boardType || accommodationType || 
+                       transportType || inventoryType
 
-    if (city) {
-      query = query.ilike('city', `%${city}%`)
-    }
-
-    if (departureFrom) {
-      query = query.gte('departure_date', departureFrom)
-    }
-    if (departureTo) {
-      query = query.lte('departure_date', departureTo)
-    }
-    if (month && !departureFrom) {
-      // Filter by month - extract from departure_date
-      const monthNumber = getMonthNumber(month)
-      if (monthNumber) {
-        const year = new Date().getFullYear()
-        const startDate = new Date(year, monthNumber - 1, 1)
-        const endDate = new Date(year, monthNumber, 0)
-        query = query
-          .gte('departure_date', startDate.toISOString().split('T')[0])
-          .lte('departure_date', endDate.toISOString().split('T')[0])
-      }
-    }
-
-    if (minPrice) {
-      query = query.gte('price_per_person', parseFloat(minPrice))
-    }
-
-    if (maxPrice) {
-      query = query.lte('price_per_person', parseFloat(maxPrice))
-    }
-
-    if (boardType && boardType !== 'any') {
-      query = query.eq('board_type', boardType)
-    }
-
-    if (accommodationType && accommodationType !== 'any') {
-      query = query.eq('accommodation_type', accommodationType)
-    }
-
-    if (transportType && transportType !== 'none') {
-      query = query.eq('transport_type', transportType)
-    }
-
-    if (inventoryType) {
-      query = query.eq('inventory_type', inventoryType)
-    }
-
-    const { data: offers, error } = await query
-
-    if (error) {
-      console.error('Error fetching offers:', error)
-      return NextResponse.json(
-        { error: 'Greška pri učitavanju ponuda' },
-        { status: 500 }
-      )
-    }
-
-    // Sort images by position and mark primary
-    let offersWithSortedImages = offers?.map(offer => ({
-      ...offer,
-      images: (offer.images || []).sort((a: { position: number }, b: { position: number }) => a.position - b.position),
-    })) || []
-
-    let isFallback = false
-
-    // If no exact matches, try fallback query with relaxed criteria
-    if (offersWithSortedImages.length === 0 && country) {
-      isFallback = true
-      
-      // Build fallback query: same country, any date, recommended or popular
-      let fallbackQuery = supabase
+    // STEP 1: Get matching offers count first (for initial page only)
+    let matchingCount = 0
+    let matchingOffers: any[] = []
+    
+    if (hasFilters && page === 1) {
+      let matchQuery = supabase
         .from('offers')
         .select(`
           *,
@@ -136,33 +64,141 @@ export async function GET(
         `)
         .eq('organization_id', settings.organization_id)
         .eq('status', 'active')
-        .ilike('country', `%${country}%`)
+        .gte('departure_date', new Date().toISOString().split('T')[0])
         .gt('available_spots', 0)
+
+      // Apply all filters for matching query
+      if (country) matchQuery = matchQuery.ilike('country', `%${country}%`)
+      if (city) matchQuery = matchQuery.ilike('city', `%${city}%`)
+      if (departureFrom) matchQuery = matchQuery.gte('departure_date', departureFrom)
+      if (departureTo) matchQuery = matchQuery.lte('departure_date', departureTo)
+      if (month && !departureFrom) {
+        const monthNumber = getMonthNumber(month)
+        if (monthNumber) {
+          const year = new Date().getFullYear()
+          const nextYear = monthNumber < new Date().getMonth() + 1 ? year + 1 : year
+          const startDate = new Date(nextYear, monthNumber - 1, 1)
+          const endDate = new Date(nextYear, monthNumber, 0)
+          matchQuery = matchQuery
+            .gte('departure_date', startDate.toISOString().split('T')[0])
+            .lte('departure_date', endDate.toISOString().split('T')[0])
+        }
+      }
+      if (minPrice) matchQuery = matchQuery.gte('price_per_person', parseFloat(minPrice))
+      if (maxPrice) matchQuery = matchQuery.lte('price_per_person', parseFloat(maxPrice))
+      if (boardType && boardType !== 'any') matchQuery = matchQuery.eq('board_type', boardType)
+      if (accommodationType && accommodationType !== 'any') matchQuery = matchQuery.eq('accommodation_type', accommodationType)
+      if (transportType && transportType !== 'none') matchQuery = matchQuery.eq('transport_type', transportType)
+      if (inventoryType) matchQuery = matchQuery.eq('inventory_type', inventoryType)
+
+      // Sort by relevance
+      matchQuery = matchQuery
         .order('is_recommended', { ascending: false, nullsFirst: false })
-        .order('views_last_24h', { ascending: false })
+        .order('views_total', { ascending: false, nullsFirst: false })
         .order('departure_date', { ascending: true })
-        .limit(20) // Limit fallback results
 
-      const { data: fallbackOffers, error: fallbackError } = await fallbackQuery
+      const { data: matched, error: matchError } = await matchQuery
 
-      if (!fallbackError && fallbackOffers) {
-        offersWithSortedImages = fallbackOffers.map(offer => ({
+      if (!matchError && matched) {
+        matchingOffers = matched.map(offer => ({
           ...offer,
+          isMatch: true,
           images: (offer.images || []).sort((a: { position: number }, b: { position: number }) => a.position - b.position),
         }))
+        matchingCount = matchingOffers.length
       }
     }
 
+    // STEP 2: Get all offers sorted by relevance (for infinite scroll)
+    // This ensures we ALWAYS return offers, even if no filters match
+    // Exclude matching offers IDs to avoid duplicates
+    const matchingIds = matchingOffers.map(o => o.id)
+    
+    let allQuery = supabase
+      .from('offers')
+      .select(`
+        *,
+        images:offer_images(id, url, position, is_primary)
+      `, { count: 'exact' })
+      .eq('organization_id', settings.organization_id)
+      .eq('status', 'active')
+      .gte('departure_date', new Date().toISOString().split('T')[0])
+      .gt('available_spots', 0)
+      .order('is_recommended', { ascending: false, nullsFirst: false })
+      .order('views_total', { ascending: false, nullsFirst: false })
+      .order('departure_date', { ascending: true })
+
+    // If we have matching offers on page 1, exclude them from the "more" query
+    if (page === 1 && matchingIds.length > 0) {
+      allQuery = allQuery.not('id', 'in', `(${matchingIds.join(',')})`)
+    }
+
+    // For page > 1, apply offset accounting for initial matching offers
+    if (page > 1) {
+      // After page 1, we only fetch non-matching offers
+      if (matchingIds.length > 0) {
+        allQuery = allQuery.not('id', 'in', `(${matchingIds.join(',')})`)
+      }
+      // Calculate offset for subsequent pages
+      const adjustedOffset = (page - 2) * limit // page 2 starts at 0, page 3 at limit, etc.
+      allQuery = allQuery.range(adjustedOffset, adjustedOffset + limit - 1)
+    } else {
+      // Page 1: get remaining offers after matching ones to fill the page
+      const remainingSlots = Math.max(0, limit - matchingOffers.length)
+      if (remainingSlots > 0) {
+        allQuery = allQuery.limit(remainingSlots)
+      } else {
+        // Matching offers fill the page, but we still need to count total
+        allQuery = allQuery.limit(0)
+      }
+    }
+
+    const { data: moreOffers, error: moreError, count: totalCount } = await allQuery
+
+    if (moreError) {
+      console.error('Error fetching offers:', moreError)
+      return NextResponse.json(
+        { error: 'Greška pri učitavanju ponuda' },
+        { status: 500 }
+      )
+    }
+
+    // Process additional offers
+    const processedMoreOffers = (moreOffers || []).map(offer => ({
+      ...offer,
+      isMatch: false,
+      images: (offer.images || []).sort((a: { position: number }, b: { position: number }) => a.position - b.position),
+    }))
+
+    // Combine offers: matching first, then others
+    let combinedOffers: any[]
+    if (page === 1) {
+      combinedOffers = [...matchingOffers, ...processedMoreOffers]
+    } else {
+      combinedOffers = processedMoreOffers
+    }
+
+    // Calculate if there are more offers
+    const totalNonMatching = (totalCount || 0)
+    const fetchedSoFar = page === 1 
+      ? matchingOffers.length + processedMoreOffers.length 
+      : offset + processedMoreOffers.length
+    const hasMore = fetchedSoFar < (matchingCount + totalNonMatching)
+
     // Split by inventory type
-    const ownedOffers = offersWithSortedImages.filter(o => o.inventory_type === 'owned')
-    const inquiryOffers = offersWithSortedImages.filter(o => o.inventory_type === 'inquiry')
+    const ownedOffers = combinedOffers.filter(o => o.inventory_type === 'owned')
+    const inquiryOffers = combinedOffers.filter(o => o.inventory_type === 'inquiry')
 
     return NextResponse.json({
-      offers: offersWithSortedImages, // Combined array for results page
+      offers: combinedOffers,
       owned: ownedOffers,
       inquiry: inquiryOffers,
-      total: offersWithSortedImages.length,
-      isFallback, // Flag to indicate these are fallback results
+      total: matchingCount + totalNonMatching,
+      matchingCount,
+      page,
+      limit,
+      hasMore,
+      isFallback: page === 1 && matchingCount === 0 && combinedOffers.length > 0,
     })
   } catch (error) {
     console.error('Error fetching offers:', error)

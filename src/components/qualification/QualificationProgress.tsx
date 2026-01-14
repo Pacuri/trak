@@ -22,17 +22,30 @@ const STEP_LABELS: Record<string, string> = {
   budget: 'Budžet',
 }
 
+// Map raw steps to display steps (collapsing dates sub-steps into one)
+const DISPLAY_STEPS = ['country', 'city', 'adults', 'children', 'dates', 'accommodation_type', 'board_type', 'transport_type', 'budget'] as const
+
 // Check if step is a dates sub-step
 function isDatesSubStep(step: string): boolean {
   return step === 'dates_month' || step === 'dates_duration' || step === 'dates_flexibility'
 }
 
 // Get dates sub-step index (0, 1, or 2)
-function getDatesSubStepIndex(step: string): number | null {
+function getDatesSubStepIndex(step: string): number {
   if (step === 'dates_month') return 0
   if (step === 'dates_duration') return 1
   if (step === 'dates_flexibility') return 2
-  return null
+  return -1
+}
+
+// Get the display step index for a given raw step
+function getDisplayStepIndex(step: string, steps: readonly string[]): number {
+  if (isDatesSubStep(step)) return 4 // 'dates' is at index 4 in DISPLAY_STEPS
+  
+  const rawIndex = steps.indexOf(step)
+  if (rawIndex <= 3) return rawIndex // country, city, adults, children
+  if (rawIndex >= 7) return rawIndex - 2 // accommodation_type onwards (subtract 2 for collapsed dates)
+  return 4 // dates
 }
 
 export default function QualificationProgress({
@@ -40,6 +53,22 @@ export default function QualificationProgress({
   progress,
   steps,
 }: QualificationProgressProps) {
+  const currentDisplayIndex = getDisplayStepIndex(currentStep, steps)
+  const isDatesActive = isDatesSubStep(currentStep)
+  const currentDatesSubStep = getDatesSubStepIndex(currentStep)
+  
+  // Calculate which 3 display steps to show (sliding window)
+  let windowStart: number
+  if (currentDisplayIndex <= 1) {
+    windowStart = 0
+  } else if (currentDisplayIndex >= DISPLAY_STEPS.length - 2) {
+    windowStart = DISPLAY_STEPS.length - 3
+  } else {
+    windowStart = currentDisplayIndex - 1
+  }
+  
+  const visibleDisplaySteps = DISPLAY_STEPS.slice(windowStart, windowStart + 3)
+
   return (
     <div className="w-full">
       {/* Progress bar */}
@@ -50,102 +79,62 @@ export default function QualificationProgress({
         />
       </div>
 
-      {/* Step indicators */}
-      <div className="flex justify-between text-xs">
-        {steps.map((step, index) => {
-          // Check if this is the dates step (any of the 3 sub-steps)
-          const isDatesStep = isDatesSubStep(step)
-          const isDatesActive = isDatesSubStep(currentStep)
-          const currentDatesSubStep = getDatesSubStepIndex(currentStep)
+      {/* Step indicators - sliding window of 3 */}
+      <div className="flex justify-center gap-6 text-xs">
+        {visibleDisplaySteps.map((displayStep, idx) => {
+          const displayIndex = windowStart + idx
+          const displayNumber = displayIndex + 1
+          const isActive = displayIndex === currentDisplayIndex
+          // Fix: Only mark as past if currentDisplayIndex is GREATER than this step
+          const isPast = currentDisplayIndex > displayIndex
           
-          // Determine if dates step is past (all 3 sub-steps completed)
-          const datesStepIndex = steps.findIndex(s => isDatesSubStep(s))
-          const isDatesPast = datesStepIndex >= 0 && 
-            steps.indexOf(currentStep) > datesStepIndex + 2 // Past all 3 sub-steps
-          
-          // Skip dates_duration and dates_flexibility in normal rendering
-          if (step === 'dates_duration' || step === 'dates_flexibility') {
-            return null
-          }
-          
-          // Calculate display step number (adjust for dates sub-steps)
-          let displayStepNumber = index + 1
-          if (index > datesStepIndex && datesStepIndex >= 0) {
-            // After dates step, subtract 2 (we had 3 steps, now showing as 1)
-            displayStepNumber = index - 1
-          }
-          
-          // For dates step, show expanded view when active
-          if (isDatesStep && isDatesActive) {
-            // Only render dates_month with expansion
-            if (step === 'dates_month') {
-              return (
-                <div
-                  key="dates_expanded"
-                  className="flex flex-col items-center text-blue-600 font-medium transition-all duration-200"
-                  style={{ width: 'auto', minWidth: '60px' }}
-                >
-                  <div className="flex items-center gap-1.5 mb-1">
-                    {/* Main step 5 circle */}
-                    <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs">
-                      5
-                    </div>
-                    {/* Sub-step dots */}
-                    {[0, 1, 2].map((subIndex) => {
-                      const isSubActive = currentDatesSubStep === subIndex
-                      const isSubPast = currentDatesSubStep !== null && currentDatesSubStep > subIndex
-                      
-                      return (
-                        <div
-                          key={subIndex}
-                          className={`
-                            w-2 h-2 rounded-full transition-all duration-200
-                            ${
-                              isSubActive
-                                ? 'bg-blue-600 w-3'
-                                : isSubPast
-                                ? 'bg-green-500'
-                                : 'bg-gray-300'
-                            }
-                          `}
-                        />
-                      )
-                    })}
+          // Special handling for dates step with sub-steps
+          if (displayStep === 'dates' && (isActive || (isDatesActive && displayIndex === 4))) {
+            return (
+              <div
+                key={displayStep}
+                className="flex flex-col items-center text-blue-600 font-medium transition-all duration-200"
+                style={{ minWidth: isDatesActive ? '80px' : 'auto' }}
+              >
+                <div className="flex items-center gap-1.5 mb-1">
+                  {/* Main step circle */}
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
+                    isPast ? 'bg-green-500 text-white' : 'bg-blue-600 text-white'
+                  }`}>
+                    {isPast ? '✓' : displayNumber}
                   </div>
-                  <span className="hidden sm:block">{STEP_LABELS[step]}</span>
+                  {/* Sub-step dots - only show when dates is active */}
+                  {isDatesActive && [0, 1, 2].map((subIndex) => {
+                    const isSubActive = currentDatesSubStep === subIndex
+                    const isSubPast = currentDatesSubStep > subIndex
+                    
+                    return (
+                      <div
+                        key={subIndex}
+                        className={`
+                          rounded-full transition-all duration-200
+                          ${
+                            isSubActive
+                              ? 'w-3 h-3 bg-blue-600'
+                              : isSubPast
+                              ? 'w-2 h-2 bg-green-500'
+                              : 'w-2 h-2 bg-gray-300'
+                          }
+                        `}
+                      />
+                    )
+                  })}
                 </div>
-              )
-            }
-            return null
-          }
-          
-          // If dates step is past, show collapsed with checkmark
-          if (isDatesStep && isDatesPast) {
-            // Only render dates_month
-            if (step === 'dates_month') {
-              return (
-                <div
-                  key={step}
-                  className="flex flex-col items-center text-green-600"
-                >
-                  <div className="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-xs mb-1">
-                    ✓
-                  </div>
-                  <span className="hidden sm:block">{STEP_LABELS[step]}</span>
-                </div>
-              )
-            }
-            return null
+                <span className="text-center">{STEP_LABELS['dates_month']}</span>
+              </div>
+            )
           }
           
           // Normal step rendering
-          const isActive = step === currentStep
-          const isPast = steps.indexOf(currentStep) > index || (isDatesPast && index > datesStepIndex)
-          
           return (
             <div
-              key={step}
-              className={`flex flex-col items-center ${
+              key={displayStep}
+              className={`flex flex-col items-center transition-all duration-200 ${
                 isActive
                   ? 'text-blue-600 font-medium'
                   : isPast
@@ -154,7 +143,7 @@ export default function QualificationProgress({
               }`}
             >
               <div
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs mb-1 ${
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold mb-1 ${
                   isActive
                     ? 'bg-blue-600 text-white'
                     : isPast
@@ -162,12 +151,17 @@ export default function QualificationProgress({
                     : 'bg-gray-200 text-gray-500'
                 }`}
               >
-                {isPast ? '✓' : displayStepNumber}
+                {isPast ? '✓' : displayNumber}
               </div>
-              <span className="hidden sm:block">{STEP_LABELS[step]}</span>
+              <span className="text-center">{STEP_LABELS[displayStep]}</span>
             </div>
           )
         })}
+      </div>
+      
+      {/* Step counter */}
+      <div className="text-center text-xs text-gray-400 mt-3">
+        Korak {currentDisplayIndex + 1} od {DISPLAY_STEPS.length}
       </div>
     </div>
   )
