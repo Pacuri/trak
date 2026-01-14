@@ -5,18 +5,18 @@ import ChipSelector from './ChipSelector'
 import type { QualificationData } from '@/types'
 
 const MONTHS = [
-  { value: 'jan', label: 'Januar' },
-  { value: 'feb', label: 'Februar' },
-  { value: 'mar', label: 'Mart' },
-  { value: 'apr', label: 'April' },
-  { value: 'maj', label: 'Maj' },
-  { value: 'jun', label: 'Jun' },
-  { value: 'jul', label: 'Jul' },
-  { value: 'avg', label: 'Avgust' },
-  { value: 'sep', label: 'Septembar' },
-  { value: 'okt', label: 'Oktobar' },
-  { value: 'nov', label: 'Novembar' },
-  { value: 'dec', label: 'Decembar' },
+  { value: 'jan', label: 'Jan', fullLabel: 'Januar' },
+  { value: 'feb', label: 'Feb', fullLabel: 'Februar' },
+  { value: 'mar', label: 'Mar', fullLabel: 'Mart' },
+  { value: 'apr', label: 'Apr', fullLabel: 'April' },
+  { value: 'maj', label: 'Maj', fullLabel: 'Maj' },
+  { value: 'jun', label: 'Jun', fullLabel: 'Jun' },
+  { value: 'jul', label: 'Jul', fullLabel: 'Jul' },
+  { value: 'avg', label: 'Avg', fullLabel: 'Avgust' },
+  { value: 'sep', label: 'Sep', fullLabel: 'Septembar' },
+  { value: 'okt', label: 'Okt', fullLabel: 'Oktobar' },
+  { value: 'nov', label: 'Nov', fullLabel: 'Novembar' },
+  { value: 'dec', label: 'Dec', fullLabel: 'Decembar' },
 ]
 
 const DURATIONS = [
@@ -36,14 +36,18 @@ export default function DatesStep({ value, onChange }: DatesStepProps) {
   const [mode, setMode] = useState<'month' | 'exact'>('month')
 
   // Filter months to show only current and future months
+  // Show current month first, then future months, then next year's early months
   const now = new Date()
   const currentMonthIndex = now.getMonth()
-  const availableMonths = MONTHS.filter((_, index) => {
-    // Show this month and all future months
-    if (index >= currentMonthIndex) return true
-    // Show early months as next year
-    return index < 6 // jan-jun could be next year
-  })
+  
+  // Get current and future months for this year
+  const thisYearMonths = MONTHS.slice(currentMonthIndex)
+  
+  // Get early months for next year (if we're past mid-year)
+  const nextYearMonths = currentMonthIndex > 5 ? MONTHS.slice(0, currentMonthIndex) : []
+  
+  // Combine: current year months first, then next year months
+  const availableMonths = [...thisYearMonths, ...nextYearMonths]
 
   return (
     <div className="space-y-6">
@@ -81,12 +85,26 @@ export default function DatesStep({ value, onChange }: DatesStepProps) {
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Koji mesec?
             </label>
-            <ChipSelector
-              options={availableMonths}
-              selected={value.month}
-              onChange={(v) => onChange({ month: v, exactStart: null, exactEnd: null })}
-              columns={4}
-            />
+            <div className="grid grid-cols-4 gap-2">
+              {availableMonths.map((month) => (
+                <button
+                  key={month.value}
+                  type="button"
+                  onClick={() => onChange({ month: month.value, exactStart: null, exactEnd: null })}
+                  className={`
+                    px-3 py-3 rounded-xl text-sm font-medium transition-all
+                    ${
+                      value.month === month.value
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'bg-white text-gray-700 border border-gray-200 hover:border-blue-300 hover:bg-blue-50 active:scale-95'
+                    }
+                  `}
+                  title={month.fullLabel}
+                >
+                  {month.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Flexibility toggle */}

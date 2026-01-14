@@ -7,17 +7,19 @@ interface ResponseTimeDisplayProps {
   responseTimeMinutes?: number
   isWithinWorkingHours?: boolean
   compact?: boolean
+  inline?: boolean
 }
 
 export default function ResponseTimeDisplay({
   responseTimeMinutes = 30,
   isWithinWorkingHours = true,
   compact = false,
+  inline = false,
 }: ResponseTimeDisplayProps) {
-  if (compact) {
+  if (compact || inline) {
     return (
-      <span className="text-sm">
-        Odgovor u roku od {formatResponseTime(responseTimeMinutes)}
+      <span className={inline ? 'text-xs' : 'text-sm'}>
+        {inline ? formatResponseTime(responseTimeMinutes) : `Odgovor u roku od ${formatResponseTime(responseTimeMinutes)}`}
       </span>
     )
   }

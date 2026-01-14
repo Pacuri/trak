@@ -46,8 +46,8 @@ export async function GET(
       offer_counts: { owned: number; inquiry: number; total: number }
     } = {
       slug: settings.slug,
-      display_name: settings.display_name || settings.organization?.name,
-      logo_url: settings.logo_url,
+      display_name: (settings as any).agency_name || settings.organization?.name,
+      logo_url: (settings as any).agency_logo_url,
       primary_color: settings.primary_color,
       contact_phone: settings.contact_phone,
       contact_email: settings.contact_email,

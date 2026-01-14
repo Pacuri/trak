@@ -11,11 +11,12 @@ export default async function AgencyLandingPage({ params }: PageProps) {
   const { slug } = await params
   const supabase = await createClient()
 
-  // Fetch agency settings
+  // Fetch agency settings (only active ones are publicly visible per RLS)
   const { data: agency, error } = await supabase
     .from('agency_booking_settings')
     .select('*')
     .eq('slug', slug)
+    .eq('is_active', true) // RLS policy requires is_active = true for public access
     .single()
 
   if (error || !agency) {
@@ -29,8 +30,9 @@ export default async function AgencyLandingPage({ params }: PageProps) {
     .eq('id', agency.organization_id)
     .single()
 
-  const displayName = agency.display_name || organization?.name || 'Turistička agencija'
-  const logoUrl = agency.logo_url
+  // Database columns are: agency_name, agency_logo_url (not display_name, logo_url)
+  const displayName = (agency as any).agency_name || organization?.name || 'Turistička agencija'
+  const logoUrl = (agency as any).agency_logo_url
 
   return (
     <div className="min-h-screen flex flex-col">

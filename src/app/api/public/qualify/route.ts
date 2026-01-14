@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
       .from('agency_booking_settings')
       .select('organization_id, response_time_working, response_time_outside, working_hours')
       .eq('slug', slug)
+      .eq('is_active', true)
       .single()
 
     if (settingsError || !settings) {
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
       .from('offers')
       .select(`
         *,
-        images:offer_images(id, url, alt_text, position, is_primary)
+        images:offer_images(id, url, position, is_primary)
       `)
       .eq('organization_id', settings.organization_id)
       .eq('status', 'active')

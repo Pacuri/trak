@@ -1,30 +1,67 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import OfferForm from '@/components/offers/OfferForm'
 import { useOffers } from '@/hooks/use-offers'
+import { useUser } from '@/hooks/use-user'
 import type { Offer } from '@/types'
 
 export default function EditOfferPage() {
   const params = useParams()
   const router = useRouter()
   const { getOffer, updateOffer, loading } = useOffers()
+  const { user, loading: userLoading } = useUser()
   const [offer, setOffer] = useState<Offer | null>(null)
   const [loadingOffer, setLoadingOffer] = useState(true)
 
-  useEffect(() => {
-    loadOffer()
-  }, [params.id])
-
-  const loadOffer = async () => {
+  const loadOffer = useCallback(async () => {
+    // Explicit validation - ensure user is fully loaded with organization_id
+    if (!user || !user.organization_id || !params.id) {
+      console.log('loadOffer: User not ready', { 
+        hasUser: !!user, 
+        orgId: user?.organization_id, 
+        offerId: params.id 
+      })
+      return
+    }
+    
+    console.log('loadOffer: Starting load', { offerId: params.id, orgId: user.organization_id })
     setLoadingOffer(true)
-    const data = await getOffer(params.id as string)
-    setOffer(data)
-    setLoadingOffer(false)
-  }
+    
+    try {
+      const data = await getOffer(params.id as string)
+      console.log('loadOffer: Completed', { offerId: params.id, found: !!data })
+      setOffer(data)
+    } catch (error) {
+      console.error('loadOffer: Error', error)
+      setOffer(null)
+    } finally {
+      setLoadingOffer(false)
+    }
+  }, [user, params.id, getOffer])
+
+  useEffect(() => {
+    // Only load when user is fully loaded and has organization
+    if (!userLoading && user && user.organization_id && params.id) {
+      console.log('useEffect: Triggering loadOffer', { 
+        userLoading, 
+        hasUser: !!user, 
+        orgId: user.organization_id, 
+        offerId: params.id 
+      })
+      loadOffer()
+    } else {
+      console.log('useEffect: Skipping - waiting for user', { 
+        userLoading, 
+        hasUser: !!user, 
+        orgId: user?.organization_id,
+        offerId: params.id 
+      })
+    }
+  }, [loadOffer, userLoading, user, params.id])
 
   const handleUpdate = async (data: any) => {
     return await updateOffer(params.id as string, data)

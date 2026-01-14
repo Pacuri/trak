@@ -478,9 +478,9 @@ export interface QualificationDates {
 }
 
 export interface QualificationAccommodation {
-  type: AccommodationType
-  board: BoardType
-  transport: TransportType
+  type: AccommodationType | null
+  board: BoardType | null
+  transport: TransportType | null
 }
 
 export interface QualificationBudget {

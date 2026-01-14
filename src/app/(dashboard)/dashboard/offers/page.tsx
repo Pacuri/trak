@@ -1,36 +1,88 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { Plus, Search, Filter, Upload, Package } from 'lucide-react'
 import { useOffers, type OfferFilters } from '@/hooks/use-offers'
+import { useUser } from '@/hooks/use-user'
 import type { Offer } from '@/types'
 import OfferTableRow from '@/components/offers/OfferTableRow'
 import CSVImportModal from '@/components/offers/CSVImportModal'
 
 export default function OffersPage() {
-  const { getOffers, updateCapacity, archiveOffer, loading } = useOffers()
+  const { getOffers, updateCapacity, archiveOffer, loading, error: offersError } = useOffers()
+  const { user, loading: userLoading } = useUser()
   const [offers, setOffers] = useState<Offer[]>([])
-  const [filters, setFilters] = useState<OfferFilters>({})
+  const [allOffers, setAllOffers] = useState<Offer[]>([]) // Keep all offers for stats
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false) // Track if initial load has completed
+  const [activeTab, setActiveTab] = useState<'active' | 'sold_out' | 'archived' | 'all'>('active')
+  const [filters, setFilters] = useState<OfferFilters>({ status: 'active' }) // Initialize with active status
   const [searchQuery, setSearchQuery] = useState('')
   const [showImportModal, setShowImportModal] = useState(false)
-  const [activeTab, setActiveTab] = useState<'active' | 'sold_out' | 'archived' | 'all'>('active')
+
+  const loadOffers = useCallback(async () => {
+    // Explicit validation - ensure user is fully loaded with organization_id
+    if (!user || !user.organization_id) {
+      console.log('loadOffers: User not ready', { hasUser: !!user, orgId: user?.organization_id })
+      return
+    }
+    
+    console.log('loadOffers: Starting load', { filters, orgId: user.organization_id })
+    
+    try {
+      // Load filtered offers and all offers in parallel
+      const { status, ...otherFilters } = filters
+      const [filteredData, allData] = await Promise.all([
+        getOffers(filters), // Filtered offers for display
+        getOffers(otherFilters) // All offers for stats (without status filter)
+      ])
+      
+      console.log('loadOffers: Completed', { 
+        filtered: filteredData.length, 
+        all: allData.length,
+        filteredData: filteredData.map(o => ({ id: o.id, name: o.name, status: o.status })),
+        allData: allData.map(o => ({ id: o.id, name: o.name, status: o.status }))
+      })
+      
+      setOffers(filteredData)
+      setAllOffers(allData)
+      setInitialLoadComplete(true) // Mark initial load as complete
+    } catch (error) {
+      console.error('loadOffers: Error', error)
+      setOffers([])
+      setAllOffers([])
+    }
+  }, [user, filters, getOffers])
 
   useEffect(() => {
-    loadOffers()
-  }, [filters])
-
-  const loadOffers = async () => {
-    const data = await getOffers(filters)
-    setOffers(data)
-  }
+    // Only load offers when user is fully loaded and has organization
+    // Check both userLoading and that user exists with organization_id
+    if (!userLoading && user && user.organization_id) {
+      console.log('useEffect: Triggering loadOffers', { 
+        userLoading, 
+        hasUser: !!user, 
+        orgId: user.organization_id, 
+        filters 
+      })
+      loadOffers()
+    } else {
+      console.log('useEffect: Skipping - waiting for user', { 
+        userLoading, 
+        hasUser: !!user, 
+        orgId: user?.organization_id 
+      })
+    }
+  }, [loadOffers, userLoading, user])
 
   const handleTabChange = (tab: typeof activeTab) => {
     setActiveTab(tab)
     if (tab === 'all') {
-      setFilters({ ...filters, status: undefined })
+      setFilters((prev) => {
+        const { status, ...rest } = prev
+        return rest
+      })
     } else {
-      setFilters({ ...filters, status: tab })
+      setFilters((prev) => ({ ...prev, status: tab }))
     }
   }
 
@@ -69,21 +121,32 @@ export default function OffersPage() {
     }
   }
 
-  // Filter by search
+  // Filter by search and tab status
+  // Note: The offers array is already filtered by status from the API query,
+  // but we also filter by search query here
   const filteredOffers = offers.filter((offer) => {
-    if (!searchQuery) return true
-    const query = searchQuery.toLowerCase()
-    return (
-      offer.name.toLowerCase().includes(query) ||
-      offer.country.toLowerCase().includes(query) ||
-      offer.city?.toLowerCase().includes(query)
-    )
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      const matchesSearch =
+        offer.name.toLowerCase().includes(query) ||
+        offer.country.toLowerCase().includes(query) ||
+        offer.city?.toLowerCase().includes(query)
+      if (!matchesSearch) return false
+    }
+    return true
   })
 
-  const stats = {
-    active: offers.filter(o => o.status === 'active').length,
-    sold_out: offers.filter(o => o.status === 'sold_out').length,
-    archived: offers.filter(o => o.status === 'archived').length,
+  // Calculate stats from all offers (not filtered ones) to show accurate counts
+  // Only show counts after initial load is complete to avoid showing 0 before data loads
+  const stats = initialLoadComplete ? {
+    active: allOffers.filter(o => o.status === 'active').length,
+    sold_out: allOffers.filter(o => o.status === 'sold_out').length,
+    archived: allOffers.filter(o => o.status === 'archived').length,
+  } : {
+    active: 0,
+    sold_out: 0,
+    archived: 0,
   }
 
   return (
@@ -118,7 +181,7 @@ export default function OffersPage() {
           { key: 'active', label: 'Aktivne', count: stats.active },
           { key: 'sold_out', label: 'Rasprodato', count: stats.sold_out },
           { key: 'archived', label: 'Arhivirane', count: stats.archived },
-          { key: 'all', label: 'Sve', count: offers.length },
+          { key: 'all', label: 'Sve', count: allOffers.length },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -206,6 +269,14 @@ export default function OffersPage() {
         </div>
       </div>
 
+      {/* Error Message */}
+      {offersError && (
+        <div className="rounded-[14px] bg-red-50 border border-red-200 p-4 text-red-800">
+          <p className="font-medium">Greška pri učitavanju ponuda:</p>
+          <p className="text-sm">{offersError}</p>
+        </div>
+      )}
+
       {/* Table */}
       {loading && offers.length === 0 ? (
         <div className="rounded-[14px] bg-white p-12 text-center border border-[#E2E8F0] shadow-sm">
@@ -276,6 +347,7 @@ export default function OffersPage() {
           <div className="flex items-center justify-between border-t border-[#E2E8F0] bg-[#F8FAFC] px-5 py-3">
             <p className="text-sm text-[#64748B]">
               Prikazano {filteredOffers.length} od {offers.length} ponuda
+              {activeTab !== 'all' && ` (${allOffers.length} ukupno)`}
             </p>
           </div>
         </div>

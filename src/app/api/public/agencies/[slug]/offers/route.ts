@@ -18,6 +18,7 @@ export async function GET(
       .from('agency_booking_settings')
       .select('organization_id')
       .eq('slug', slug)
+      .eq('is_active', true)
       .single()
 
     if (settingsError || !settings) {
@@ -32,7 +33,7 @@ export async function GET(
       .from('offers')
       .select(`
         *,
-        images:offer_images(id, url, alt_text, position, is_primary)
+        images:offer_images(id, url, position, is_primary)
       `)
       .eq('organization_id', settings.organization_id)
       .eq('status', 'active')
@@ -44,12 +45,14 @@ export async function GET(
     const country = searchParams.get('country')
     const city = searchParams.get('city')
     const month = searchParams.get('month')
-    const minPrice = searchParams.get('minPrice')
-    const maxPrice = searchParams.get('maxPrice')
-    const boardType = searchParams.get('boardType')
-    const accommodationType = searchParams.get('accommodationType')
-    const transportType = searchParams.get('transportType')
-    const inventoryType = searchParams.get('inventoryType')
+    const departureFrom = searchParams.get('departure_from') || searchParams.get('departureFrom')
+    const departureTo = searchParams.get('departure_to') || searchParams.get('departureTo')
+    const minPrice = searchParams.get('minPrice') || searchParams.get('min_price')
+    const maxPrice = searchParams.get('maxPrice') || searchParams.get('max_price')
+    const boardType = searchParams.get('boardType') || searchParams.get('board_type')
+    const accommodationType = searchParams.get('accommodationType') || searchParams.get('accommodation_type')
+    const transportType = searchParams.get('transportType') || searchParams.get('transport_type')
+    const inventoryType = searchParams.get('inventoryType') || searchParams.get('inventory_type')
 
     if (country) {
       query = query.ilike('country', `%${country}%`)
@@ -59,7 +62,13 @@ export async function GET(
       query = query.ilike('city', `%${city}%`)
     }
 
-    if (month) {
+    if (departureFrom) {
+      query = query.gte('departure_date', departureFrom)
+    }
+    if (departureTo) {
+      query = query.lte('departure_date', departureTo)
+    }
+    if (month && !departureFrom) {
       // Filter by month - extract from departure_date
       const monthNumber = getMonthNumber(month)
       if (monthNumber) {
@@ -107,19 +116,53 @@ export async function GET(
     }
 
     // Sort images by position and mark primary
-    const offersWithSortedImages = offers?.map(offer => ({
+    let offersWithSortedImages = offers?.map(offer => ({
       ...offer,
       images: (offer.images || []).sort((a: { position: number }, b: { position: number }) => a.position - b.position),
     })) || []
+
+    let isFallback = false
+
+    // If no exact matches, try fallback query with relaxed criteria
+    if (offersWithSortedImages.length === 0 && country) {
+      isFallback = true
+      
+      // Build fallback query: same country, any date, recommended or popular
+      let fallbackQuery = supabase
+        .from('offers')
+        .select(`
+          *,
+          images:offer_images(id, url, position, is_primary)
+        `)
+        .eq('organization_id', settings.organization_id)
+        .eq('status', 'active')
+        .ilike('country', `%${country}%`)
+        .gt('available_spots', 0)
+        .order('is_recommended', { ascending: false, nullsFirst: false })
+        .order('views_last_24h', { ascending: false })
+        .order('departure_date', { ascending: true })
+        .limit(20) // Limit fallback results
+
+      const { data: fallbackOffers, error: fallbackError } = await fallbackQuery
+
+      if (!fallbackError && fallbackOffers) {
+        offersWithSortedImages = fallbackOffers.map(offer => ({
+          ...offer,
+          images: (offer.images || []).sort((a: { position: number }, b: { position: number }) => a.position - b.position),
+        }))
+      }
+    }
 
     // Split by inventory type
     const ownedOffers = offersWithSortedImages.filter(o => o.inventory_type === 'owned')
     const inquiryOffers = offersWithSortedImages.filter(o => o.inventory_type === 'inquiry')
 
     return NextResponse.json({
+      offers: offersWithSortedImages, // Combined array for results page
       owned: ownedOffers,
       inquiry: inquiryOffers,
       total: offersWithSortedImages.length,
+      isFallback, // Flag to indicate these are fallback results
     })
   } catch (error) {
     console.error('Error fetching offers:', error)

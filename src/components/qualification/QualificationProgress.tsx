@@ -9,10 +9,14 @@ interface QualificationProgressProps {
 }
 
 const STEP_LABELS: Record<string, string> = {
-  destination: 'Destinacija',
-  guests: 'Putnici',
+  country: 'Država',
+  city: 'Grad',
+  adults: 'Odrasli',
+  children: 'Deca',
   dates: 'Datumi',
-  accommodation: 'Smeštaj',
+  accommodation_type: 'Smeštaj',
+  board_type: 'Ishrana',
+  transport_type: 'Prevoz',
   budget: 'Budžet',
 }
 

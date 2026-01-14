@@ -5,10 +5,14 @@ import { useState } from 'react'
 import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react'
 import { useQualification } from '@/hooks/use-qualification'
 import QualificationProgress from '@/components/qualification/QualificationProgress'
-import DestinationStep from '@/components/qualification/DestinationStep'
-import GuestsStep from '@/components/qualification/GuestsStep'
+import CountryStep from '@/components/qualification/CountryStep'
+import CityStep from '@/components/qualification/CityStep'
+import AdultsStep from '@/components/qualification/AdultsStep'
+import ChildrenStep from '@/components/qualification/ChildrenStep'
 import DatesStep from '@/components/qualification/DatesStep'
-import AccommodationStep from '@/components/qualification/AccommodationStep'
+import AccommodationTypeStep from '@/components/qualification/AccommodationTypeStep'
+import BoardTypeStep from '@/components/qualification/BoardTypeStep'
+import TransportTypeStep from '@/components/qualification/TransportTypeStep'
 import BudgetStep from '@/components/qualification/BudgetStep'
 
 export default function QualifyPage() {
@@ -22,16 +26,20 @@ export default function QualifyPage() {
     data,
     progress,
     steps,
-    updateDestination,
+    updateCountry,
+    updateCity,
     updateGuests,
     updateDates,
-    updateAccommodation,
+    updateAccommodationType,
+    updateBoardType,
+    updateTransportType,
     updateBudget,
     nextStep,
     prevStep,
     canProceed,
     currentStepIndex,
     totalSteps,
+    autoAdvance,
   } = useQualification()
 
   const handleSubmit = async () => {
@@ -78,18 +86,43 @@ export default function QualifyPage() {
 
   const renderStep = () => {
     switch (currentStep) {
-      case 'destination':
+      case 'country':
         return (
-          <DestinationStep
-            value={data.destination}
-            onChange={updateDestination}
+          <CountryStep
+            value={data.destination.country}
+            onChange={updateCountry}
+            onNext={autoAdvance}
           />
         )
-      case 'guests':
+      case 'city':
         return (
-          <GuestsStep
-            value={data.guests}
-            onChange={updateGuests}
+          <CityStep
+            country={data.destination.country}
+            value={data.destination.city}
+            onChange={updateCity}
+            onNext={autoAdvance}
+          />
+        )
+      case 'adults':
+        return (
+          <AdultsStep
+            value={data.guests.adults}
+            onChange={(adults) => updateGuests(adults, data.guests.children, data.guests.childAges)}
+            onNext={autoAdvance}
+          />
+        )
+      case 'children':
+        return (
+          <ChildrenStep
+            value={data.guests.children}
+            onChange={(children) => {
+              // Initialize childAges array if needed
+              const childAges = data.guests.childAges.length < children
+                ? [...data.guests.childAges, ...Array(children - data.guests.childAges.length).fill(5)]
+                : data.guests.childAges.slice(0, children)
+              updateGuests(data.guests.adults, children, childAges)
+            }}
+            onNext={autoAdvance}
           />
         )
       case 'dates':
@@ -99,11 +132,28 @@ export default function QualifyPage() {
             onChange={updateDates}
           />
         )
-      case 'accommodation':
+      case 'accommodation_type':
         return (
-          <AccommodationStep
-            value={data.accommodation}
-            onChange={updateAccommodation}
+          <AccommodationTypeStep
+            value={data.accommodation.type}
+            onChange={updateAccommodationType}
+            onNext={autoAdvance}
+          />
+        )
+      case 'board_type':
+        return (
+          <BoardTypeStep
+            value={data.accommodation.board}
+            onChange={updateBoardType}
+            onNext={autoAdvance}
+          />
+        )
+      case 'transport_type':
+        return (
+          <TransportTypeStep
+            value={data.accommodation.transport}
+            onChange={updateTransportType}
+            onNext={autoAdvance}
           />
         )
       case 'budget':

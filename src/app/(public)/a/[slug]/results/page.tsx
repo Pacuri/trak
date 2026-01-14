@@ -18,6 +18,7 @@ export default function ResultsPage() {
   const [qualification, setQualification] = useState<QualificationData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isFallback, setIsFallback] = useState(false)
   
   const { currentResponseTime, isWithinWorkingHours } = useAgencySettings(slug)
 
@@ -49,6 +50,12 @@ export default function ResultsPage() {
         if (qualData.dates.exactStart) {
           queryParams.set('departure_from', qualData.dates.exactStart)
         }
+        if (qualData.dates.exactEnd) {
+          queryParams.set('departure_to', qualData.dates.exactEnd)
+        }
+        if (qualData.budget.min) {
+          queryParams.set('min_price', String(qualData.budget.min))
+        }
         if (qualData.budget.max) {
           queryParams.set('max_price', String(qualData.budget.max))
         }
@@ -61,6 +68,7 @@ export default function ResultsPage() {
 
         const data = await response.json()
         setOffers(data.offers || [])
+        setIsFallback(data.isFallback || false)
       } catch (err) {
         console.error('Error fetching offers:', err)
         setError('Greška pri učitavanju ponuda')
@@ -159,6 +167,16 @@ export default function ResultsPage() {
           </div>
         ) : (
           <>
+            {isFallback && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-6">
+                <h3 className="text-lg font-semibold text-amber-900 mb-2">
+                  Nema tačnih rezultata, ali preporučujemo:
+                </h3>
+                <p className="text-amber-700 text-sm">
+                  Nismo pronašli ponude koje tačno odgovaraju vašoj pretrazi, ali evo naših preporuka za {qualification.destination.country}
+                </p>
+              </div>
+            )}
             {/* Instant booking section */}
             <ResultsSection
               title="⚡ REZERVIŠITE ODMAH"

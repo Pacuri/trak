@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import type { QualificationData, AccommodationType, BoardType, TransportType } from '@/types'
 
-const STEPS = ['destination', 'guests', 'dates', 'accommodation', 'budget'] as const
+const STEPS = ['country', 'city', 'adults', 'children', 'dates', 'accommodation_type', 'board_type', 'transport_type', 'budget'] as const
 export type QualificationStep = (typeof STEPS)[number]
 
 const INITIAL_DATA: QualificationData = {
@@ -12,7 +12,7 @@ const INITIAL_DATA: QualificationData = {
     city: null,
   },
   guests: {
-    adults: 2,
+    adults: 1, // Minimum required, but user must select
     children: 0,
     childAges: [],
   },
@@ -24,9 +24,9 @@ const INITIAL_DATA: QualificationData = {
     flexible: true,
   },
   accommodation: {
-    type: 'any' as AccommodationType,
-    board: 'any' as BoardType,
-    transport: 'bus' as TransportType,
+    type: null as AccommodationType | null,
+    board: null as BoardType | null,
+    transport: null as TransportType | null,
   },
   budget: {
     min: null,
@@ -36,7 +36,7 @@ const INITIAL_DATA: QualificationData = {
 }
 
 export function useQualification() {
-  const [currentStep, setCurrentStep] = useState<QualificationStep>('destination')
+  const [currentStep, setCurrentStep] = useState<QualificationStep>('country')
   const [data, setData] = useState<QualificationData>(INITIAL_DATA)
   const [isComplete, setIsComplete] = useState(false)
 
@@ -54,6 +54,20 @@ export function useQualification() {
     setData((prev) => ({
       ...prev,
       destination: { country, city: city || null },
+    }))
+  }, [])
+
+  const updateCountry = useCallback((country: string) => {
+    setData((prev) => ({
+      ...prev,
+      destination: { ...prev.destination, country },
+    }))
+  }, [])
+
+  const updateCity = useCallback((city: string | null) => {
+    setData((prev) => ({
+      ...prev,
+      destination: { ...prev.destination, city },
     }))
   }, [])
 
@@ -83,6 +97,27 @@ export function useQualification() {
     },
     []
   )
+
+  const updateAccommodationType = useCallback((type: AccommodationType) => {
+    setData((prev) => ({
+      ...prev,
+      accommodation: { ...prev.accommodation, type },
+    }))
+  }, [])
+
+  const updateBoardType = useCallback((board: BoardType) => {
+    setData((prev) => ({
+      ...prev,
+      accommodation: { ...prev.accommodation, board },
+    }))
+  }, [])
+
+  const updateTransportType = useCallback((transport: TransportType) => {
+    setData((prev) => ({
+      ...prev,
+      accommodation: { ...prev.accommodation, transport },
+    }))
+  }, [])
 
   const updateBudget = useCallback(
     (budget: Partial<QualificationData['budget']>) => {
@@ -116,20 +151,38 @@ export function useQualification() {
 
   const reset = useCallback(() => {
     setData(INITIAL_DATA)
-    setCurrentStep('destination')
+    setCurrentStep('country')
     setIsComplete(false)
   }, [])
 
+  // Auto-advance helper - call nextStep after a short delay to allow state update
+  const autoAdvance = useCallback(() => {
+    // Use requestAnimationFrame to ensure state updates are processed first
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        nextStep()
+      }, 200) // Small delay for better UX
+    })
+  }, [nextStep])
+
   const canProceed = useCallback((): boolean => {
     switch (currentStep) {
-      case 'destination':
+      case 'country':
         return data.destination.country.length > 0
-      case 'guests':
+      case 'city':
+        return true // City is optional, can proceed with or without
+      case 'adults':
         return data.guests.adults >= 1
+      case 'children':
+        return true // Children can be 0
       case 'dates':
         return data.dates.month !== null || data.dates.exactStart !== null
-      case 'accommodation':
-        return true // All have defaults
+      case 'accommodation_type':
+        return data.accommodation.type !== null
+      case 'board_type':
+        return data.accommodation.board !== null
+      case 'transport_type':
+        return data.accommodation.transport !== null
       case 'budget':
         return true // Optional
       default:
@@ -150,14 +203,20 @@ export function useQualification() {
     // Actions
     updateData,
     updateDestination,
+    updateCountry,
+    updateCity,
     updateGuests,
     updateDates,
     updateAccommodation,
+    updateAccommodationType,
+    updateBoardType,
+    updateTransportType,
     updateBudget,
     nextStep,
     prevStep,
     goToStep,
     reset,
     canProceed,
+    autoAdvance,
   }
 }

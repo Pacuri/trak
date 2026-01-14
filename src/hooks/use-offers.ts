@@ -43,7 +43,9 @@ export function useOffers() {
 
   const getOffers = useCallback(
     async (filters?: OfferFilters): Promise<Offer[]> => {
-      if (!user?.organization_id) {
+      // Explicit validation - don't execute if user is not loaded or doesn't have organization_id
+      if (!user || !user.organization_id) {
+        console.log('getOffers: User not ready', { hasUser: !!user, orgId: user?.organization_id })
         setError('Organizacija nije pronađena')
         return []
       }
@@ -52,18 +54,21 @@ export function useOffers() {
       setError(null)
 
       try {
+        console.log('getOffers: Executing query', { orgId: user.organization_id, filters })
+        
         let query = supabase
           .from('offers')
           .select(`
             *,
-            images:offer_images(*)
+            images:offer_images(id, url, position)
           `)
-          .eq('organization_id', user?.organization_id)
+          .eq('organization_id', user.organization_id)
           .order('departure_date', { ascending: true })
 
         if (filters?.status) {
           query = query.eq('status', filters.status)
         }
+        // If no status filter, return all offers (needed for stats)
         if (filters?.inventory_type) {
           query = query.eq('inventory_type', filters.inventory_type)
         }
@@ -83,10 +88,12 @@ export function useOffers() {
         const { data, error: fetchError } = await query
 
         if (fetchError) {
+          console.error('Error fetching offers:', fetchError)
           setError(fetchError.message)
           return []
         }
 
+        console.log('Fetched offers:', data?.length || 0, 'offers')
         return (data as Offer[]) || []
       } catch (err) {
         setError('Greška pri učitavanju ponuda')
@@ -100,7 +107,9 @@ export function useOffers() {
 
   const getOffer = useCallback(
     async (id: string): Promise<Offer | null> => {
-      if (!user?.organization_id) {
+      // Explicit validation - don't execute if user is not loaded or doesn't have organization_id
+      if (!user || !user.organization_id) {
+        console.log('getOffer: User not ready', { hasUser: !!user, orgId: user?.organization_id, offerId: id })
         setError('Organizacija nije pronađena')
         return null
       }
@@ -109,21 +118,28 @@ export function useOffers() {
       setError(null)
 
       try {
+        console.log('getOffer: Executing query', { 
+          offerId: id,
+          orgId: user.organization_id 
+        })
+        
         const { data, error: fetchError } = await supabase
           .from('offers')
           .select(`
             *,
-            images:offer_images(*)
+            images:offer_images(id, url, position)
           `)
           .eq('id', id)
-          .eq('organization_id', user?.organization_id)
+          .eq('organization_id', user.organization_id)
           .single()
 
         if (fetchError) {
+          console.error('Error fetching offer:', fetchError)
           setError(fetchError.message)
           return null
         }
 
+        console.log('Fetched offer:', data?.id)
         return data as Offer
       } catch (err) {
         setError('Greška pri učitavanju ponude')
@@ -207,7 +223,7 @@ export function useOffers() {
           .eq('organization_id', user?.organization_id)
           .select(`
             *,
-            images:offer_images(*)
+            images:offer_images(id, url, position)
           `)
           .single()
 
