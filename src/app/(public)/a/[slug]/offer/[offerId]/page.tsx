@@ -69,14 +69,15 @@ export default function OfferDetailPage() {
   useEffect(() => {
     if (!offer?.images || offer.images.length === 0) return
 
+    const images = offer.images
     const preloadIndexes = [
       currentImageIndex - 1,
       currentImageIndex + 1,
-    ].filter((idx) => idx >= 0 && idx < (offer.images?.length ?? 0))
+    ].filter((idx) => idx >= 0 && idx < images.length)
 
     preloadIndexes.forEach((idx) => {
       const img = new window.Image()
-      img.src = offer.images[idx].url
+      img.src = images[idx].url
     })
   }, [offer?.images, currentImageIndex])
 
