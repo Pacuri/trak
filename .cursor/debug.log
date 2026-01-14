@@ -19,3 +19,12 @@
 {"location":"use-reservations.ts:getReservations:entry","message":"getReservations called","data":{"hasUser":false,"filters":{}},"timestamp":1768419159459,"sessionId":"debug-session","hypothesisId":"A"}
 {"location":"use-reservations.ts:getReservations:noOrg","message":"No organization_id - returning empty","data":{"hasUser":false},"timestamp":1768419159459,"sessionId":"debug-session","hypothesisId":"A"}
 {"location":"reservations/page.tsx:loadData:result","message":"loadData received data","data":{"reservationsCount":0,"stats":{"pending":0,"paid":0,"expired":0,"total":0}},"timestamp":1768419159461,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"reservations/page.tsx:useEffect","message":"ReservationsPage useEffect triggered","data":{"filters":{}},"timestamp":1768420374201,"sessionId":"debug-session","hypothesisId":"B"}
+{"location":"reservations/page.tsx:loadData:result","message":"loadData received data","data":{"reservationsCount":0,"stats":{"pending":0,"paid":0,"expired":0,"total":0}},"timestamp":1768420374204,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"use-reservations.ts:getReservations:entry","message":"getReservations called","data":{"hasUser":false,"filters":{}},"timestamp":1768420374202,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"use-reservations.ts:getReservations:noOrg","message":"No organization_id - returning empty","data":{"hasUser":false},"timestamp":1768420374202,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"trips/page.tsx:useEffect","message":"TripsPage useEffect triggered","data":{},"timestamp":1768420375555,"sessionId":"debug-session","hypothesisId":"B"}
+{"location":"trips/page.tsx:loadData:start","message":"loadData called","data":{},"timestamp":1768420375556,"sessionId":"debug-session","hypothesisId":"B"}
+{"location":"use-bookings.ts:getBookings:entry","message":"getBookings called","data":{"hasUser":false,"filters":{"status":"confirmed"}},"timestamp":1768420375556,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"use-bookings.ts:getBookings:noOrg","message":"No organization_id - returning empty","data":{"hasUser":false},"timestamp":1768420375556,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"trips/page.tsx:loadData:result","message":"loadData received data","data":{"bookingsCount":0,"stats":{"confirmed":0,"cancelled":0,"totalRevenue":0}},"timestamp":1768420375558,"sessionId":"debug-session","hypothesisId":"C"}
