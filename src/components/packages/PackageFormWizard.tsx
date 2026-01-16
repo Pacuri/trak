@@ -14,6 +14,7 @@ import type {
   PriceIntervalFormData,
   ChildrenPolicyFormData,
   ShiftFormData,
+  TransportType,
 } from '@/types/packages'
 import {
   ArrowLeft,
@@ -505,7 +506,7 @@ export function PackageFormWizard({ initialData, mode, onSubmit, loading }: Pack
               </label>
               <select
                 value={formData.transport_type || ''}
-                onChange={(e) => updateField('transport_type', e.target.value || undefined)}
+                onChange={(e) => updateField('transport_type', (e.target.value || undefined) as TransportType | undefined)}
                 className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm bg-white focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
               >
                 <option value="">Izaberi...</option>

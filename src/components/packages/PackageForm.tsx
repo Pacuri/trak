@@ -58,6 +58,12 @@ export function PackageForm({ initialData, mode, onSubmit, loading }: PackageFor
       child_price: d.child_price,
       total_spots: d.total_spots,
     })) || [],
+    // New pricing system fields (empty defaults for legacy form)
+    apartments: [],
+    room_types: [],
+    price_intervals: [],
+    children_policies: [],
+    shifts: [],
   })
   
   const [newImageUrl, setNewImageUrl] = useState('')

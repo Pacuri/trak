@@ -126,13 +126,28 @@ export async function GET(
       
       floatingOffers = shuffledDepartures.map((dep: any, index: number) => {
         // Calculate urgency label
-        let urgencyLabel: string | null = null
+        let urgencyLabel: FloatingOfferCard['urgency_label'] = null
         if (dep.available_spots !== null && dep.available_spots <= 2) {
-          urgencyLabel = '🔥 POSLEDNJA MESTA'
+          urgencyLabel = {
+            type: 'POSLEDNJA_MESTA',
+            text: 'POSLEDNJA MESTA',
+            color: 'red',
+            icon: '🔥'
+          }
         } else if (dep.original_price && dep.original_price > (dep.effective_price || dep.price_override || 0)) {
-          urgencyLabel = '💰 SNIŽENO'
-        } else if (index === 0 && !urgencyLabel) {
-          urgencyLabel = '✨ POPULARNO'
+          urgencyLabel = {
+            type: 'SNIZENO',
+            text: 'SNIŽENO',
+            color: 'green',
+            icon: '💰'
+          }
+        } else if (index === 0) {
+          urgencyLabel = {
+            type: 'POPULARNO',
+            text: 'POPULARNO',
+            color: 'purple',
+            icon: '✨'
+          }
         }
         
         return {
