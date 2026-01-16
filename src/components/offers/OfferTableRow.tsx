@@ -45,7 +45,7 @@ export default function OfferTableRow({ offer, onArchive, onCapacityUpdate }: Of
     if (offer.inventory_type === 'owned') {
       return (
         <span className="inline-flex items-center rounded-full bg-[#EFF6FF] px-2 py-0.5 text-[10px] font-medium text-[#3B82F6]">
-          VLASTITA
+          FIKSNA
         </span>
       )
     }

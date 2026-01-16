@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useOrganization } from '@/hooks/use-organization'
 import { createClient } from '@/lib/supabase/client'
-import { Save, Building2, Users, UserPlus } from 'lucide-react'
+import { Save, Building2, Users, UserPlus, Globe, Settings } from 'lucide-react'
+import Link from 'next/link'
 
 export default function SettingsPage() {
   const { organization, teamMembers, loading, refresh } = useOrganization()
@@ -235,6 +236,27 @@ export default function SettingsPage() {
                   <UserPlus className="h-4 w-4" />
                   Pozovi člana tima (uskoro)
                 </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Public Page Settings Card */}
+          <div className="lg:col-span-2 rounded-[14px] bg-white border border-[#E2E8F0] shadow-sm p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F0FDFA]">
+                <Globe className="h-5 w-5 text-[#0D9488]" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold text-[#1E293B]">Javna stranica</h2>
+                <p className="text-sm text-[#64748B] mt-1">
+                  Prilagodite izgled vaše landing stranice i podešavanja upita
+                </p>
+                <Link href="/dashboard/settings/public-page">
+                  <button className="mt-4 inline-flex items-center gap-2 rounded-[10px] border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all">
+                    <Settings className="h-4 w-4" />
+                    Uredi javnu stranicu
+                  </button>
+                </Link>
               </div>
             </div>
           </div>

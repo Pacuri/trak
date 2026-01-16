@@ -1,3 +1,23 @@
+/**
+ * Utility function to conditionally join class names
+ * A simple implementation without external dependencies
+ */
+export function cn(...inputs: (string | undefined | null | false | Record<string, boolean>)[]): string {
+  return inputs
+    .flatMap((input) => {
+      if (!input) return []
+      if (typeof input === 'string') return input.split(' ')
+      if (typeof input === 'object') {
+        return Object.entries(input)
+          .filter(([, value]) => value)
+          .map(([key]) => key)
+      }
+      return []
+    })
+    .filter(Boolean)
+    .join(' ')
+}
+
 export function getStageBadgeColor(stageName: string): string {
   const name = stageName.toLowerCase()
   if (name.includes('novi') || name.includes('new')) return 'bg-[#3B82F6]/10 text-[#3B82F6]'

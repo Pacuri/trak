@@ -163,7 +163,7 @@ export default function OfferForm({ offer, onSubmit, loading }: OfferFormProps) 
               onChange={(e) => setFormData({ ...formData, inventory_type: e.target.value as InventoryType })}
               className="block w-full rounded-[10px] border border-[#E2E8F0] px-4 py-2.5 text-sm text-[#1E293B] bg-white focus:border-[#3B82F6] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/20"
             >
-              <option value="owned">Vlastita (garantovana mesta)</option>
+              <option value="owned">Fiksna (garantovana mesta)</option>
               <option value="inquiry">Na upit (provera raspoloživosti)</option>
             </select>
           </div>
