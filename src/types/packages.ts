@@ -415,6 +415,7 @@ export interface ChildrenPolicy {
   bed_type?: 'any' | 'separate' | 'shared' | null
 
   label?: string // e.g., 'Bebe', 'Deca'
+  rule_name?: string | null // Original rule name from import
   sort_order: number
   created_at: string
 }
