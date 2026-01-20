@@ -326,7 +326,7 @@ export default function LeadsPage() {
                     </td>
                     <td className="hidden px-5 py-4 sm:table-cell">
                       <div className="flex items-center gap-2">
-                        <SourceIcon source={lead.source?.name || lead.source_type} />
+                        <SourceIcon source={lead.source?.name || lead.source_type || undefined} />
                         <span className="text-sm text-[#64748B]">
                           {(lead.source?.name?.toLowerCase() === 'website' || lead.source_type === 'website') ? 'trak' : (lead.source?.name || lead.source_type || '-')}
                         </span>
