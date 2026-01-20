@@ -304,12 +304,13 @@ export async function POST(
       console.error('Error storing message:', insertError)
     }
 
-    // Update lead's last contact
+    // Update lead's last contact and mark as responded
     await supabase
       .from('leads')
       .update({
         last_response_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        awaiting_response: false,
       })
       .eq('id', leadId)
 

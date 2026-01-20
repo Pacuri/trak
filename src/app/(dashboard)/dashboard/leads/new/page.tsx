@@ -92,8 +92,8 @@ export default function NewLeadPage() {
             <User className="h-5 w-5 text-[#3B82F6]" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-[#1E293B]">Novi upit</h1>
-            <p className="text-sm text-[#64748B]">Unesite podatke o novom upitu</p>
+            <h1 className="text-xl font-bold text-[#1E293B]">Novi klijent</h1>
+            <p className="text-sm text-[#64748B]">Unesite podatke o novom klijentu</p>
           </div>
         </div>
 
@@ -301,7 +301,7 @@ export default function NewLeadPage() {
               {...register('original_message')}
               id="original_message"
               rows={4}
-              placeholder="Originalna poruka ili upit od klijenta..."
+              placeholder="Originalna poruka od klijenta..."
               className="block w-full rounded-[10px] border border-[#E2E8F0] px-4 py-3 text-sm text-[#1E293B] bg-white placeholder:text-[#94A3B8] focus:border-[#3B82F6] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/20 transition-all"
             />
           </div>
@@ -344,7 +344,7 @@ export default function NewLeadPage() {
                   Čuvanje...
                 </span>
               ) : (
-                'Sačuvaj upit'
+                'Sačuvaj klijenta'
               )}
             </button>
           </div>

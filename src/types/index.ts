@@ -85,13 +85,15 @@ export interface CustomInquiry {
   customer_note: string | null
   qualification_data: QualificationData | null
   package_id: string | null
-  status: 'new' | 'contacted' | 'converted' | 'closed'
+  source: string | null
+  status: 'new' | 'contacted' | 'converted' | 'closed' | 'responded'
   responded_at: string | null
   responded_by: string | null
   response_type: string | null
   response_message: string | null
   internal_notes: string | null
   converted_to_lead_id: string | null
+  lead_id: string | null
   created_at: string
   updated_at: string
   // Joined relations

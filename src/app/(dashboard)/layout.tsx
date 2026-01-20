@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import DashboardSidebar from './components/DashboardSidebar'
 import DashboardHeader from './components/DashboardHeader'
+import { DashboardProviders } from '@/components/providers/DashboardProviders'
 
 export default async function DashboardLayout({
   children,
@@ -34,16 +35,18 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen bg-[#FAFAFA]">
-      <DashboardSidebar leadsCount={leadsCount} />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <DashboardHeader user={user} />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-[#FAFAFA] p-4 md:p-8">
-          <div className="max-w-[1600px] mx-auto">
-            {children}
-          </div>
-        </main>
+    <DashboardProviders>
+      <div className="flex h-screen bg-[#FAFAFA]">
+        <DashboardSidebar leadsCount={leadsCount} />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <DashboardHeader user={user} />
+          <main className="flex-1 overflow-y-auto overflow-x-hidden bg-[#FAFAFA] p-4 md:p-8">
+            <div className="max-w-[1600px] mx-auto">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </DashboardProviders>
   )
 }

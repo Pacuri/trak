@@ -153,15 +153,27 @@ async function processNewEmail(
   supabase: any
 ) {
   try {
-    // Check if already processed
-    const { data: existing } = await supabase
+    // Check if already processed in email_candidates
+    const { data: existingCandidate } = await supabase
       .from('email_candidates')
       .select('id')
       .eq('gmail_message_id', messageId)
       .eq('organization_id', organizationId)
       .single()
 
-    if (existing) {
+    if (existingCandidate) {
+      return // Already processed
+    }
+
+    // Check if already processed in messages
+    const { data: existingMessage } = await supabase
+      .from('messages')
+      .select('id')
+      .eq('external_id', messageId)
+      .eq('organization_id', organizationId)
+      .single()
+
+    if (existingMessage) {
       return // Already processed
     }
 
@@ -250,22 +262,64 @@ async function processNewEmail(
       content = content.substring(0, 2000) + '...'
     }
 
-    // Insert as candidate
-    await supabase.from('email_candidates').insert({
-      organization_id: organizationId,
-      gmail_message_id: messageId,
-      gmail_thread_id: message.threadId,
-      from_email: fromEmail,
-      from_name: fromName,
-      to_email: to,
-      subject: subject || '(Bez naslova)',
-      snippet: snippet,
-      content: content,
-      status: 'pending',
-      email_date: date ? new Date(date).toISOString() : new Date().toISOString(),
-    })
+    const emailDate = date ? new Date(date).toISOString() : new Date().toISOString()
 
-    console.log(`New email candidate created: ${fromEmail} - ${subject}`)
+    // CHECK: Is this email from an existing lead?
+    const { data: existingLead } = await supabase
+      .from('leads')
+      .select('id, name')
+      .eq('organization_id', organizationId)
+      .eq('email', fromEmail)
+      .eq('is_archived', false)
+      .single()
+
+    if (existingLead) {
+      // This is a reply from an existing lead - add to messages table directly
+      await supabase.from('messages').insert({
+        lead_id: existingLead.id,
+        organization_id: organizationId,
+        direction: 'inbound',
+        channel: 'email',
+        subject: subject || '(Bez naslova)',
+        content: content || snippet,
+        from_email: fromEmail,
+        from_name: fromName,
+        to_email: to,
+        external_id: messageId,
+        thread_id: message.threadId,
+        status: 'received',
+        sent_at: emailDate,
+      })
+
+      // Update lead: set awaiting_response = true and update last_customer_message_at
+      await supabase
+        .from('leads')
+        .update({
+          awaiting_response: true,
+          last_customer_message_at: emailDate,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingLead.id)
+
+      console.log(`New message added to lead ${existingLead.name} (${existingLead.id}) from ${fromEmail}`)
+    } else {
+      // New sender - add to email_candidates for review
+      await supabase.from('email_candidates').insert({
+        organization_id: organizationId,
+        gmail_message_id: messageId,
+        gmail_thread_id: message.threadId,
+        from_email: fromEmail,
+        from_name: fromName,
+        to_email: to,
+        subject: subject || '(Bez naslova)',
+        snippet: snippet,
+        content: content,
+        status: 'pending',
+        email_date: emailDate,
+      })
+
+      console.log(`New email candidate created: ${fromEmail} - ${subject}`)
+    }
   } catch (error) {
     console.error(`Error processing message ${messageId}:`, error)
   }

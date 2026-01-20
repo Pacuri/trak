@@ -40,9 +40,9 @@ export default function PipelinePage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#1E293B]">Klijenti</h1>
+          <h1 className="text-2xl font-bold text-[#1E293B]">U obradi</h1>
           <p className="mt-1 text-sm text-[#64748B]">
-            Prevucite upite između faza da ažurirate njihov status
+            Prevucite klijente između faza da ažurirate njihov status
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -51,14 +51,14 @@ export default function PipelinePage() {
             className="inline-flex items-center justify-center rounded-[10px] border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#1E293B] transition-all"
           >
             <List className="mr-2 h-4 w-4" />
-            Svi upiti
+            Svi klijenti
           </Link>
           <Link
             href="/dashboard/leads/new"
             className="inline-flex items-center justify-center rounded-[10px] bg-[#3B82F6] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#2563EB] hover:shadow-md transition-all"
           >
             <Plus className="mr-2 h-4 w-4" />
-            Novi upit
+            Novi klijent
           </Link>
         </div>
       </div>
@@ -72,7 +72,7 @@ export default function PipelinePage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-[#1E293B]">{totalLeads}</p>
-              <p className="text-xs text-[#64748B]">Ukupno upita</p>
+              <p className="text-xs text-[#64748B]">Ukupno klijenata</p>
             </div>
           </div>
           <div className="h-10 w-px bg-[#E2E8F0]" />

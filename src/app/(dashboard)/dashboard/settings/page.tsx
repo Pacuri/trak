@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useOrganization } from '@/hooks/use-organization'
 import { createClient } from '@/lib/supabase/client'
-import { Save, Building2, Users, UserPlus, Globe, Settings, MapPin, Link2, Copy, Check, Mail, MessageSquare, Plug } from 'lucide-react'
+import { Save, Building2, Users, UserPlus, Globe, Settings, MapPin, Link2, Copy, Check, Mail, MessageSquare, Plug, Bell, Volume2, VolumeX } from 'lucide-react'
 import Link from 'next/link'
 import type { LanguageRegion } from '@/lib/prompts/document-parse-prompt'
 
@@ -22,7 +22,22 @@ export default function SettingsPage() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null)
+  const [notificationSoundEnabled, setNotificationSoundEnabled] = useState(true)
   const supabase = createClient()
+
+  // Load notification sound preference
+  useEffect(() => {
+    const stored = localStorage.getItem('notification_sound_enabled')
+    if (stored !== null) {
+      setNotificationSoundEnabled(stored === 'true')
+    }
+  }, [])
+
+  const toggleNotificationSound = () => {
+    const newValue = !notificationSoundEnabled
+    setNotificationSoundEnabled(newValue)
+    localStorage.setItem('notification_sound_enabled', String(newValue))
+  }
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
   const landingUrl = organization?.slug ? `${baseUrl}/a/${organization.slug}` : ''
@@ -330,6 +345,48 @@ export default function SettingsPage() {
                     Uredi šablone
                   </button>
                 </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Notification Settings Card */}
+          <div className="rounded-[14px] bg-white border border-[#E2E8F0] shadow-sm p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFF6FF]">
+                <Bell className="h-5 w-5 text-[#3B82F6]" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold text-[#1E293B]">Obaveštenja</h2>
+                <p className="text-sm text-[#64748B] mt-1">
+                  Podešavanja za obaveštenja o novim porukama
+                </p>
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between p-3 rounded-[10px] border border-[#E2E8F0] bg-[#F8FAFC]">
+                    <div className="flex items-center gap-3">
+                      {notificationSoundEnabled ? (
+                        <Volume2 className="h-5 w-5 text-[#3B82F6]" />
+                      ) : (
+                        <VolumeX className="h-5 w-5 text-[#94A3B8]" />
+                      )}
+                      <div>
+                        <p className="text-sm font-medium text-[#1E293B]">Zvuk obaveštenja</p>
+                        <p className="text-xs text-[#64748B]">Reprodukuj zvuk kad stigne nova poruka</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={toggleNotificationSound}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        notificationSoundEnabled ? 'bg-[#3B82F6]' : 'bg-[#E2E8F0]'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          notificationSoundEnabled ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

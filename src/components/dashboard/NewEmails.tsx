@@ -20,7 +20,7 @@ interface EmailCandidate {
 }
 
 interface NewEmailsProps {
-  onEmailAccepted?: () => void
+  onEmailAccepted?: (leadId?: string) => void
 }
 
 export function NewEmails({ onEmailAccepted }: NewEmailsProps) {
@@ -124,8 +124,10 @@ export function NewEmails({ onEmailAccepted }: NewEmailsProps) {
         method: 'POST',
       })
       if (response.ok) {
+        const data = await response.json()
         setEmails(prev => prev.filter(e => e.id !== id))
-        onEmailAccepted?.()
+        // Pass the new lead ID so we can open the chat immediately
+        onEmailAccepted?.(data.lead?.id)
       }
     } catch (err) {
       console.error('Error accepting email:', err)
@@ -160,8 +162,8 @@ export function NewEmails({ onEmailAccepted }: NewEmailsProps) {
   }
 
   return (
-    <div className="bg-white rounded-[14px] border border-slate-200 shadow-sm p-5 h-full">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white rounded-[14px] border border-slate-200 shadow-sm p-5 h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-lg">📧</span>
           <h3 className="font-semibold text-slate-900">Novi emailovi</h3>
@@ -180,7 +182,7 @@ export function NewEmails({ onEmailAccepted }: NewEmailsProps) {
         </button>
       </div>
 
-      <div className="text-xs text-slate-400 mb-3">
+      <div className="text-xs text-slate-400 mb-3 flex-shrink-0">
         Emailovi za pregled i prihvatanje
       </div>
 
@@ -189,8 +191,8 @@ export function NewEmails({ onEmailAccepted }: NewEmailsProps) {
       ) : emails.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="space-y-1">
-          {emails.slice(0, 5).map((email) => (
+        <div className="flex-1 overflow-y-auto space-y-1">
+          {emails.slice(0, 7).map((email) => (
             <EmailRow
               key={email.id}
               email={email}
@@ -200,10 +202,10 @@ export function NewEmails({ onEmailAccepted }: NewEmailsProps) {
               formatTime={formatTime}
             />
           ))}
-          {emails.length > 5 && (
+          {emails.length > 7 && (
             <div className="text-center pt-2">
               <span className="text-xs text-slate-400">
-                +{emails.length - 5} više emailova
+                +{emails.length - 7} više emailova
               </span>
             </div>
           )}

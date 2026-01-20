@@ -119,8 +119,8 @@ function LoadingSkeleton() {
 
 export function InquiriesWaiting({ inquiries, loading, onInquiryClick }: InquiriesWaitingProps) {
   return (
-    <div className="bg-white rounded-[14px] border border-slate-200 shadow-sm p-5 h-full">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white rounded-[14px] border border-slate-200 shadow-sm p-5 h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-lg">📋</span>
           <h3 className="font-semibold text-slate-900">Upiti čekaju odgovor</h3>
@@ -139,7 +139,7 @@ export function InquiriesWaiting({ inquiries, loading, onInquiryClick }: Inquiri
         </Link>
       </div>
 
-      <div className="text-xs text-slate-400 mb-3">
+      <div className="text-xs text-slate-400 mb-3 flex-shrink-0">
         Individualna putovanja
       </div>
 
@@ -148,7 +148,7 @@ export function InquiriesWaiting({ inquiries, loading, onInquiryClick }: Inquiri
       ) : inquiries.length === 0 ? (
         <EmptyState />
       ) : (
-        <div>
+        <div className="flex-1 overflow-y-auto">
           {inquiries.map((inquiry) => (
             <InquiryRow 
               key={inquiry.id} 

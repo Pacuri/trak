@@ -155,8 +155,8 @@ export function AttentionRequired({ sections, loading, onInquiryClick }: Attenti
   const totalCount = sections.reduce((sum, s) => sum + s.count, 0)
 
   return (
-    <div className="bg-white rounded-[14px] border border-slate-200 shadow-sm p-5 h-full">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white rounded-[14px] border border-slate-200 shadow-sm p-5 h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-lg">⚠️</span>
           <h3 className="font-semibold text-slate-900">Zahteva pažnju</h3>
@@ -173,7 +173,7 @@ export function AttentionRequired({ sections, loading, onInquiryClick }: Attenti
       ) : sections.length === 0 ? (
         <EmptyState />
       ) : (
-        <div>
+        <div className="flex-1 overflow-y-auto">
           {sections.map((section) => (
             <CategorySection 
               key={section.category} 

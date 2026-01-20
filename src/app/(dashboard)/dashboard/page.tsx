@@ -1,17 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import { RefreshCw, ExternalLink } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { useDashboardData } from '@/hooks/use-dashboard-data'
 import { useUser } from '@/hooks/use-user'
-import { StatCards } from '@/components/dashboard/StatCards'
-import { LeadsToCall } from '@/components/dashboard/LeadsToCall'
+import { useChat } from '@/contexts/ChatContext'
 import { InquiriesWaiting } from '@/components/dashboard/InquiriesWaiting'
 import { NewEmails } from '@/components/dashboard/NewEmails'
 import { AttentionRequired } from '@/components/dashboard/AttentionRequired'
 import { TodaysDepartures } from '@/components/dashboard/TodaysDepartures'
 import { CapacityOverview } from '@/components/dashboard/CapacityOverview'
 import { InquirySlideOver } from '@/components/dashboard/InquirySlideOver'
+import { InboxWidget } from '@/components/dashboard/InboxWidget'
 import type { PendingInquiry } from '@/types/dashboard'
 
 // Format current date in Serbian
@@ -33,6 +33,7 @@ function formatDate(date: Date): string {
 export default function DashboardPage() {
   const { user } = useUser()
   const dashboardData = useDashboardData()
+  const { openChat } = useChat()
   const [selectedInquiry, setSelectedInquiry] = useState<PendingInquiry | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -53,6 +54,15 @@ export default function DashboardPage() {
   const handleInquiryResponded = () => {
     setSelectedInquiry(null)
     dashboardData.refresh()
+  }
+
+  // Handler for when email is accepted - opens the chat with the new lead
+  const handleEmailAccepted = async (leadId?: string) => {
+    dashboardData.refresh()
+    // If leadId is provided, open the chat immediately via global context
+    if (leadId) {
+      openChat(leadId)
+    }
   }
 
   // Get first name for greeting
@@ -87,16 +97,10 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Stat Cards */}
-        <StatCards stats={dashboardData.stats} loading={dashboardData.loading} />
-
         {/* Main Content Grid - 4 columns on desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-          {/* Column 1: Pozovi danas */}
-          <LeadsToCall
-            leads={dashboardData.leads_to_call}
-            loading={dashboardData.loading}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:min-h-[520px]">
+          {/* Column 1: Čeka odgovor (Inbox) */}
+          <InboxWidget onOpenChat={openChat} />
 
           {/* Column 2: Upiti čekaju */}
           <InquiriesWaiting
@@ -116,7 +120,7 @@ export default function DashboardPage() {
           />
 
           {/* Column 4: Novi emailovi */}
-          <NewEmails onEmailAccepted={() => dashboardData.refresh()} />
+          <NewEmails onEmailAccepted={handleEmailAccepted} />
         </div>
 
         {/* Bottom Section - 2 columns on desktop */}

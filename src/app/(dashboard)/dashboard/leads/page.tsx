@@ -126,15 +126,15 @@ export default function LeadsPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#1E293B]">Upiti</h1>
-          <p className="text-sm text-[#64748B] mt-1">Upravljajte svim vašim upitima i kontaktima</p>
+          <h1 className="text-2xl font-bold text-[#1E293B]">Klijenti</h1>
+          <p className="text-sm text-[#64748B] mt-1">Upravljajte svim vašim klijentima i kontaktima</p>
         </div>
         <Link
           href="/dashboard/leads/new"
           className="inline-flex items-center justify-center rounded-[10px] bg-[#3B82F6] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#2563EB] hover:shadow-md transition-all"
         >
           <Plus className="mr-2 h-4 w-4" />
-          Novi upit
+          Novi klijent
         </Link>
       </div>
 
@@ -259,7 +259,7 @@ export default function LeadsPage() {
         <div className="rounded-[14px] bg-white p-12 text-center border border-[#E2E8F0] shadow-sm">
           <Users className="h-12 w-12 text-[#94A3B8] mx-auto mb-4" />
           <p className="text-[#64748B] mb-4">
-            {searchQuery ? 'Nema rezultata pretrage.' : 'Nema upita za prikaz.'}
+            {searchQuery ? 'Nema rezultata pretrage.' : 'Nema klijenata za prikaz.'}
           </p>
           {!searchQuery && (
             <Link
@@ -267,7 +267,7 @@ export default function LeadsPage() {
               className="inline-flex items-center justify-center rounded-[10px] bg-[#3B82F6] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#2563EB] hover:shadow-md transition-all"
             >
               <Plus className="mr-2 h-4 w-4" />
-              Dodaj prvi upit
+              Dodaj prvog klijenta
             </Link>
           )}
         </div>
@@ -356,7 +356,7 @@ export default function LeadsPage() {
           {/* Table Footer */}
           <div className="flex items-center justify-between border-t border-[#E2E8F0] bg-[#F8FAFC] px-5 py-3">
             <p className="text-sm text-[#64748B]">
-              Prikazano {filteredLeads.length} od {leads.length} upita
+              Prikazano {filteredLeads.length} od {leads.length} klijenata
             </p>
           </div>
         </div>

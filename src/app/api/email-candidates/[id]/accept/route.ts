@@ -54,7 +54,7 @@ export async function POST(
       .limit(1)
       .single()
 
-    // Create lead from candidate
+    // Create lead from candidate with awaiting_response = true
     const { data: lead, error: leadError } = await supabase
       .from('leads')
       .insert({
@@ -65,6 +65,8 @@ export async function POST(
         stage_id: firstStage?.id || null,
         original_message: candidate.content || candidate.snippet,
         notes: `Email: ${candidate.subject}\n\n${candidate.content || candidate.snippet}`,
+        awaiting_response: true,
+        last_customer_message_at: candidate.email_date || new Date().toISOString(),
       })
       .select()
       .single()
