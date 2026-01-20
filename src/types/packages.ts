@@ -400,13 +400,20 @@ export interface ChildrenPolicy {
   id: string
   package_id: string
   organization_id: string
-  
+
   age_from: number // e.g., 0.00
   age_to: number // e.g., 1.99
-  
+
   discount_type: DiscountType
   discount_value?: number // Percent (50) or fixed price (25)
-  
+
+  // Conditions for when the discount applies
+  min_adults?: number | null
+  max_adults?: number | null
+  child_position?: number | null // 1st child, 2nd child, etc.
+  room_type_codes?: string[] | null // e.g., ['1/2', '1/3']
+  bed_type?: 'any' | 'separate' | 'shared' | null
+
   label?: string // e.g., 'Bebe', 'Deca'
   sort_order: number
   created_at: string
