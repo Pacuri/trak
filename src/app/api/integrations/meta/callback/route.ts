@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Meta OAuth error:', error, errorDescription)
       return NextResponse.redirect(
-        new URL(`/dashboard/settings/integrations?error=${encodeURIComponent(errorDescription || error)}`, request.url)
+        new URL(`/dashboard/integrations?error=${encodeURIComponent(errorDescription || error)}`, request.url)
       )
     }
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const storedState = request.cookies.get('meta_oauth_state')?.value
     if (!state || state !== storedState) {
       return NextResponse.redirect(
-        new URL('/dashboard/settings/integrations?error=Invalid+state', request.url)
+        new URL('/dashboard/integrations?error=Invalid+state', request.url)
       )
     }
 
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     if (!userData?.organization_id) {
       return NextResponse.redirect(
-        new URL('/dashboard/settings/integrations?error=Organization+not+found', request.url)
+        new URL('/dashboard/integrations?error=Organization+not+found', request.url)
       )
     }
 
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       const tokenError = await tokenResponse.json()
       console.error('Token exchange error:', tokenError)
       return NextResponse.redirect(
-        new URL(`/dashboard/settings/integrations?error=${encodeURIComponent(tokenError.error?.message || 'Token exchange failed')}`, request.url)
+        new URL(`/dashboard/integrations?error=${encodeURIComponent(tokenError.error?.message || 'Token exchange failed')}`, request.url)
       )
     }
 
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
 
     if (pages.length === 0) {
       return NextResponse.redirect(
-        new URL('/dashboard/settings/integrations?error=No+Facebook+pages+found', request.url)
+        new URL('/dashboard/integrations?error=No+Facebook+pages+found', request.url)
       )
     }
 
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
     if (upsertError) {
       console.error('Error saving Meta integration:', upsertError)
       return NextResponse.redirect(
-        new URL(`/dashboard/settings/integrations?error=${encodeURIComponent(upsertError.message)}`, request.url)
+        new URL(`/dashboard/integrations?error=${encodeURIComponent(upsertError.message)}`, request.url)
       )
     }
 
@@ -174,7 +174,7 @@ export async function GET(request: NextRequest) {
 
     // Clear state cookie
     const response = NextResponse.redirect(
-      new URL('/dashboard/settings/integrations?success=meta', request.url)
+      new URL('/dashboard/integrations?success=meta', request.url)
     )
     response.cookies.delete('meta_oauth_state')
 
@@ -182,7 +182,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Meta callback error:', error)
     return NextResponse.redirect(
-      new URL(`/dashboard/settings/integrations?error=${encodeURIComponent(error.message)}`, request.url)
+      new URL(`/dashboard/integrations?error=${encodeURIComponent(error.message)}`, request.url)
     )
   }
 }
