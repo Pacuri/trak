@@ -186,20 +186,27 @@ async function processMessagingEvent(
       // Existing conversation with a lead - add message directly
       await addMessageToLead(supabase, integration, existingConversation, message, platform, timestamp)
     } else if (existingConversation) {
-      // Conversation exists but not linked to lead yet - update it
-      await supabase
-        .from('meta_conversations')
-        .update({
-          last_message_at: new Date(timestamp).toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', existingConversation.id)
+      // Conversation exists but not linked to lead yet - create lead and add message
+      const lead = await createLeadFromConversation(supabase, integration, existingConversation, message, platform, timestamp)
+      if (lead) {
+        // Update conversation with lead_id
+        await supabase
+          .from('meta_conversations')
+          .update({
+            lead_id: lead.id,
+            status: 'active',
+            last_message_at: new Date(timestamp).toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingConversation.id)
 
-      // Could trigger notification for pending review
-      console.log(`[Meta Webhook] Updated pending conversation ${existingConversation.id}`)
+        // Add the message to the lead
+        await addMessageToLead(supabase, integration, { ...existingConversation, lead_id: lead.id }, message, platform, timestamp)
+      }
     } else {
-      // New conversation - fetch user profile and create
+      // New conversation - fetch user profile, create lead, and add message
       const profile = await fetchUserProfile(integration, senderId, platform)
+      const participantName = profile?.name || 'Unknown'
 
       const { data: newConversation, error: createError } = await supabase
         .from('meta_conversations')
@@ -209,7 +216,7 @@ async function processMessagingEvent(
           platform,
           conversation_id: message?.mid || `${senderId}_${timestamp}`,
           participant_id: senderId,
-          participant_name: profile?.name || 'Unknown',
+          participant_name: participantName,
           participant_profile_pic: profile?.profile_pic,
           status: 'pending',
           last_message_at: new Date(timestamp).toISOString(),
@@ -220,7 +227,23 @@ async function processMessagingEvent(
       if (createError) {
         console.error(`[Meta Webhook] Error creating conversation:`, createError)
       } else {
-        console.log(`[Meta Webhook] Created new ${platform} conversation for ${profile?.name || senderId}`)
+        console.log(`[Meta Webhook] Created new ${platform} conversation for ${participantName}`)
+
+        // Auto-create lead and link to conversation
+        const lead = await createLeadFromConversation(supabase, integration, { ...newConversation, participant_name: participantName }, message, platform, timestamp)
+        if (lead) {
+          // Update conversation with lead_id
+          await supabase
+            .from('meta_conversations')
+            .update({
+              lead_id: lead.id,
+              status: 'active',
+            })
+            .eq('id', newConversation.id)
+
+          // Add the message to the lead
+          await addMessageToLead(supabase, integration, { ...newConversation, lead_id: lead.id, participant_name: participantName }, message, platform, timestamp)
+        }
       }
     }
   } catch (error) {
@@ -260,17 +283,24 @@ async function processWhatsAppMessage(
       // Add to existing lead
       await addMessageToLead(supabase, integration, existingConversation, { text }, 'whatsapp', timestamp)
     } else if (existingConversation) {
-      // Update existing pending conversation
-      await supabase
-        .from('meta_conversations')
-        .update({
-          last_message_at: new Date(timestamp).toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', existingConversation.id)
+      // Conversation exists but not linked to lead yet - create lead and add message
+      const lead = await createLeadFromConversation(supabase, integration, existingConversation, { text }, 'whatsapp', timestamp)
+      if (lead) {
+        await supabase
+          .from('meta_conversations')
+          .update({
+            lead_id: lead.id,
+            status: 'active',
+            last_message_at: new Date(timestamp).toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingConversation.id)
+
+        await addMessageToLead(supabase, integration, { ...existingConversation, lead_id: lead.id }, { text }, 'whatsapp', timestamp)
+      }
     } else {
-      // Create new conversation
-      await supabase
+      // Create new conversation, lead, and message
+      const { data: newConversation, error: createError } = await supabase
         .from('meta_conversations')
         .insert({
           organization_id: integration.organization_id,
@@ -282,11 +312,82 @@ async function processWhatsAppMessage(
           status: 'pending',
           last_message_at: new Date(timestamp).toISOString(),
         })
+        .select()
+        .single()
 
-      console.log(`[Meta Webhook] Created new WhatsApp conversation for ${contactName}`)
+      if (createError) {
+        console.error(`[Meta Webhook] Error creating WhatsApp conversation:`, createError)
+      } else {
+        console.log(`[Meta Webhook] Created new WhatsApp conversation for ${contactName}`)
+
+        // Auto-create lead
+        const lead = await createLeadFromConversation(supabase, integration, { ...newConversation, participant_name: contactName }, { text }, 'whatsapp', timestamp)
+        if (lead) {
+          await supabase
+            .from('meta_conversations')
+            .update({
+              lead_id: lead.id,
+              status: 'active',
+            })
+            .eq('id', newConversation.id)
+
+          await addMessageToLead(supabase, integration, { ...newConversation, lead_id: lead.id, participant_name: contactName }, { text }, 'whatsapp', timestamp)
+        }
+      }
     }
   } catch (error) {
     console.error(`[Meta Webhook] Error processing WhatsApp message:`, error)
+  }
+}
+
+// Create a new lead from a Meta conversation (auto-accept like email)
+async function createLeadFromConversation(
+  supabase: any,
+  integration: any,
+  conversation: any,
+  message: any,
+  platform: string,
+  timestamp: number
+): Promise<{ id: string } | null> {
+  try {
+    const messageDate = new Date(timestamp).toISOString()
+    const leadName = conversation.participant_name || 'Unknown'
+
+    // Get the first pipeline stage for this organization
+    const { data: firstStage } = await supabase
+      .from('pipeline_stages')
+      .select('id')
+      .eq('organization_id', integration.organization_id)
+      .order('position', { ascending: true })
+      .limit(1)
+      .single()
+
+    // Create the lead
+    const { data: lead, error: leadError } = await supabase
+      .from('leads')
+      .insert({
+        organization_id: integration.organization_id,
+        name: leadName,
+        source: platform,
+        stage_id: firstStage?.id || null,
+        awaiting_response: true,
+        last_customer_message_at: messageDate,
+        created_at: messageDate,
+        updated_at: messageDate,
+      })
+      .select('id')
+      .single()
+
+    if (leadError) {
+      console.error(`[Meta Webhook] Error creating lead:`, leadError)
+      return null
+    }
+
+    console.log(`[Meta Webhook] Auto-created lead ${lead.id} for ${leadName} from ${platform}`)
+    return lead
+  } catch (error) {
+    console.error(`[Meta Webhook] Error in createLeadFromConversation:`, error)
+    return null
   }
 }
 
