@@ -63,10 +63,14 @@ export default function LoginPage() {
       {/* Logo */}
       <div className="flex justify-center mb-2">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6]">
-            <span className="text-xl font-bold text-white">T</span>
-          </div>
-          <h1 className="text-2xl font-bold text-[#1E293B]">Trak</h1>
+          <img
+            src="/trak-logo.png"
+            alt="trak"
+            width={40}
+            height={40}
+            className="rounded-[10px]"
+          />
+          <h1 className="text-2xl font-bold text-[#1E293B]">trak</h1>
         </div>
       </div>
 

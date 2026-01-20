@@ -14,12 +14,11 @@ export async function GET(
     // Get organization ID from slug
     const { data: settings, error: settingsError } = await supabase
       .from('agency_booking_settings')
-      .select('organization_id')
+      .select('organization_id, is_active')
       .eq('slug', slug)
-      .eq('is_active', true)
       .single()
 
-    if (settingsError || !settings) {
+    if (settingsError || !settings || settings.is_active === false) {
       return NextResponse.json(
         { error: 'Agencija nije pronađena' },
         { status: 404 }

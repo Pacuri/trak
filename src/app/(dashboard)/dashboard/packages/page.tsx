@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { usePackages } from '@/hooks/use-packages'
 import { useUser } from '@/hooks/use-user'
 import { PackagesList } from '@/components/packages'
@@ -8,20 +8,29 @@ import type { Package } from '@/types/packages'
 import { PACKAGE_UI_TEXT } from '@/lib/package-labels'
 
 export default function PackagesPage() {
-  const { getPackages, loading, error } = usePackages()
+  const { getPackages, archivePackage, loading, error } = usePackages()
   const { loading: userLoading } = useUser()
   const [packages, setPackages] = useState<Package[]>([])
+
+  const loadPackages = useCallback(async () => {
+    const data = await getPackages()
+    setPackages(data)
+  }, [getPackages])
 
   useEffect(() => {
     // Only load packages after user data is ready
     if (userLoading) return
-    
-    async function loadPackages() {
-      const data = await getPackages()
-      setPackages(data)
-    }
     loadPackages()
-  }, [getPackages, userLoading])
+  }, [loadPackages, userLoading])
+
+  const handleArchive = useCallback(async (id: string) => {
+    if (!confirm('Da li ste sigurni da želite arhivirati ovaj paket?')) return
+    const success = await archivePackage(id)
+    if (success) {
+      // Refresh the list after archiving
+      loadPackages()
+    }
+  }, [archivePackage, loadPackages])
 
   return (
     <div className="space-y-6">
@@ -41,7 +50,7 @@ export default function PackagesPage() {
       )}
 
       {/* Packages list */}
-      <PackagesList packages={packages} loading={loading} />
+      <PackagesList packages={packages} loading={loading} onArchive={handleArchive} />
     </div>
   )
 }

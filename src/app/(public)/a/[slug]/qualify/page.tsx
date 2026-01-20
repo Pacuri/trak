@@ -9,9 +9,9 @@ import CountryStep from '@/components/qualification/CountryStep'
 import CityStep from '@/components/qualification/CityStep'
 import AdultsStep from '@/components/qualification/AdultsStep'
 import ChildrenStep from '@/components/qualification/ChildrenStep'
+import ChildAgesStep from '@/components/qualification/ChildAgesStep'
 import MonthStep from '@/components/qualification/MonthStep'
 import DurationStep from '@/components/qualification/DurationStep'
-import FlexibilityStep from '@/components/qualification/FlexibilityStep'
 import AccommodationTypeStep from '@/components/qualification/AccommodationTypeStep'
 import BoardTypeStep from '@/components/qualification/BoardTypeStep'
 import TransportTypeStep from '@/components/qualification/TransportTypeStep'
@@ -42,7 +42,26 @@ export default function QualifyPage() {
     currentStepIndex,
     totalSteps,
     autoAdvance,
+    goToStep,
   } = useQualification()
+
+  // Function to go directly to child_ages step (used when children > 0)
+  const goToChildAges = () => {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        goToStep('child_ages')
+      }, 200)
+    })
+  }
+
+  // Function to skip child_ages and go to dates_month (used when children = 0)
+  const skipToMonth = () => {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        goToStep('dates_month')
+      }, 200)
+    })
+  }
 
   const handleSubmit = async () => {
     setIsSubmitting(true)
@@ -124,6 +143,16 @@ export default function QualifyPage() {
                 : data.guests.childAges.slice(0, children)
               updateGuests(data.guests.adults, children, childAges)
             }}
+            onNext={skipToMonth}
+            onNextWithChildren={goToChildAges}
+          />
+        )
+      case 'child_ages':
+        return (
+          <ChildAgesStep
+            childCount={data.guests.children}
+            value={data.guests.childAges}
+            onChange={(childAges) => updateGuests(data.guests.adults, data.guests.children, childAges)}
             onNext={autoAdvance}
           />
         )
@@ -139,14 +168,6 @@ export default function QualifyPage() {
       case 'dates_duration':
         return (
           <DurationStep
-            value={data.dates}
-            onChange={updateDates}
-            onNext={autoAdvance}
-          />
-        )
-      case 'dates_flexibility':
-        return (
-          <FlexibilityStep
             value={data.dates}
             onChange={updateDates}
             onNext={autoAdvance}
@@ -182,6 +203,7 @@ export default function QualifyPage() {
             value={data.budget}
             guestCount={data.guests.adults + data.guests.children}
             onChange={updateBudget}
+            onNext={handleSubmit}
           />
         )
       default:

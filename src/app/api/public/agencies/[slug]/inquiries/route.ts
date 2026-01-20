@@ -39,12 +39,11 @@ export async function POST(
     // Get agency by slug
     const { data: agency, error: agencyError } = await supabase
       .from('agency_booking_settings')
-      .select('organization_id, allow_custom_inquiries, inquiry_notification_email')
+      .select('organization_id, allow_custom_inquiries, inquiry_notification_email, is_active')
       .eq('slug', slug)
-      .eq('is_active', true)
       .single()
 
-    if (agencyError || !agency) {
+    if (agencyError || !agency || agency.is_active === false) {
       return NextResponse.json(
         { success: false, error: 'Agencija nije pronađena' },
         { status: 404 }
@@ -58,6 +57,17 @@ export async function POST(
         { status: 403 }
       )
     }
+
+    // Get the first pipeline stage for new leads
+    const { data: firstStage } = await supabase
+      .from('pipeline_stages')
+      .select('id')
+      .eq('organization_id', agency.organization_id)
+      .eq('is_won', false)
+      .eq('is_lost', false)
+      .order('position', { ascending: true })
+      .limit(1)
+      .single()
 
     // Create custom inquiry record
     const { data: inquiry, error: insertError } = await supabase
@@ -81,6 +91,42 @@ export async function POST(
         { success: false, error: 'Greška pri slanju upita. Pokušajte ponovo.' },
         { status: 500 }
       )
+    }
+
+    // Also create a lead in the pipeline so it shows in Upiti
+    const destination = body.qualification_data.destination
+    const guests = body.qualification_data.guests
+    const leadData = {
+      organization_id: agency.organization_id,
+      name: body.customer_name.trim(),
+      phone: body.customer_phone.trim(),
+      email: body.customer_email?.trim() || null,
+      source_type: 'website', // From trak website
+      stage_id: firstStage?.id || null,
+      destination: destination?.country
+        ? `${destination.city ? destination.city + ', ' : ''}${destination.country}`
+        : null,
+      guests: guests?.adults ? guests.adults + (guests.children || 0) : null,
+      notes: body.customer_note?.trim() || null,
+      original_message: body.customer_note?.trim() || null,
+      source_inquiry_id: inquiry.id, // Link to the custom inquiry
+    }
+
+    const { data: lead, error: leadError } = await supabase
+      .from('leads')
+      .insert(leadData)
+      .select('id')
+      .single()
+
+    if (leadError) {
+      console.error('Error creating lead from inquiry:', leadError)
+      // Don't fail the request - the inquiry was created successfully
+    } else if (lead) {
+      // Update the custom inquiry to link to the lead
+      await supabase
+        .from('custom_inquiries')
+        .update({ lead_id: lead.id })
+        .eq('id', inquiry.id)
     }
 
     // Log email notification (placeholder for actual email service)

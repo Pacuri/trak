@@ -269,6 +269,32 @@ export async function POST(
       }
     }
 
+    // Update package valid_from / valid_to from current intervals
+    if (upsertedIntervals.length > 0) {
+      const validFrom = upsertedIntervals.reduce((min, i) => {
+        const d = i.start_date
+        return !d ? min : !min || d < min ? d : min
+      }, null as string | null)
+      const validTo = upsertedIntervals.reduce((max, i) => {
+        const d = i.end_date
+        return !d ? max : !max || d > max ? d : max
+      }, null as string | null)
+      if (validFrom && validTo) {
+        await supabase
+          .from('packages')
+          .update({ valid_from: validFrom, valid_to: validTo })
+          .eq('id', packageId)
+          .eq('organization_id', userData.organization_id)
+      }
+    } else {
+      // No intervals left: clear valid_from / valid_to
+      await supabase
+        .from('packages')
+        .update({ valid_from: null, valid_to: null })
+        .eq('id', packageId)
+        .eq('organization_id', userData.organization_id)
+    }
+
     return NextResponse.json({ price_intervals: upsertedIntervals })
   } catch (error) {
     console.error('Price intervals POST error:', error)

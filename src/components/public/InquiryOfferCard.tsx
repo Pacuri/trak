@@ -6,11 +6,23 @@ import { MapPin, Clock } from 'lucide-react'
 import type { Offer, QualificationData } from '@/types'
 import { getOfferLabel, getLabelBgColor } from '@/lib/labels'
 import { getBoardLabel, getTransportLabel, formatStarRating, formatShortDate } from '@/lib/formatting'
-import { differenceInDays } from 'date-fns'
+import { differenceInDays, format } from 'date-fns'
+import { sr } from 'date-fns/locale'
+
+// Extended offer type that includes na_upit fields and calculated prices
+type ExtendedOffer = Offer & {
+  valid_from?: string | null
+  valid_to?: string | null
+  package_id?: string | null
+  duration_nights?: number | null
+  calculated_total?: number | null
+  calculated_per_person?: number | null
+  price_calculation_error?: string | null
+}
 
 interface InquiryOfferCardProps {
   offer: Offer
-  qualification: QualificationData
+  qualification?: QualificationData | null
   slug: string
   responseTimeMinutes?: number
   isWithinWorkingHours?: boolean
@@ -27,15 +39,46 @@ export default function InquiryOfferCard({
   index = 0,
   isFirstRecommended = false,
 }: InquiryOfferCardProps) {
+  const extOffer = offer as ExtendedOffer
+
   // Get urgency label with frequency control
   const label = getOfferLabel(offer, index, false)
-  
-  const guestCount = qualification.guests.adults + qualification.guests.children
-  const totalPrice = offer.price_per_person * guestCount
+
+  const guestCount = qualification ? qualification.guests.adults + qualification.guests.children : 0
+
+  // Use calculated_total from API if available (includes children discounts), otherwise simple calculation
+  const totalPrice = extOffer.calculated_total != null
+    ? extOffer.calculated_total
+    : (guestCount > 0 ? offer.price_per_person * guestCount : 0)
+
+  // Use calculated_per_person if available
+  const displayPricePerPerson = extOffer.calculated_per_person != null
+    ? extOffer.calculated_per_person
+    : offer.price_per_person
+
+  const showTotal = qualification != null && guestCount > 0 && (offer.price_per_person > 0 || extOffer.calculated_total != null)
   const primaryImage = offer.images?.[0]?.url
-  const nights = differenceInDays(new Date(offer.return_date), new Date(offer.departure_date))
+
+  // For na_upit packages, use duration_nights if available, otherwise calculate from dates
+  const nights = extOffer.duration_nights || differenceInDays(new Date(offer.return_date), new Date(offer.departure_date))
 
   const locationText = [offer.city, offer.country].filter(Boolean).join(', ')
+
+  // Format validity period for na_upit packages
+  const formatValidityPeriod = () => {
+    if (extOffer.valid_from && extOffer.valid_to) {
+      const from = new Date(extOffer.valid_from)
+      const to = new Date(extOffer.valid_to)
+      const fromMonth = format(from, 'LLLL', { locale: sr })
+      const toMonth = format(to, 'LLLL', { locale: sr })
+      if (fromMonth === toMonth) {
+        return `${fromMonth} • ${nights} noći`
+      }
+      return `${fromMonth} - ${toMonth} • ${nights} noći`
+    }
+    // Fallback to departure dates
+    return `${formatShortDate(offer.departure_date)} - ${formatShortDate(offer.return_date)} • ${nights} noći`
+  }
   
   // Format response time
   const formatResponseTime = (minutes: number) => {
@@ -44,9 +87,12 @@ export default function InquiryOfferCard({
     return `~${hours}h`
   }
 
+  // Na upit package-based: link to /paket/[packageId] for date picker; otherwise /offer/[id]
+  const detailHref = offer.package_id ? `/a/${slug}/paket/${offer.package_id}` : `/a/${slug}/offer/${offer.id}`
+
   return (
     <Link
-      href={`/a/${slug}/offer/${offer.id}`}
+      href={detailHref}
       className="block bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all hover:scale-[1.02]"
     >
       {/* Photo Area */}
@@ -112,7 +158,7 @@ export default function InquiryOfferCard({
         {/* Row 3: Date range • duration • board type • transport */}
         <div className="text-sm text-gray-600 space-y-1">
           <p className="line-clamp-1">
-            {formatShortDate(offer.departure_date)} - {formatShortDate(offer.return_date)} • {nights} noći
+            {formatValidityPeriod()}
           </p>
           <p className="line-clamp-1">
             {getBoardLabel(offer.board_type)} • {getTransportLabel(offer.transport_type)}
@@ -126,24 +172,36 @@ export default function InquiryOfferCard({
         </div>
 
         {/* Row 5: Price */}
-        <div className="flex items-baseline justify-between pt-2 border-t border-gray-100">
-          <div className="flex items-baseline gap-2">
-            {offer.original_price && offer.original_price > offer.price_per_person && (
-              <span className="text-sm text-gray-400 line-through">
-                €{offer.original_price?.toLocaleString('sr-Latn')}
+        <div className={`flex items-baseline pt-2 border-t border-gray-100 ${showTotal ? 'justify-between' : ''}`}>
+          {(offer.price_per_person > 0 || displayPricePerPerson > 0) ? (
+            <>
+              <div className="flex items-baseline gap-2">
+                {offer.original_price && offer.original_price > displayPricePerPerson && (
+                  <span className="text-sm text-gray-400 line-through">
+                    €{offer.original_price?.toLocaleString('sr-Latn')}
+                  </span>
+                )}
+                <span className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  €{Math.round(displayPricePerPerson).toLocaleString('sr-Latn')}
+                </span>
+                <span className="text-sm text-gray-500">/os</span>
+              </div>
+              {showTotal && (
+                <div className="text-right">
+                  <div className="text-xs text-gray-500">Ukupno</div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    €{Math.round(totalPrice).toLocaleString('sr-Latn')}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl sm:text-2xl font-bold text-teal-600">
+                Cena na upit
               </span>
-            )}
-            <span className="text-2xl sm:text-3xl font-bold text-gray-900">
-              €{offer.price_per_person.toLocaleString('sr-Latn')}
-            </span>
-            <span className="text-sm text-gray-500">/os</span>
-          </div>
-          <div className="text-right">
-            <div className="text-xs text-gray-500">Ukupno</div>
-            <div className="text-sm font-semibold text-gray-900">
-              €{totalPrice.toLocaleString('sr-Latn')}
             </div>
-          </div>
+          )}
         </div>
       </div>
     </Link>

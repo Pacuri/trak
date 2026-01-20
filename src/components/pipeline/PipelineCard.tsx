@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { AlertTriangle, MapPin, Calendar } from 'lucide-react'
+import { AlertTriangle, MapPin, Calendar, Mail, Facebook, Instagram, Globe, MessageSquare } from 'lucide-react'
 import type { Lead, User } from '@/types'
 import { differenceInDays } from 'date-fns'
 import { getInitials, getAvatarGradient } from '@/lib/avatar-utils'
@@ -35,9 +35,34 @@ export default function PipelineCard({ lead, onClick, teamMembers = [], onAssign
   }
 
   const assignee = lead.assignee || lead.assigned_user
-  const assigneeIndex = assignee?.id && allUserIds.length > 0 
-    ? allUserIds.indexOf(assignee.id) 
+  const assigneeIndex = assignee?.id && allUserIds.length > 0
+    ? allUserIds.indexOf(assignee.id)
     : 0
+
+  // Get source icon based on source_type
+  const getSourceIcon = () => {
+    const sourceType = lead.source_type?.toLowerCase() || lead.source?.name?.toLowerCase() || ''
+
+    switch (sourceType) {
+      case 'email':
+      case 'gmail':
+        return <Mail className="h-3.5 w-3.5 text-[#EA4335]" />
+      case 'facebook':
+      case 'fb':
+        return <Facebook className="h-3.5 w-3.5 text-[#1877F2]" />
+      case 'instagram':
+      case 'ig':
+        return <Instagram className="h-3.5 w-3.5 text-[#E1306C]" />
+      case 'whatsapp':
+        return <MessageSquare className="h-3.5 w-3.5 text-[#25D366]" />
+      case 'website':
+      case 'web':
+      case 'trak':
+        return <img src="/trak-logo-circle.png" alt="trak" className="h-4 w-4" />
+      default:
+        return <Globe className="h-3.5 w-3.5 text-[#64748B]" />
+    }
+  }
 
   // Handle click outside to close dropdown and position dropdown
   useEffect(() => {
@@ -237,13 +262,19 @@ export default function PipelineCard({ lead, onClick, teamMembers = [], onAssign
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-2 border-t border-[#E2E8F0]">
-        {lead.value ? (
-          <span className="text-sm font-bold text-[#10B981]">
-            €{lead.value.toLocaleString()}
-          </span>
-        ) : (
-          <span className="text-xs text-[#94A3B8]">Bez vrednosti</span>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Source Icon */}
+          <div className="flex items-center justify-center h-5 w-5" title={lead.source_type || 'Izvor'}>
+            {getSourceIcon()}
+          </div>
+          {lead.value ? (
+            <span className="text-sm font-bold text-[#10B981]">
+              €{lead.value.toLocaleString()}
+            </span>
+          ) : (
+            <span className="text-xs text-[#94A3B8]">Bez vrednosti</span>
+          )}
+        </div>
 
         <div className="flex items-center gap-1">
           <Calendar className="h-3 w-3 text-[#94A3B8]" />

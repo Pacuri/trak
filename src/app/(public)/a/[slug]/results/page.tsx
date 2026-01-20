@@ -2,20 +2,35 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2, RefreshCw, Search, MessageCircle, ArrowRight } from 'lucide-react'
+import { ArrowLeft, Loader2, RefreshCw, Search, MessageCircle, ArrowRight, ChevronDown, ChevronUp, X } from 'lucide-react'
 import Link from 'next/link'
 import type { Offer, QualificationData } from '@/types'
 import { useAgencySettings } from '@/hooks/use-agency-settings'
-import ResultsSection from '@/components/public/ResultsSection'
+import InstantOfferCard from '@/components/public/InstantOfferCard'
+import InquiryOfferCard from '@/components/public/InquiryOfferCard'
 import type { AgencyInquirySettings } from '@/types/inquiry'
 import type { Departure } from '@/types/packages'
 
+// Extended Offer type with calculated prices
+export interface ExtendedOffer extends Offer {
+  valid_from?: string | null
+  valid_to?: string | null
+  // package_id is already in Offer, don't redeclare
+  duration_nights?: number | null
+  calculated_total?: number | null
+  calculated_per_person?: number | null
+  price_calculation_error?: string | null
+}
+
 // Map departure to Offer format for backwards compatibility with existing UI
-function mapDepartureToOffer(departure: Departure): Offer {
+function mapDepartureToOffer(departure: Departure): ExtendedOffer {
+  // For na_upit packages, use valid_from/valid_to if available
+  const extendedDep = departure as any
+
   return {
     id: departure.id,
     organization_id: departure.organization_id,
-    name: departure.package_name || 'Ponuda',
+    name: departure.package_name || departure.hotel_name || 'Ponuda',
     description: null,
     star_rating: departure.hotel_stars || null,
     country: departure.destination_country || '',
@@ -37,26 +52,29 @@ function mapDepartureToOffer(departure: Departure): Offer {
     status: departure.status as any || 'active',
     created_at: departure.created_at,
     updated_at: departure.updated_at,
-    images: departure.primary_image_url 
+    images: departure.primary_image_url
       ? [{ id: '1', offer_id: departure.id, url: departure.primary_image_url, alt_text: null, position: 0, is_primary: true, created_at: '' }]
       : (departure as any).images || [],
+    // Extended fields for na_upit packages
+    valid_from: extendedDep.valid_from || null,
+    valid_to: extendedDep.valid_to || null,
+    package_id: extendedDep.package_id || null,
+    duration_nights: extendedDep.duration_nights || null,
+    // Calculated prices from API
+    calculated_total: extendedDep.calculated_total || null,
+    calculated_per_person: extendedDep.calculated_per_person || null,
+    price_calculation_error: extendedDep.price_calculation_error || null,
   }
 }
 
-// Split offers/departures by type
-function splitByType(offers: Offer[]): { owned: Offer[]; inquiry: Offer[] } {
-  return {
-    owned: offers.filter((o) => o.inventory_type === 'owned'),
-    inquiry: offers.filter((o) => o.inventory_type === 'inquiry'),
-  }
-}
+// No longer splitting by type - showing unified list sorted by relevance
 
 export default function ResultsPage() {
   const params = useParams()
   const router = useRouter()
   const slug = params.slug as string
   
-  const [offers, setOffers] = useState<Offer[]>([])
+  const [offers, setOffers] = useState<ExtendedOffer[]>([])
   const [qualification, setQualification] = useState<QualificationData | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -66,6 +84,9 @@ export default function ResultsPage() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [inquirySettings, setInquirySettings] = useState<AgencyInquirySettings | null>(null)
+  const [showFilters, setShowFilters] = useState(false)
+  const [showMoreFilters, setShowMoreFilters] = useState(false)
+  const [editedQualification, setEditedQualification] = useState<QualificationData | null>(null)
   
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const { currentResponseTime, isWithinWorkingHours } = useAgencySettings(slug)
@@ -97,7 +118,16 @@ export default function ResultsPage() {
     const queryParams = new URLSearchParams()
     queryParams.set('page', String(pageNum))
     queryParams.set('limit', '6')
-    
+
+    // Guest params for price calculation
+    queryParams.set('adults', String(qualData.guests.adults))
+    if (qualData.guests.childAges && qualData.guests.childAges.length > 0) {
+      queryParams.set('child_ages', qualData.guests.childAges.join(','))
+    }
+    if (qualData.dates.duration) {
+      queryParams.set('duration', String(qualData.dates.duration))
+    }
+
     if (qualData.destination.country) {
       queryParams.set('country', qualData.destination.country)
     }
@@ -128,7 +158,7 @@ export default function ResultsPage() {
     if (qualData.accommodation.transport) {
       queryParams.set('transport_type', qualData.accommodation.transport)
     }
-    
+
     return queryParams
   }, [])
 
@@ -230,8 +260,10 @@ export default function ResultsPage() {
     return null
   }
 
-  const { owned, inquiry } = splitByType(offers)
   const guestCount = qualification.guests.adults + qualification.guests.children
+
+  // Find the first recommended offer index for badge display
+  const firstRecommendedIndex = offers.findIndex(offer => offer.is_recommended)
 
   return (
     <div className="min-h-screen pb-20">
@@ -260,17 +292,329 @@ export default function ResultsPage() {
         </div>
       </header>
 
-      {/* Search summary */}
+      {/* Search summary with expandable filters */}
       <div className="bg-blue-50 border-b border-blue-100">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <p className="text-blue-800">
-            <span className="font-semibold">{qualification.destination.country}</span>
-            {qualification.destination.city && ` • ${qualification.destination.city}`}
-            {' • '}
-            <span>{guestCount} {guestCount === 1 ? 'putnik' : 'putnika'}</span>
-            {qualification.dates.month && ` • ${qualification.dates.month}`}
-            {qualification.budget.max && ` • do €${qualification.budget.max}${qualification.budget.perPerson ? '/os' : ''}`}
-          </p>
+        <div className="max-w-6xl mx-auto px-4">
+          {/* Summary row */}
+          <div className="py-3 flex items-center justify-between">
+            <p className="text-blue-800 text-sm">
+              <span className="font-semibold">{qualification.destination.country}</span>
+              {qualification.destination.city && ` • ${qualification.destination.city}`}
+              {' • '}
+              <span>{guestCount} {guestCount === 1 ? 'putnik' : 'putnika'}</span>
+              {qualification.dates.month && ` • ${qualification.dates.month}`}
+              {qualification.dates.duration && ` • ${qualification.dates.duration} noći`}
+            </p>
+            <button
+              onClick={() => {
+                if (!showFilters) {
+                  setEditedQualification(qualification)
+                }
+                setShowFilters(!showFilters)
+              }}
+              className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 transition-colors font-medium"
+            >
+              <span>Promeni</span>
+              {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {/* Expandable filter panel */}
+          {showFilters && editedQualification && (
+            <div className="pb-5 pt-4 animate-in slide-in-from-top-2 duration-200">
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                {/* Guests & Duration row */}
+                <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4 border-b border-gray-100">
+                  {/* Adults */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <span className="text-lg">👤</span>
+                      Odrasli
+                    </label>
+                    <div className="flex items-center bg-gray-50 rounded-xl p-1">
+                      <button
+                        onClick={() => setEditedQualification(prev => prev ? {
+                          ...prev,
+                          guests: { ...prev.guests, adults: Math.max(1, prev.guests.adults - 1) }
+                        } : null)}
+                        className="w-10 h-10 rounded-lg bg-white shadow-sm border border-gray-200 text-gray-600 font-medium text-lg hover:bg-gray-50 active:scale-95 transition-all"
+                      >
+                        −
+                      </button>
+                      <span className="flex-1 text-center text-xl font-bold text-gray-900">{editedQualification.guests.adults}</span>
+                      <button
+                        onClick={() => setEditedQualification(prev => prev ? {
+                          ...prev,
+                          guests: { ...prev.guests, adults: Math.min(10, prev.guests.adults + 1) }
+                        } : null)}
+                        className="w-10 h-10 rounded-lg bg-white shadow-sm border border-gray-200 text-gray-600 font-medium text-lg hover:bg-gray-50 active:scale-95 transition-all"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Children */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <span className="text-lg">👶</span>
+                      Deca
+                    </label>
+                    <div className="flex items-center bg-gray-50 rounded-xl p-1">
+                      <button
+                        onClick={() => setEditedQualification(prev => prev ? {
+                          ...prev,
+                          guests: {
+                            ...prev.guests,
+                            children: Math.max(0, prev.guests.children - 1),
+                            childAges: prev.guests.childAges.slice(0, Math.max(0, prev.guests.children - 1))
+                          }
+                        } : null)}
+                        className="w-10 h-10 rounded-lg bg-white shadow-sm border border-gray-200 text-gray-600 font-medium text-lg hover:bg-gray-50 active:scale-95 transition-all"
+                      >
+                        −
+                      </button>
+                      <span className="flex-1 text-center text-xl font-bold text-gray-900">{editedQualification.guests.children}</span>
+                      <button
+                        onClick={() => setEditedQualification(prev => prev ? {
+                          ...prev,
+                          guests: {
+                            ...prev.guests,
+                            children: Math.min(6, prev.guests.children + 1),
+                            childAges: [...prev.guests.childAges, 5]
+                          }
+                        } : null)}
+                        className="w-10 h-10 rounded-lg bg-white shadow-sm border border-gray-200 text-gray-600 font-medium text-lg hover:bg-gray-50 active:scale-95 transition-all"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Duration */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <span className="text-lg">🌙</span>
+                      Noći
+                    </label>
+                    <div className="flex items-center bg-gray-50 rounded-xl p-1">
+                      <button
+                        onClick={() => setEditedQualification(prev => prev ? {
+                          ...prev,
+                          dates: { ...prev.dates, duration: Math.max(1, prev.dates.duration - 1) }
+                        } : null)}
+                        className="w-10 h-10 rounded-lg bg-white shadow-sm border border-gray-200 text-gray-600 font-medium text-lg hover:bg-gray-50 active:scale-95 transition-all"
+                      >
+                        −
+                      </button>
+                      <span className="flex-1 text-center text-xl font-bold text-gray-900">{editedQualification.dates.duration}</span>
+                      <button
+                        onClick={() => setEditedQualification(prev => prev ? {
+                          ...prev,
+                          dates: { ...prev.dates, duration: Math.min(30, prev.dates.duration + 1) }
+                        } : null)}
+                        className="w-10 h-10 rounded-lg bg-white shadow-sm border border-gray-200 text-gray-600 font-medium text-lg hover:bg-gray-50 active:scale-95 transition-all"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Month */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <span className="text-lg">📅</span>
+                      Mesec
+                    </label>
+                    <select
+                      value={editedQualification.dates.month || ''}
+                      onChange={(e) => setEditedQualification(prev => prev ? {
+                        ...prev,
+                        dates: { ...prev.dates, month: e.target.value || null }
+                      } : null)}
+                      className="w-full h-12 px-4 rounded-xl bg-gray-50 border-0 text-gray-900 font-medium focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    >
+                      <option value="">Bilo kada</option>
+                      <option value="jan">Januar</option>
+                      <option value="feb">Februar</option>
+                      <option value="mar">Mart</option>
+                      <option value="apr">April</option>
+                      <option value="maj">Maj</option>
+                      <option value="jun">Jun</option>
+                      <option value="jul">Jul</option>
+                      <option value="avg">Avgust</option>
+                      <option value="sep">Septembar</option>
+                      <option value="okt">Oktobar</option>
+                      <option value="nov">Novembar</option>
+                      <option value="dec">Decembar</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Child ages (if children > 0) */}
+                {editedQualification.guests.children > 0 && (
+                  <div className="px-4 py-3 bg-amber-50 border-b border-amber-100">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-sm font-medium text-amber-800">Uzrast dece:</span>
+                      {editedQualification.guests.childAges.map((age, idx) => (
+                        <div key={idx} className="flex items-center gap-1.5 bg-white rounded-lg px-2 py-1 shadow-sm">
+                          <span className="text-xs text-amber-600 font-medium">{idx + 1}.</span>
+                          <select
+                            value={age}
+                            onChange={(e) => {
+                              const newAges = [...editedQualification.guests.childAges]
+                              newAges[idx] = parseInt(e.target.value)
+                              setEditedQualification(prev => prev ? {
+                                ...prev,
+                                guests: { ...prev.guests, childAges: newAges }
+                              } : null)
+                            }}
+                            className="bg-transparent border-0 text-gray-900 font-medium text-sm focus:ring-0 cursor-pointer pr-6"
+                          >
+                            {Array.from({ length: 18 }, (_, i) => (
+                              <option key={i} value={i}>{i} god</option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* More filters toggle & content */}
+                <div className="px-4 py-3 bg-gray-50">
+                  <button
+                    onClick={() => setShowMoreFilters(!showMoreFilters)}
+                    className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                  >
+                    <span>{showMoreFilters ? 'Manje opcija' : 'Više opcija'}</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showMoreFilters ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Extended filters */}
+                  {showMoreFilters && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 animate-in slide-in-from-top-1 duration-150">
+                      {/* Accommodation type */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Smeštaj</label>
+                        <select
+                          value={editedQualification.accommodation.type || 'any'}
+                          onChange={(e) => setEditedQualification(prev => prev ? {
+                            ...prev,
+                            accommodation: { ...prev.accommodation, type: e.target.value === 'any' ? null : e.target.value as any }
+                          } : null)}
+                          className="w-full h-10 px-3 rounded-lg bg-white border border-gray-200 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+                        >
+                          <option value="any">Svejedno</option>
+                          <option value="hotel">🏨 Hotel</option>
+                          <option value="apartment">🏠 Apartman</option>
+                          <option value="villa">🏡 Vila</option>
+                        </select>
+                      </div>
+
+                      {/* Board type */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Ishrana</label>
+                        <select
+                          value={editedQualification.accommodation.board || 'any'}
+                          onChange={(e) => setEditedQualification(prev => prev ? {
+                            ...prev,
+                            accommodation: { ...prev.accommodation, board: e.target.value === 'any' ? null : e.target.value as any }
+                          } : null)}
+                          className="w-full h-10 px-3 rounded-lg bg-white border border-gray-200 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+                        >
+                          <option value="any">Svejedno</option>
+                          <option value="all_inclusive">🍽️ All Inclusive</option>
+                          <option value="half_board">🥘 Polupansion</option>
+                          <option value="breakfast">🥐 Doručak</option>
+                          <option value="room_only">🛏️ Samo noćenje</option>
+                        </select>
+                      </div>
+
+                      {/* Transport type */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Prevoz</label>
+                        <select
+                          value={editedQualification.accommodation.transport || 'any'}
+                          onChange={(e) => setEditedQualification(prev => prev ? {
+                            ...prev,
+                            accommodation: { ...prev.accommodation, transport: e.target.value === 'any' ? null : e.target.value as any }
+                          } : null)}
+                          className="w-full h-10 px-3 rounded-lg bg-white border border-gray-200 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+                        >
+                          <option value="any">Svejedno</option>
+                          <option value="bus">🚌 Autobus</option>
+                          <option value="plane">✈️ Avion</option>
+                          <option value="self">🚗 Sopstveni</option>
+                        </select>
+                      </div>
+
+                      {/* Budget */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Budžet / osoba</label>
+                        <select
+                          value={editedQualification.budget.max ? `${editedQualification.budget.min || 0}-${editedQualification.budget.max}` : 'unlimited'}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            if (val === 'unlimited') {
+                              setEditedQualification(prev => prev ? {
+                                ...prev,
+                                budget: { ...prev.budget, min: null, max: null }
+                              } : null)
+                            } else if (val === '1000+') {
+                              setEditedQualification(prev => prev ? {
+                                ...prev,
+                                budget: { ...prev.budget, min: 1000, max: null }
+                              } : null)
+                            } else {
+                              const [min, max] = val.split('-').map(Number)
+                              setEditedQualification(prev => prev ? {
+                                ...prev,
+                                budget: { ...prev.budget, min, max }
+                              } : null)
+                            }
+                          }}
+                          className="w-full h-10 px-3 rounded-lg bg-white border border-gray-200 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+                        >
+                          <option value="unlimited">Nije bitno</option>
+                          <option value="0-300">Do €300</option>
+                          <option value="300-500">€300-500</option>
+                          <option value="500-700">€500-700</option>
+                          <option value="700-1000">€700-1000</option>
+                          <option value="1000+">€1000+</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action buttons */}
+                <div className="p-4 bg-white border-t border-gray-100 flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowFilters(false)
+                      setEditedQualification(null)
+                    }}
+                    className="px-6 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium rounded-xl transition-colors"
+                  >
+                    Otkaži
+                  </button>
+                  <button
+                    onClick={() => {
+                      setQualification(editedQualification)
+                      sessionStorage.setItem('qualification', JSON.stringify(editedQualification))
+                      setShowFilters(false)
+                      setPage(1)
+                      fetchOffers(editedQualification, 1)
+                    }}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors shadow-md hover:shadow-lg active:scale-[0.98]"
+                  >
+                    Primeni filtere
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -312,29 +656,35 @@ export default function ResultsPage() {
               </div>
             )}
 
-            {/* Instant booking section */}
-            {owned.length > 0 && (
-              <ResultsSection
-                title="⚡ REZERVIŠITE ODMAH"
-                subtitle="Garantovana dostupnost • Cena zaključana 72h"
-                offers={owned}
-                cardType="instant"
-                qualification={qualification}
-                slug={slug}
-              />
-            )}
-
-            {/* On-request section */}
-            {inquiry.length > 0 && (
-              <ResultsSection
-                title="📋 NA UPIT"
-                offers={inquiry}
-                cardType="inquiry"
-                qualification={qualification}
-                slug={slug}
-                responseTimeMinutes={currentResponseTime}
-                isWithinWorkingHours={isWithinWorkingHours}
-              />
+            {/* Unified results list - sorted by relevance */}
+            {offers.length > 0 && (
+              <section className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {offers.map((offer, index) =>
+                    offer.inventory_type === 'owned' ? (
+                      <InstantOfferCard
+                        key={offer.id}
+                        offer={offer}
+                        qualification={qualification}
+                        slug={slug}
+                        index={index}
+                        isFirstRecommended={index === firstRecommendedIndex}
+                      />
+                    ) : (
+                      <InquiryOfferCard
+                        key={offer.id}
+                        offer={offer}
+                        qualification={qualification}
+                        slug={slug}
+                        responseTimeMinutes={currentResponseTime}
+                        isWithinWorkingHours={isWithinWorkingHours}
+                        index={index}
+                        isFirstRecommended={index === firstRecommendedIndex}
+                      />
+                    )
+                  )}
+                </div>
+              </section>
             )}
 
             {/* No offers at all - show prominent inquiry CTA */}

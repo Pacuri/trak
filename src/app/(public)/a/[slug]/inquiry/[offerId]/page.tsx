@@ -1,26 +1,58 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowLeft, Loader2, Clock, MessageSquare } from 'lucide-react'
+import { ArrowLeft, Loader2, Clock, MessageSquare, Calendar, Utensils, Users, BedDouble } from 'lucide-react'
 import type { Offer, QualificationData } from '@/types'
 import { useAgencySettings } from '@/hooks/use-agency-settings'
 import { formatDateRange, getBoardLabel, getTransportLabel, formatStarRating, formatResponseTime } from '@/lib/formatting'
 
+interface PackageData {
+  id: string
+  name: string
+  hotel_name?: string
+  hotel_stars?: number
+  destination_city?: string
+  destination_country: string
+  default_duration?: number
+  meal_plans?: string[]
+  images: { id: string; url: string }[]
+  room_types?: { id: string; name: string; max_persons?: number }[]
+}
+
+const MEAL_LABELS: Record<string, string> = {
+  ND: 'Samo smeštaj',
+  BB: 'Doručak',
+  HB: 'Polupansion',
+  FB: 'Pun pansion',
+  AI: 'All Inclusive',
+}
+
 export default function InquiryPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const slug = params.slug as string
   const offerId = params.offerId as string
 
+  // Check if this is a package inquiry (has date parameter from package page)
+  const isPackageInquiry = searchParams.has('date')
+  const selectedDate = searchParams.get('date') || ''
+  const selectedRoomTypeId = searchParams.get('room_type_id') || ''
+  const selectedMealPlan = searchParams.get('meal_plan') || 'AI'
+  const urlAdults = searchParams.get('adults')
+  const urlChildren = searchParams.get('children')
+  const urlChildAges = searchParams.get('childAges')
+
   const [offer, setOffer] = useState<Offer | null>(null)
+  const [pkg, setPkg] = useState<PackageData | null>(null)
   const [qualification, setQualification] = useState<QualificationData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  
+
   const { currentResponseTime, isWithinWorkingHours } = useAgencySettings(slug)
 
   // Form state
@@ -28,9 +60,13 @@ export default function InquiryPage() {
     customerName: '',
     customerEmail: '',
     customerPhone: '',
-    adults: 2,
-    children: 0,
+    adults: urlAdults ? parseInt(urlAdults) : 2,
+    children: urlChildren ? parseInt(urlChildren) : 0,
+    childAges: urlChildAges ? urlChildAges.split(',').map(a => parseInt(a)) : [] as number[],
     message: '',
+    selectedDate: selectedDate,
+    selectedRoomTypeId: selectedRoomTypeId,
+    selectedMealPlan: selectedMealPlan,
   })
 
   useEffect(() => {
@@ -39,25 +75,39 @@ export default function InquiryPage() {
     if (storedQualification) {
       const qual = JSON.parse(storedQualification) as QualificationData
       setQualification(qual)
-      setFormData(prev => ({
-        ...prev,
-        adults: qual.guests.adults,
-        children: qual.guests.children,
-      }))
+      // Only override if not set from URL params
+      if (!urlAdults) {
+        setFormData(prev => ({
+          ...prev,
+          adults: qual.guests.adults,
+          children: qual.guests.children,
+          childAges: qual.guests.childAges || [],
+        }))
+      }
     }
 
-    // Fetch offer details
-    const fetchOffer = async () => {
+    // Fetch offer or package details
+    const fetchData = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`/api/public/agencies/${slug}/offers?id=${offerId}`)
-        if (!response.ok) throw new Error('Offer not found')
-        
-        const data = await response.json()
-        if (data.offers && data.offers.length > 0) {
-          setOffer(data.offers[0])
+
+        if (isPackageInquiry) {
+          // Fetch package details
+          const response = await fetch(`/api/public/agencies/${slug}/packages/${offerId}`)
+          if (!response.ok) throw new Error('Package not found')
+          const data = await response.json()
+          setPkg(data)
         } else {
-          throw new Error('Offer not found')
+          // Fetch offer details
+          const response = await fetch(`/api/public/agencies/${slug}/offers?id=${offerId}`)
+          if (!response.ok) throw new Error('Offer not found')
+
+          const data = await response.json()
+          if (data.offers && data.offers.length > 0) {
+            setOffer(data.offers[0])
+          } else {
+            throw new Error('Offer not found')
+          }
         }
       } catch (err) {
         setError('Ponuda nije pronađena')
@@ -66,12 +116,12 @@ export default function InquiryPage() {
       }
     }
 
-    fetchOffer()
-  }, [slug, offerId])
+    fetchData()
+  }, [slug, offerId, isPackageInquiry, urlAdults])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!offer) return
+    if (!offer && !pkg) return
 
     // Basic validation
     if (!formData.customerName.trim() || !formData.customerEmail.trim() || !formData.customerPhone.trim()) {
@@ -86,14 +136,20 @@ export default function InquiryPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           slug,
-          offer_id: offer.id,
+          offer_id: offer?.id || null,
+          package_id: pkg?.id || null,
           customer_name: formData.customerName,
           customer_email: formData.customerEmail,
           customer_phone: formData.customerPhone,
           adults: formData.adults,
           children: formData.children,
+          child_ages: formData.childAges,
           message: formData.message,
           qualification_data: qualification || undefined,
+          // Package-specific fields
+          selected_date: formData.selectedDate || null,
+          selected_room_type_id: formData.selectedRoomTypeId || null,
+          selected_meal_plan: formData.selectedMealPlan || null,
         }),
       })
 
@@ -117,7 +173,7 @@ export default function InquiryPage() {
     )
   }
 
-  if (error || !offer) {
+  if (error || (!offer && !pkg)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -130,8 +186,19 @@ export default function InquiryPage() {
     )
   }
 
-  const primaryImage = offer.images?.[0]?.url
-  const totalPrice = offer.price_per_person * (formData.adults + formData.children)
+  // Handle both offer and package display
+  const primaryImage = pkg?.images?.[0]?.url || offer?.images?.[0]?.url
+  const displayName = pkg?.hotel_name || pkg?.name || offer?.name || ''
+  const displayCity = pkg?.destination_city || offer?.city || ''
+  const displayCountry = pkg?.destination_country || offer?.country || ''
+  const displayStars = pkg?.hotel_stars || offer?.star_rating
+  const displayDuration = pkg?.default_duration
+
+  // Get selected room type name
+  const selectedRoomType = pkg?.room_types?.find(rt => rt.id === formData.selectedRoomTypeId)
+
+  // For packages, we don't have a fixed price - just show "Na upit"
+  const totalPrice = offer ? offer.price_per_person * (formData.adults + formData.children) : 0
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -139,18 +206,18 @@ export default function InquiryPage() {
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <Link
-            href={`/a/${slug}/results`}
+            href={pkg ? `/a/${slug}/paket/${pkg.id}` : `/a/${slug}/results`}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Nazad na ponude</span>
+            <span>{pkg ? 'Nazad na paket' : 'Nazad na ponude'}</span>
           </Link>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Offer summary */}
+          {/* Offer/Package summary */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-sm overflow-hidden sticky top-24">
               {/* Image */}
@@ -158,7 +225,7 @@ export default function InquiryPage() {
                 {primaryImage ? (
                   <Image
                     src={primaryImage}
-                    alt={offer.name}
+                    alt={displayName}
                     fill
                     className="object-cover"
                   />
@@ -176,24 +243,67 @@ export default function InquiryPage() {
               <div className="p-4 space-y-3">
                 <div>
                   <h2 className="font-bold text-lg">
-                    {offer.name} {formatStarRating(offer.star_rating)}
+                    {displayName} {displayStars && formatStarRating(displayStars)}
                   </h2>
                   <p className="text-sm text-gray-500">
-                    {offer.city}, {offer.country}
+                    {displayCity}{displayCity && displayCountry && ', '}{displayCountry}
                   </p>
                 </div>
 
-                <div className="text-sm text-gray-600 space-y-1">
-                  <p>📅 {formatDateRange(offer.departure_date, offer.return_date)}</p>
-                  <p>🍽️ {getBoardLabel(offer.board_type)}</p>
-                  <p>✈️ {getTransportLabel(offer.transport_type)}</p>
-                </div>
+                {/* Package-specific details */}
+                {pkg && (
+                  <div className="text-sm text-gray-600 space-y-2">
+                    {formData.selectedDate && (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-teal-600" />
+                        <span>Dolazak: {new Date(formData.selectedDate).toLocaleDateString('sr-Latn')}</span>
+                      </div>
+                    )}
+                    {displayDuration && (
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-teal-600" />
+                        <span>{displayDuration} noći</span>
+                      </div>
+                    )}
+                    {selectedRoomType && (
+                      <div className="flex items-center gap-2">
+                        <BedDouble className="w-4 h-4 text-teal-600" />
+                        <span>{selectedRoomType.name}</span>
+                      </div>
+                    )}
+                    {formData.selectedMealPlan && (
+                      <div className="flex items-center gap-2">
+                        <Utensils className="w-4 h-4 text-teal-600" />
+                        <span>{MEAL_LABELS[formData.selectedMealPlan] || formData.selectedMealPlan}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-teal-600" />
+                      <span>{formData.adults} odraslih{formData.children > 0 && `, ${formData.children} dece`}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Offer-specific details */}
+                {offer && (
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <p>📅 {formatDateRange(offer.departure_date, offer.return_date)}</p>
+                    <p>🍽️ {getBoardLabel(offer.board_type)}</p>
+                    <p>✈️ {getTransportLabel(offer.transport_type)}</p>
+                  </div>
+                )}
 
                 <div className="border-t pt-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Okvirna cena</span>
-                    <span className="font-bold">€{offer.price_per_person}/os</span>
-                  </div>
+                  {offer ? (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Okvirna cena</span>
+                      <span className="font-bold">€{offer.price_per_person}/os</span>
+                    </div>
+                  ) : (
+                    <div className="text-center text-teal-600 font-semibold">
+                      Cena na upit
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -205,9 +315,14 @@ export default function InquiryPage() {
                 <span className="font-semibold">Vreme odgovora</span>
               </div>
               <p className="text-sm text-blue-700">
-                Odgovaramo u roku od{' '}
-                <span className="font-bold">{formatResponseTime(currentResponseTime)}</span>
-                {!isWithinWorkingHours && ' (van radnog vremena)'}
+                {isWithinWorkingHours ? (
+                  <>
+                    Odgovaramo u roku od{' '}
+                    <span className="font-bold">{formatResponseTime(currentResponseTime)}</span>
+                  </>
+                ) : (
+                  'Očekujte odgovor ubrzo!'
+                )}
               </p>
             </div>
           </div>
@@ -324,12 +439,18 @@ export default function InquiryPage() {
               <div className="bg-gray-100 rounded-xl p-6">
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-sm text-gray-500">Okvirna cena</p>
+                    <p className="text-sm text-gray-500">{pkg ? 'Cena' : 'Okvirna cena'}</p>
                     <p className="text-xs text-gray-400">Tačna cena nakon potvrde</p>
                   </div>
-                  <span className="text-2xl font-bold text-gray-900">
-                    ~€{totalPrice.toLocaleString()}
-                  </span>
+                  {offer ? (
+                    <span className="text-2xl font-bold text-gray-900">
+                      ~€{totalPrice.toLocaleString()}
+                    </span>
+                  ) : (
+                    <span className="text-xl font-bold text-teal-600">
+                      Na upit
+                    </span>
+                  )}
                 </div>
               </div>
 

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sidebar Navigation Variations</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    .sidebar {
+      width: 260px;
+      background: #1E293B;
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      color: rgba(255,255,255,0.8);
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      transition: all 0.2s;
+    }
+    .nav-item:hover {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+    .nav-item.active {
+      background: #3B82F6;
+      color: white;
+    }
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: rgba(255,255,255,0.4);
+      padding: 0 12px;
+      margin-bottom: 8px;
+      margin-top: 16px;
+    }
+    .variation-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1E293B;
+      margin-bottom: 16px;
+    }
+    .variation-desc {
+      font-size: 13px;
+      color: #64748B;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 p-8">
+  <h1 class="text-3xl font-bold text-gray-900 mb-2">Sidebar Navigation Variations</h1>
+  <p class="text-gray-600 mb-8">Compare different naming and icon combinations for sidebar navigation</p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+    <!-- VARIATION 1: Current -->
+    <div>
+      <div class="variation-title">Variation 1: Current</div>
+      <div class="variation-desc">What we have now</div>
+      <div class="sidebar">
+        <div class="section-label">Glavni meni</div>
+        <div class="nav-item"><i data-lucide="layout-dashboard" class="w-5 h-5"></i> Početna</div>
+        <div class="nav-item active"><i data-lucide="git-branch" class="w-5 h-5"></i> Pipeline</div>
+        <div class="nav-item"><i data-lucide="boxes" class="w-5 h-5"></i> Paketi</div>
+        <div class="nav-item"><i data-lucide="calendar" class="w-5 h-5"></i> Rezervacije</div>
+        <div class="nav-item"><i data-lucide="plane" class="w-5 h-5"></i> Aranžmani</div>
+        <div class="nav-item"><i data-lucide="bar-chart-3" class="w-5 h-5"></i> Izveštaji</div>
+      </div>
+    </div>
+
+    <!-- VARIATION 2: More Descriptive -->
+    <div>
+      <div class="variation-title">Variation 2: Descriptive</div>
+      <div class="variation-desc">Longer, clearer names</div>
+      <div class="sidebar">
+        <div class="section-label">Glavni meni</div>
+        <div class="nav-item"><i data-lucide="layout-dashboard" class="w-5 h-5"></i> Početna</div>
+        <div class="nav-item active"><i data-lucide="users" class="w-5 h-5"></i> Upiti & Pipeline</div>
+        <div class="nav-item"><i data-lucide="package" class="w-5 h-5"></i> Ponude & Paketi</div>
+        <div class="nav-item"><i data-lucide="credit-card" class="w-5 h-5"></i> Rezervacije & Uplate</div>
+        <div class="nav-item"><i data-lucide="plane-takeoff" class="w-5 h-5"></i> Polasci & Putovanja</div>
+        <div class="nav-item"><i data-lucide="bar-chart-3" class="w-5 h-5"></i> Izveštaji</div>
+      </div>
+    </div>
+
+    <!-- VARIATION 3: Action-Oriented -->
+    <div>
+      <div class="variation-title">Variation 3: Action-Oriented</div>
+      <div class="variation-desc">Focus on what you DO there</div>
+      <div class="sidebar">
+        <div class="section-label">Glavni meni</div>
+        <div class="nav-item"><i data-lucide="home" class="w-5 h-5"></i> Početna</div>
+        <div class="nav-item active"><i data-lucide="target" class="w-5 h-5"></i> Prodaja</div>
+        <div class="nav-item"><i data-lucide="package" class="w-5 h-5"></i> Ponude</div>
+        <div class="nav-item"><i data-lucide="wallet" class="w-5 h-5"></i> Naplate</div>
+        <div class="nav-item"><i data-lucide="map" class="w-5 h-5"></i> Putovanja</div>
+        <div class="nav-item"><i data-lucide="trending-up" class="w-5 h-5"></i> Statistika</div>
+      </div>
+    </div>
+
+    <!-- VARIATION 4: Emoji Style -->
+    <div>
+      <div class="variation-title">Variation 4: With Emojis</div>
+      <div class="variation-desc">Fun, visual approach</div>
+      <div class="sidebar">
+        <div class="section-label">Glavni meni</div>
+        <div class="nav-item">🏠 Početna</div>
+        <div class="nav-item active">📊 Pipeline</div>
+        <div class="nav-item">📦 Paketi</div>
+        <div class="nav-item">💳 Rezervacije</div>
+        <div class="nav-item">✈️ Putovanja</div>
+        <div class="nav-item">📈 Izveštaji</div>
+      </div>
+    </div>
+
+    <!-- VARIATION 5: Grouped -->
+    <div>
+      <div class="variation-title">Variation 5: Grouped</div>
+      <div class="variation-desc">Separate sections for clarity</div>
+      <div class="sidebar">
+        <div class="section-label">Prodaja</div>
+        <div class="nav-item active"><i data-lucide="git-branch" class="w-5 h-5"></i> Pipeline</div>
+        <div class="nav-item"><i data-lucide="package" class="w-5 h-5"></i> Paketi</div>
+        <div class="section-label">Operacije</div>
+        <div class="nav-item"><i data-lucide="receipt" class="w-5 h-5"></i> Rezervacije</div>
+        <div class="nav-item"><i data-lucide="plane" class="w-5 h-5"></i> Polasci</div>
+        <div class="section-label">Analitika</div>
+        <div class="nav-item"><i data-lucide="bar-chart-3" class="w-5 h-5"></i> Izveštaji</div>
+      </div>
+    </div>
+
+    <!-- VARIATION 6: Simple & Clean -->
+    <div>
+      <div class="variation-title">Variation 6: Simple</div>
+      <div class="variation-desc">Minimal, single words</div>
+      <div class="sidebar">
+        <div class="section-label">Meni</div>
+        <div class="nav-item"><i data-lucide="home" class="w-5 h-5"></i> Početna</div>
+        <div class="nav-item active"><i data-lucide="funnel" class="w-5 h-5"></i> Upiti</div>
+        <div class="nav-item"><i data-lucide="shopping-bag" class="w-5 h-5"></i> Ponude</div>
+        <div class="nav-item"><i data-lucide="bookmark" class="w-5 h-5"></i> Bookings</div>
+        <div class="nav-item"><i data-lucide="compass" class="w-5 h-5"></i> Trips</div>
+        <div class="nav-item"><i data-lucide="pie-chart" class="w-5 h-5"></i> Reports</div>
+      </div>
+    </div>
+
+    <!-- VARIATION 7: Status-Based -->
+    <div>
+      <div class="variation-title">Variation 7: Status Flow</div>
+      <div class="variation-desc">Shows the customer journey</div>
+      <div class="sidebar">
+        <div class="section-label">Tok klijenta</div>
+        <div class="nav-item"><i data-lucide="inbox" class="w-5 h-5"></i> Novi upiti</div>
+        <div class="nav-item active"><i data-lucide="git-branch" class="w-5 h-5"></i> U obradi</div>
+        <div class="nav-item"><i data-lucide="check-circle" class="w-5 h-5"></i> Rezervisano</div>
+        <div class="nav-item"><i data-lucide="plane-takeoff" class="w-5 h-5"></i> Na putu</div>
+        <div class="section-label">Ostalo</div>
+        <div class="nav-item"><i data-lucide="package" class="w-5 h-5"></i> Ponude</div>
+        <div class="nav-item"><i data-lucide="bar-chart-3" class="w-5 h-5"></i> Izveštaji</div>
+      </div>
+    </div>
+
+    <!-- VARIATION 8: Travel Agency Focus -->
+    <div>
+      <div class="variation-title">Variation 8: Travel Focus</div>
+      <div class="variation-desc">Industry-specific terms</div>
+      <div class="sidebar">
+        <div class="section-label">CRM</div>
+        <div class="nav-item"><i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard</div>
+        <div class="nav-item active"><i data-lucide="users" class="w-5 h-5"></i> Klijenti</div>
+        <div class="section-label">Booking</div>
+        <div class="nav-item"><i data-lucide="map-pin" class="w-5 h-5"></i> Destinacije</div>
+        <div class="nav-item"><i data-lucide="calendar-check" class="w-5 h-5"></i> Rezervacije</div>
+        <div class="nav-item"><i data-lucide="luggage" class="w-5 h-5"></i> Polasci</div>
+        <div class="section-label">Uvid</div>
+        <div class="nav-item"><i data-lucide="line-chart" class="w-5 h-5"></i> Analitika</div>
+      </div>
+    </div>
+
+    <!-- VARIATION 9: My Recommendation -->
+    <div>
+      <div class="variation-title">⭐ Variation 9: Recommended</div>
+      <div class="variation-desc">Clear, intuitive, professional</div>
+      <div class="sidebar">
+        <div class="section-label">Glavni meni</div>
+        <div class="nav-item"><i data-lucide="layout-dashboard" class="w-5 h-5"></i> Početna</div>
+        <div class="nav-item active"><i data-lucide="users" class="w-5 h-5"></i> Klijenti</div>
+        <div class="nav-item"><i data-lucide="package" class="w-5 h-5"></i> Paketi</div>
+        <div class="nav-item"><i data-lucide="calendar-check" class="w-5 h-5"></i> Rezervacije</div>
+        <div class="nav-item"><i data-lucide="plane-takeoff" class="w-5 h-5"></i> Polasci</div>
+        <div class="nav-item"><i data-lucide="bar-chart-3" class="w-5 h-5"></i> Izveštaji</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="mt-12 p-6 bg-white rounded-xl shadow-sm max-w-2xl">
+    <h2 class="text-xl font-bold text-gray-900 mb-4">Key Considerations:</h2>
+    <ul class="space-y-2 text-gray-700">
+      <li><strong>Pipeline vs Klijenti vs Upiti:</strong> "Klijenti" is clearest - it's where you manage people</li>
+      <li><strong>Aranžmani vs Polasci vs Putovanja:</strong> "Polasci" is clearest - it's about departures</li>
+      <li><strong>Icons matter:</strong> Users icon for people, Plane-takeoff for departures, Calendar-check for bookings</li>
+      <li><strong>Grouping:</strong> Can help but adds complexity - maybe overkill for 6 items</li>
+    </ul>
+  </div>
+
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

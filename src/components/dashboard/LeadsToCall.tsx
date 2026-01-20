@@ -1,8 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Phone, MessageCircle, ChevronRight, CheckCircle } from 'lucide-react'
-import { PriorityDot } from './PriorityDot'
+import { ChevronRight, CheckCircle } from 'lucide-react'
 import type { LeadToCall } from '@/types/dashboard'
 
 interface LeadsToCallProps {
@@ -15,68 +14,53 @@ function formatWaitTime(hours: number): string {
   if (hours < 1) return 'sada'
   if (hours < 24) return `pre ${hours}h`
   const days = Math.floor(hours / 24)
-  if (days === 1) return 'pre 1 dan'
-  return `pre ${days} dana`
+  if (days === 1) return 'pre 1d'
+  return `pre ${days}d`
 }
 
-// Format phone for Viber link
-function formatViberLink(phone: string): string {
-  const cleaned = phone.replace(/[^0-9+]/g, '')
-  return `viber://chat?number=${encodeURIComponent(cleaned)}`
-}
+function LeadRow({ lead }: { lead: LeadToCall }) {
+  const priorityColor = lead.priority === 'urgent' ? 'bg-red-500' : 
+                        lead.priority === 'high' ? 'bg-amber-500' : 'bg-slate-300'
 
-function LeadCard({ lead }: { lead: LeadToCall }) {
   return (
-    <Link
-      href={`/dashboard/leads/${lead.id}`}
-      className="block bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md hover:border-slate-300 transition-all group"
-    >
-      <div className="flex items-start gap-3">
-        <PriorityDot priority={lead.priority} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <h4 className="font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
-              {lead.name}
-            </h4>
-            <span className={`text-xs font-medium whitespace-nowrap ${
-              lead.priority === 'urgent' ? 'text-red-600' : 
-              lead.priority === 'high' ? 'text-amber-600' : 'text-slate-400'
-            }`}>
-              {formatWaitTime(lead.wait_hours)}
-            </span>
-          </div>
-          <p className="text-sm text-slate-500 mt-1 truncate">
-            {lead.destination || 'Destinacija nije navedena'}
-            {lead.guests && ` • ${lead.guests} osoba`}
-            {lead.value && ` • €${lead.value.toLocaleString()}`}
-          </p>
-          
-          {/* Quick Actions */}
-          <div className="flex items-center gap-2 mt-3">
-            {lead.phone && (
-              <>
-                <a
-                  href={`tel:${lead.phone}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
-                >
-                  <Phone className="w-3.5 h-3.5" />
-                  Pozovi
-                </a>
-                <a
-                  href={formatViberLink(lead.phone)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-sm font-medium hover:bg-purple-100 transition-colors"
-                >
-                  <MessageCircle className="w-3.5 h-3.5" />
-                  Viber
-                </a>
-              </>
-            )}
-          </div>
+    <div className="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0">
+      {/* Priority dot */}
+      <div className={`w-2 h-2 rounded-full ${priorityColor} flex-shrink-0`} />
+      
+      {/* Lead info */}
+      <Link 
+        href={`/dashboard/leads/${lead.id}`}
+        className="flex-1 min-w-0 hover:opacity-80 transition-opacity"
+      >
+        <div className="font-medium text-slate-900 truncate">
+          {lead.name}
         </div>
-      </div>
-    </Link>
+        <div className="text-sm text-slate-500 truncate">
+          {lead.destination || 'Destinacija nije navedena'}
+          {lead.guests && ` • ${lead.guests}`}
+          {lead.value && ` • €${lead.value.toLocaleString()}`}
+        </div>
+      </Link>
+
+      {/* Time label */}
+      <span className={`text-xs font-medium whitespace-nowrap ${
+        lead.priority === 'urgent' ? 'text-red-600' : 
+        lead.priority === 'high' ? 'text-amber-600' : 'text-slate-400'
+      }`}>
+        {formatWaitTime(lead.wait_hours)}
+      </span>
+
+      {/* Phone number */}
+      {lead.phone && (
+        <a
+          href={`tel:${lead.phone}`}
+          onClick={(e) => e.stopPropagation()}
+          className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors flex-shrink-0"
+        >
+          {lead.phone}
+        </a>
+      )}
+    </div>
   )
 }
 
@@ -94,23 +78,16 @@ function EmptyState() {
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-3">
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="bg-white rounded-xl border border-slate-200 p-4 animate-pulse">
-          <div className="flex items-start gap-3">
-            <div className="w-2.5 h-2.5 bg-slate-200 rounded-full mt-1.5" />
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <div className="w-32 h-5 bg-slate-200 rounded" />
-                <div className="w-16 h-4 bg-slate-200 rounded" />
-              </div>
-              <div className="w-48 h-4 bg-slate-200 rounded mt-2" />
-              <div className="flex gap-2 mt-3">
-                <div className="w-20 h-8 bg-slate-200 rounded-lg" />
-                <div className="w-16 h-8 bg-slate-200 rounded-lg" />
-              </div>
-            </div>
+    <div className="space-y-1">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} className="flex items-center gap-3 py-3 animate-pulse">
+          <div className="w-2 h-2 bg-slate-200 rounded-full" />
+          <div className="flex-1">
+            <div className="w-32 h-4 bg-slate-200 rounded mb-1" />
+            <div className="w-48 h-3 bg-slate-200 rounded" />
           </div>
+          <div className="w-12 h-4 bg-slate-200 rounded" />
+          <div className="w-24 h-4 bg-slate-200 rounded" />
         </div>
       ))}
     </div>
@@ -119,7 +96,7 @@ function LoadingSkeleton() {
 
 export function LeadsToCall({ leads, loading }: LeadsToCallProps) {
   return (
-    <div className="bg-slate-50 rounded-[14px] p-4 h-full">
+    <div className="bg-white rounded-[14px] border border-slate-200 shadow-sm p-5 h-full">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <span className="text-lg">📞</span>
@@ -134,7 +111,7 @@ export function LeadsToCall({ leads, loading }: LeadsToCallProps) {
           href="/dashboard/leads"
           className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1"
         >
-          Vidi sve
+          Sve
           <ChevronRight className="w-4 h-4" />
         </Link>
       </div>
@@ -144,9 +121,9 @@ export function LeadsToCall({ leads, loading }: LeadsToCallProps) {
       ) : leads.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="space-y-3">
+        <div>
           {leads.map((lead) => (
-            <LeadCard key={lead.id} lead={lead} />
+            <LeadRow key={lead.id} lead={lead} />
           ))}
         </div>
       )}

@@ -6,29 +6,35 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   Users,
-  GitBranch,
   BarChart3,
   Settings,
   X,
   Menu,
   Plug,
-  Calendar,
-  Plane,
-  MessageSquare,
-  Boxes,
+  CalendarCheck,
+  PlaneTakeoff,
+  Package,
 } from 'lucide-react'
 
-const mainNavigation = [
+// CRM Section
+const crmNavigation = [
   { name: 'Početna', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Upiti', href: '/dashboard/leads', icon: Users, badge: true },
-  { name: 'Pipeline', href: '/dashboard/pipeline', icon: GitBranch },
-  { name: 'Paketi', href: '/dashboard/packages', icon: Boxes },
-  { name: 'Rezervacije', href: '/dashboard/reservations', icon: Calendar },
-  { name: 'Aranžmani', href: '/dashboard/trips', icon: Plane },
-  { name: 'Na upit', href: '/dashboard/inquiries', icon: MessageSquare },
-  { name: 'Izveštaji', href: '/dashboard/analytics', icon: BarChart3 },
+  { name: 'Klijenti', href: '/dashboard/pipeline', icon: Users, badge: true },
+  { name: 'Paketi', href: '/dashboard/packages', icon: Package },
 ]
 
+// Booking Section
+const bookingNavigation = [
+  { name: 'Rezervacije', href: '/dashboard/reservations', icon: CalendarCheck },
+  { name: 'Polasci', href: '/dashboard/trips', icon: PlaneTakeoff },
+]
+
+// Uvid (Insights) Section
+const uvidNavigation = [
+  { name: 'Analitika', href: '/dashboard/analytics', icon: BarChart3 },
+]
+
+// Settings Section
 const settingsNavigation = [
   { name: 'Podešavanja', href: '/dashboard/settings', icon: Settings },
   { name: 'Integracije', href: '/dashboard/integrations', icon: Plug },
@@ -42,7 +48,7 @@ export default function DashboardSidebar({ leadsCount = 0 }: DashboardSidebarPro
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
 
-  const NavItem = ({ item }: { item: typeof mainNavigation[0] }) => {
+  const NavItem = ({ item }: { item: typeof crmNavigation[0] }) => {
     const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
     const Icon = item.icon
     return (
@@ -88,10 +94,14 @@ export default function DashboardSidebar({ leadsCount = 0 }: DashboardSidebarPro
           {/* Logo */}
           <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6]">
-                <span className="text-lg font-bold text-white">T</span>
-              </div>
-              <h1 className="text-xl font-bold text-white">Trak</h1>
+              <img
+                src="/trak-logo.png"
+                alt="trak"
+                width={36}
+                height={36}
+                className="rounded-[8px]"
+              />
+              <h1 className="text-xl font-bold text-white">trak</h1>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -103,13 +113,37 @@ export default function DashboardSidebar({ leadsCount = 0 }: DashboardSidebarPro
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto px-3 py-4">
-            {/* Main Section */}
-            <div className="mb-6">
+            {/* CRM Section */}
+            <div className="mb-4">
               <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/40">
-                Glavni meni
+                CRM
               </p>
               <div className="space-y-1">
-                {mainNavigation.map((item) => (
+                {crmNavigation.map((item) => (
+                  <NavItem key={item.name} item={item} />
+                ))}
+              </div>
+            </div>
+
+            {/* Booking Section */}
+            <div className="mb-4">
+              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                Booking
+              </p>
+              <div className="space-y-1">
+                {bookingNavigation.map((item) => (
+                  <NavItem key={item.name} item={item} />
+                ))}
+              </div>
+            </div>
+
+            {/* Uvid Section */}
+            <div className="mb-4">
+              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                Uvid
+              </p>
+              <div className="space-y-1">
+                {uvidNavigation.map((item) => (
                   <NavItem key={item.name} item={item} />
                 ))}
               </div>
@@ -131,7 +165,7 @@ export default function DashboardSidebar({ leadsCount = 0 }: DashboardSidebarPro
           {/* Footer */}
           <div className="border-t border-white/10 p-4">
             <p className="text-xs text-white/40 text-center">
-              Trak CRM v1.0
+              trak CRM v1.0
             </p>
           </div>
         </div>

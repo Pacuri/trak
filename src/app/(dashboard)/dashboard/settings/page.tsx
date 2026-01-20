@@ -3,22 +3,46 @@
 import { useState, useEffect } from 'react'
 import { useOrganization } from '@/hooks/use-organization'
 import { createClient } from '@/lib/supabase/client'
-import { Save, Building2, Users, UserPlus, Globe, Settings } from 'lucide-react'
+import { Save, Building2, Users, UserPlus, Globe, Settings, MapPin, Link2, Copy, Check, Mail, MessageSquare, Plug } from 'lucide-react'
 import Link from 'next/link'
+import type { LanguageRegion } from '@/lib/prompts/document-parse-prompt'
+
+const LANGUAGE_REGION_OPTIONS: { value: LanguageRegion; label: string }[] = [
+  { value: 'ba', label: 'Bosna i Hercegovina' },
+  { value: 'rs', label: 'Srbija' },
+  { value: 'hr', label: 'Hrvatska' },
+]
 
 export default function SettingsPage() {
   const { organization, teamMembers, loading, refresh } = useOrganization()
   const [name, setName] = useState(organization?.name || '')
   const [industry, setIndustry] = useState(organization?.industry || '')
+  const [languageRegion, setLanguageRegion] = useState<LanguageRegion>((organization?.language_region as LanguageRegion) || 'rs')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null)
   const supabase = createClient()
+
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const landingUrl = organization?.slug ? `${baseUrl}/a/${organization.slug}` : ''
+  const ponudeUrl = organization?.slug ? `${baseUrl}/a/${organization.slug}/ponude` : ''
+
+  const copyToClipboard = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopiedUrl(url)
+      setTimeout(() => setCopiedUrl(null), 2000)
+    } catch {
+      // ignore
+    }
+  }
 
   useEffect(() => {
     if (organization) {
       setName(organization.name)
       setIndustry(organization.industry || '')
+      setLanguageRegion((organization.language_region as LanguageRegion) || 'rs')
     }
   }, [organization])
 
@@ -33,7 +57,7 @@ export default function SettingsPage() {
     try {
       const { error } = await supabase
         .from('organizations')
-        .update({ name, industry: industry || null })
+        .update({ name, industry: industry || null, language_region: languageRegion })
         .eq('id', organization.id)
 
       if (error) {
@@ -156,6 +180,34 @@ export default function SettingsPage() {
                 </select>
               </div>
 
+              {/* Regionalne postavke / Regional Settings */}
+              <div className="pt-4 border-t border-[#E2E8F0]">
+                <h3 className="text-sm font-medium text-[#1E293B] mb-1 flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-[#64748B]" />
+                  Regionalne postavke
+                </h3>
+                <p className="text-xs text-[#64748B] mb-3">
+                  Utiče na jezik AI pri uvozu dokumenata (nazivi polupansion, sobe, itd.)
+                </p>
+                <div>
+                  <label htmlFor="language_region" className="block text-sm font-medium text-[#1E293B] mb-1.5">
+                    Država poslovanja
+                  </label>
+                  <select
+                    id="language_region"
+                    value={languageRegion}
+                    onChange={(e) => setLanguageRegion(e.target.value as LanguageRegion)}
+                    className="block w-full rounded-[10px] border border-[#E2E8F0] px-4 py-2.5 text-sm text-[#1E293B] bg-white focus:border-[#3B82F6] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/20 transition-all"
+                  >
+                    {LANGUAGE_REGION_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div className="pt-4">
                 <button
                   type="submit"
@@ -240,6 +292,48 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {/* Integracije Card */}
+          <div className="rounded-[14px] bg-white border border-[#E2E8F0] shadow-sm p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FEF3C7]">
+                <Plug className="h-5 w-5 text-[#F59E0B]" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold text-[#1E293B]">Integracije</h2>
+                <p className="text-sm text-[#64748B] mt-1">
+                  Povežite email, SMS i druge servise
+                </p>
+                <Link href="/dashboard/settings/integracije">
+                  <button className="mt-4 inline-flex items-center gap-2 rounded-[10px] border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all">
+                    <Mail className="h-4 w-4" />
+                    Upravljaj integracijama
+                  </button>
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Šabloni odgovora Card */}
+          <div className="rounded-[14px] bg-white border border-[#E2E8F0] shadow-sm p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F0FDF4]">
+                <MessageSquare className="h-5 w-5 text-[#22C55E]" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold text-[#1E293B]">Šabloni odgovora</h2>
+                <p className="text-sm text-[#64748B] mt-1">
+                  Prilagodite email šablone za odgovore na upite
+                </p>
+                <Link href="/dashboard/settings/sabloni-odgovora">
+                  <button className="mt-4 inline-flex items-center gap-2 rounded-[10px] border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all">
+                    <Settings className="h-4 w-4" />
+                    Uredi šablone
+                  </button>
+                </Link>
+              </div>
+            </div>
+          </div>
+
           {/* Public Page Settings Card */}
           <div className="lg:col-span-2 rounded-[14px] bg-white border border-[#E2E8F0] shadow-sm p-6">
             <div className="flex items-start gap-4">
@@ -257,6 +351,67 @@ export default function SettingsPage() {
                     Uredi javnu stranicu
                   </button>
                 </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Shareable links */}
+          <div className="lg:col-span-2 rounded-[14px] bg-white border border-[#E2E8F0] shadow-sm p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFF6FF]">
+                <Link2 className="h-5 w-5 text-[#3B82F6]" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-[#1E293B]">Linkovi za dijeljenje</h2>
+                <p className="text-sm text-[#64748B]">
+                  Koristite ove linkove u oglasima, na društvenim mrežama i u komunikaciji s klijentima.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[#1E293B] mb-1.5">
+                  Landinčna stranica (glavni link za oglase)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    value={landingUrl}
+                    className="flex-1 rounded-[10px] border border-[#E2E8F0] px-4 py-2.5 text-sm text-[#1E293B] bg-[#F8FAFC]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(landingUrl)}
+                    className="inline-flex items-center gap-2 rounded-[10px] border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC] transition-all"
+                  >
+                    {copiedUrl === landingUrl ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    {copiedUrl === landingUrl ? 'Kopirano' : 'Kopiraj'}
+                  </button>
+                </div>
+                <p className="text-xs text-[#64748B] mt-1">/a/{organization?.slug || '…'}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1E293B] mb-1.5">
+                  Sve ponude (katalog)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    value={ponudeUrl}
+                    className="flex-1 rounded-[10px] border border-[#E2E8F0] px-4 py-2.5 text-sm text-[#1E293B] bg-[#F8FAFC]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(ponudeUrl)}
+                    className="inline-flex items-center gap-2 rounded-[10px] border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC] transition-all"
+                  >
+                    {copiedUrl === ponudeUrl ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    {copiedUrl === ponudeUrl ? 'Kopirano' : 'Kopiraj'}
+                  </button>
+                </div>
+                <p className="text-xs text-[#64748B] mt-1">/a/{organization?.slug || '…'}/ponude</p>
               </div>
             </div>
           </div>

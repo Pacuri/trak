@@ -3,20 +3,19 @@
 import { useState, useCallback } from 'react'
 import type { QualificationData, AccommodationType, BoardType, TransportType } from '@/types'
 
-const STEPS = ['country', 'city', 'adults', 'children', 'dates_month', 'dates_duration', 'dates_flexibility', 'accommodation_type', 'board_type', 'transport_type', 'budget'] as const
+const STEPS = ['country', 'city', 'adults', 'children', 'child_ages', 'dates_month', 'dates_duration', 'accommodation_type', 'board_type', 'transport_type', 'budget'] as const
 export type QualificationStep = (typeof STEPS)[number]
 
-// Helper to get dates sub-step index (0, 1, or 2)
+// Helper to get dates sub-step index (0 or 1)
 export function getDatesSubStep(step: QualificationStep): number | null {
   if (step === 'dates_month') return 0
   if (step === 'dates_duration') return 1
-  if (step === 'dates_flexibility') return 2
   return null
 }
 
 // Check if step is a dates sub-step
 export function isDatesSubStep(step: QualificationStep): boolean {
-  return step === 'dates_month' || step === 'dates_duration' || step === 'dates_flexibility'
+  return step === 'dates_month' || step === 'dates_duration'
 }
 
 const INITIAL_DATA: QualificationData = {
@@ -55,15 +54,15 @@ export function useQualification() {
 
   const currentStepIndex = STEPS.indexOf(currentStep)
   // Calculate progress: treat dates sub-steps as single step for progress bar
-  // Steps: country(0), city(1), adults(2), children(3), dates_month(4), dates_duration(5), dates_flexibility(6), accommodation(7), board(8), transport(9), budget(10)
+  // Steps: country(0), city(1), adults(2), children(3), dates_month(4), dates_duration(5), accommodation(6), board(7), transport(8), budget(9)
   // Effective: country(0), city(1), adults(2), children(3), dates(4), accommodation(5), board(6), transport(7), budget(8) = 9 steps
   let effectiveStepIndex = currentStepIndex
-  if (currentStepIndex >= 4 && currentStepIndex <= 6) {
+  if (currentStepIndex >= 4 && currentStepIndex <= 5) {
     // Dates sub-steps: map to step 4, with fractional progress
-    effectiveStepIndex = 4 + (currentStepIndex - 4) / 3
-  } else if (currentStepIndex > 6) {
-    // After dates: subtract 2 (we had 3 steps, now it's 1)
-    effectiveStepIndex = currentStepIndex - 2
+    effectiveStepIndex = 4 + (currentStepIndex - 4) / 2
+  } else if (currentStepIndex > 5) {
+    // After dates: subtract 1 (we had 2 steps, now it's 1)
+    effectiveStepIndex = currentStepIndex - 1
   }
   const totalEffectiveSteps = 9 // Original 9 steps
   const progress = ((effectiveStepIndex + 1) / totalEffectiveSteps) * 100
@@ -155,20 +154,25 @@ export function useQualification() {
   )
 
   const nextStep = useCallback(() => {
-    const nextIndex = currentStepIndex + 1
+    let nextIndex = currentStepIndex + 1
+
+    // Skip child_ages step if no children
+    if (STEPS[nextIndex] === 'child_ages' && data.guests.children === 0) {
+      nextIndex++
+    }
+
     if (nextIndex < STEPS.length) {
       setCurrentStep(STEPS[nextIndex])
     } else {
       setIsComplete(true)
     }
-  }, [currentStepIndex])
+  }, [currentStepIndex, data.guests.children])
 
   // Helper to get next dates sub-step
   const getNextDatesStep = useCallback((current: QualificationStep): QualificationStep | null => {
     if (current === 'dates_month') return 'dates_duration'
-    if (current === 'dates_duration') return 'dates_flexibility'
-    if (current === 'dates_flexibility') {
-      // After dates_flexibility, go to accommodation_type
+    if (current === 'dates_duration') {
+      // After dates_duration, go to accommodation_type
       const accommodationIndex = STEPS.indexOf('accommodation_type')
       return STEPS[accommodationIndex]
     }
@@ -181,21 +185,22 @@ export function useQualification() {
       setCurrentStep('dates_month')
       return
     }
-    if (currentStep === 'dates_flexibility') {
+    if (currentStep === 'accommodation_type') {
+      // Going back from accommodation_type should go to dates_duration
       setCurrentStep('dates_duration')
       return
     }
-    if (currentStep === 'accommodation_type') {
-      // Going back from accommodation_type should go to dates_flexibility
-      setCurrentStep('dates_flexibility')
+    // Going back from dates_month should skip child_ages if no children
+    if (currentStep === 'dates_month' && data.guests.children === 0) {
+      setCurrentStep('children')
       return
     }
-    
+
     const prevIndex = currentStepIndex - 1
     if (prevIndex >= 0) {
       setCurrentStep(STEPS[prevIndex])
     }
-  }, [currentStepIndex, currentStep])
+  }, [currentStepIndex, currentStep, data.guests.children])
 
   const goToStep = useCallback((step: QualificationStep) => {
     setCurrentStep(step)
@@ -228,12 +233,13 @@ export function useQualification() {
         return data.guests.adults >= 1
       case 'children':
         return true // Children can be 0
+      case 'child_ages':
+        // Only need ages if there are children
+        return data.guests.children === 0 || data.guests.childAges.length === data.guests.children
       case 'dates_month':
-        return true // Month can be null (Svejedno mi je) or a specific month
+        return data.dates.month !== null // Must select a month or exact date option
       case 'dates_duration':
         return data.dates.duration > 0
-      case 'dates_flexibility':
-        return true // Always can proceed (flexible is boolean, has default)
       case 'accommodation_type':
         return data.accommodation.type !== null
       case 'board_type':

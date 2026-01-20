@@ -56,6 +56,8 @@ export const DEPARTURE_STATUS_LABELS: Record<DepartureStatus, string> = {
   sold_out: 'Rasprodato',
   cancelled: 'Otkazano',
   completed: 'Završeno',
+  scheduled: 'Planiran',
+  confirmed: 'Potvrđen',
 }
 
 export const DEPARTURE_STATUS_COLORS: Record<DepartureStatus, string> = {
@@ -63,6 +65,8 @@ export const DEPARTURE_STATUS_COLORS: Record<DepartureStatus, string> = {
   sold_out: 'border-red-500 text-red-700 bg-red-50',
   cancelled: 'border-gray-500 text-gray-700 bg-gray-50',
   completed: 'border-blue-500 text-blue-700 bg-blue-50',
+  scheduled: 'border-amber-500 text-amber-700 bg-amber-50',
+  confirmed: 'border-green-500 text-green-700 bg-green-50',
 }
 
 // ============================================

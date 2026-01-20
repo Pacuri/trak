@@ -2,8 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Trak - CRM za vaš biznis",
+  title: "trak - CRM za vaš biznis",
   description: "Moderan CRM sistem za upravljanje kontaktima i prodajom",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/trak-logo.png",
+  },
 };
 
 export default function RootLayout({

@@ -4,11 +4,43 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowLeft, ChevronLeft, ChevronRight, Share2, MapPin, Calendar, Users, Utensils, Plane, Hotel } from 'lucide-react'
-import type { Offer } from '@/types'
+import { ArrowLeft, ChevronLeft, ChevronRight, Share2, MapPin, Calendar, Users, Utensils, Plane, Hotel, Star, TrendingUp, Check, Sparkles, Clock, ArrowUpRight } from 'lucide-react'
+import type { Offer, QualificationData } from '@/types'
 import { getOfferLabel, getLabelBgColor } from '@/lib/labels'
 import { formatDateRange, getBoardLabel, getTransportLabel, formatStarRating, formatShortDate } from '@/lib/formatting'
-import { differenceInDays } from 'date-fns'
+import { differenceInDays, format } from 'date-fns'
+import { sr } from 'date-fns/locale'
+
+interface UpsellOption {
+  type: 'meal_upgrade' | 'room_upgrade' | 'supplement' | 'alternative_date'
+  code?: string
+  name: string
+  description: string
+  icon: string
+  pricePerPersonPerNight?: number
+  priceDiffPerPersonPerNight?: number
+  amount?: number
+  percent?: number
+  per?: string
+  currency?: string
+  departureId?: string
+  departureDate?: string
+  returnDate?: string
+  effectivePrice?: number
+  priceDiff?: number
+  availableSpots?: number
+  isFeatured?: boolean
+  roomTypeId?: string
+  maxPersons?: number
+}
+
+interface UpsellData {
+  packageId: string
+  packageName: string
+  upsells: UpsellOption[]
+  availableMealPlans: string[]
+  roomTypes: any[]
+}
 
 export default function OfferDetailPage() {
   const params = useParams()
@@ -20,17 +52,24 @@ export default function OfferDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [qualification, setQualification] = useState<QualificationData | null>(null)
   const [guestCount, setGuestCount] = useState(1)
   const [touchStart, setTouchStart] = useState<number | null>(null)
   const [touchEnd, setTouchEnd] = useState<number | null>(null)
   const galleryRef = useRef<HTMLDivElement>(null)
 
-  // Get guest count from session storage or default to 1
+  // Upsell state
+  const [upsellData, setUpsellData] = useState<UpsellData | null>(null)
+  const [loadingUpsells, setLoadingUpsells] = useState(false)
+  const [selectedUpsells, setSelectedUpsells] = useState<Set<string>>(new Set())
+
+  // Get qualification data from session storage
   useEffect(() => {
     const storedQualification = sessionStorage.getItem('qualification')
     if (storedQualification) {
       try {
-        const qualData = JSON.parse(storedQualification)
+        const qualData = JSON.parse(storedQualification) as QualificationData
+        setQualification(qualData)
         const count = (qualData.guests?.adults || 1) + (qualData.guests?.children || 0)
         setGuestCount(count)
       } catch (e) {
@@ -64,6 +103,45 @@ export default function OfferDetailPage() {
       fetchOffer()
     }
   }, [slug, offerId])
+
+  // Fetch upsell options once we have the offer
+  useEffect(() => {
+    const fetchUpsells = async () => {
+      if (!offer || !qualification) return
+
+      try {
+        setLoadingUpsells(true)
+        const params = new URLSearchParams()
+
+        if (qualification.dates.exactStart) {
+          params.set('check_in', qualification.dates.exactStart)
+        }
+        if (qualification.dates.exactEnd) {
+          params.set('check_out', qualification.dates.exactEnd)
+        }
+        params.set('adults', String(qualification.guests.adults))
+        params.set('children', String(qualification.guests.children))
+        if (qualification.accommodation.board) {
+          params.set('meal_plan', mapBoardTypeToMealPlan(qualification.accommodation.board))
+        }
+
+        const response = await fetch(
+          `/api/public/agencies/${slug}/offers/${offerId}/upsells?${params.toString()}`
+        )
+
+        if (response.ok) {
+          const data = await response.json()
+          setUpsellData(data)
+        }
+      } catch (err) {
+        console.error('Error fetching upsells:', err)
+      } finally {
+        setLoadingUpsells(false)
+      }
+    }
+
+    fetchUpsells()
+  }, [offer, qualification, slug, offerId])
 
   // Preload adjacent images
   useEffect(() => {
@@ -120,6 +198,18 @@ export default function OfferDetailPage() {
     }
   }
 
+  const toggleUpsell = (upsellKey: string) => {
+    setSelectedUpsells(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(upsellKey)) {
+        newSet.delete(upsellKey)
+      } else {
+        newSet.add(upsellKey)
+      }
+      return newSet
+    })
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -160,16 +250,42 @@ export default function OfferDetailPage() {
   const primaryImage = images[0]?.url
   const currentImage = images[currentImageIndex]?.url || primaryImage
   const nights = differenceInDays(new Date(offer.return_date), new Date(offer.departure_date))
-  const totalPrice = offer.price_per_person * guestCount
+  const basePrice = offer.price_per_person * guestCount
   const hasDiscount = offer.original_price && offer.original_price > offer.price_per_person
   const locationText = [offer.city, offer.country].filter(Boolean).join(', ')
+
+  // Calculate upsell additions
+  const selectedUpsellsArray = upsellData?.upsells.filter(u => selectedUpsells.has(getUpsellKey(u))) || []
+  const upsellTotal = selectedUpsellsArray.reduce((total, upsell) => {
+    if (upsell.priceDiffPerPersonPerNight) {
+      return total + (upsell.priceDiffPerPersonPerNight * nights * guestCount)
+    }
+    if (upsell.amount) {
+      if (upsell.per === 'night') return total + (upsell.amount * nights)
+      if (upsell.per === 'stay') return total + upsell.amount
+      if (upsell.per === 'person_night') return total + (upsell.amount * nights * guestCount)
+      if (upsell.per === 'person_stay') return total + (upsell.amount * guestCount)
+      return total + upsell.amount
+    }
+    return total
+  }, 0)
+
+  const totalPrice = basePrice + upsellTotal
+
+  // Upsell categories
+  const mealUpgrades = upsellData?.upsells.filter(u => u.type === 'meal_upgrade') || []
+  const roomUpgrades = upsellData?.upsells.filter(u => u.type === 'room_upgrade') || []
+  const supplements = upsellData?.upsells.filter(u => u.type === 'supplement') || []
+  const alternativeDates = upsellData?.upsells.filter(u => u.type === 'alternative_date') || []
+
+  const hasUpsells = mealUpgrades.length > 0 || roomUpgrades.length > 0 || supplements.length > 0
 
   return (
     <div className="min-h-screen bg-white">
       {/* Photo Gallery - Full viewport height on mobile */}
       <div
         ref={galleryRef}
-        className="relative h-screen sm:h-[70vh] bg-gradient-to-br from-gray-300 to-gray-400"
+        className="relative h-[70vh] sm:h-[60vh] bg-gradient-to-br from-gray-300 to-gray-400"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -282,6 +398,43 @@ export default function OfferDetailPage() {
 
       {/* Details Section */}
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        {/* Qualification Summary - Show what user selected */}
+        {qualification && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+            <h3 className="text-sm font-semibold text-blue-800 mb-2 flex items-center gap-2">
+              <Check className="w-4 h-4" />
+              Vaša pretraga
+            </h3>
+            <div className="flex flex-wrap gap-3 text-sm">
+              <span className="bg-white px-3 py-1 rounded-full text-gray-700 border border-blue-100">
+                {qualification.guests.adults} {qualification.guests.adults === 1 ? 'odrasla osoba' : qualification.guests.adults < 5 ? 'odrasle osobe' : 'odraslih'}
+                {qualification.guests.children > 0 && ` + ${qualification.guests.children} ${qualification.guests.children === 1 ? 'dete' : 'dece'}`}
+              </span>
+              {qualification.dates.month && (
+                <span className="bg-white px-3 py-1 rounded-full text-gray-700 border border-blue-100">
+                  {qualification.dates.month}
+                </span>
+              )}
+              {qualification.dates.exactStart && (
+                <span className="bg-white px-3 py-1 rounded-full text-gray-700 border border-blue-100">
+                  {format(new Date(qualification.dates.exactStart), 'd. MMM', { locale: sr })}
+                  {qualification.dates.exactEnd && ` - ${format(new Date(qualification.dates.exactEnd), 'd. MMM', { locale: sr })}`}
+                </span>
+              )}
+              {qualification.accommodation.board && (
+                <span className="bg-white px-3 py-1 rounded-full text-gray-700 border border-blue-100">
+                  {getBoardLabel(qualification.accommodation.board)}
+                </span>
+              )}
+              {qualification.accommodation.transport && (
+                <span className="bg-white px-3 py-1 rounded-full text-gray-700 border border-blue-100">
+                  {getTransportLabel(qualification.accommodation.transport)}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Urgency badges */}
         {label && (
           <div className={`${getLabelBgColor(label.color)} text-white px-4 py-3 rounded-xl font-semibold inline-block`}>
@@ -360,6 +513,192 @@ export default function OfferDetailPage() {
             </p>
           </div>
         )}
+
+        {/* UPSELL SECTION */}
+        {hasUpsells && (
+          <div className="border-t border-gray-100 pt-6 mt-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-amber-500" />
+              Nadogradite vaše putovanje
+            </h3>
+
+            {/* Meal Upgrades */}
+            {mealUpgrades.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
+                  Nadogradnja ishrane
+                </h4>
+                <div className="space-y-2">
+                  {mealUpgrades.map((upsell) => {
+                    const key = getUpsellKey(upsell)
+                    const isSelected = selectedUpsells.has(key)
+                    const totalDiff = (upsell.priceDiffPerPersonPerNight || 0) * nights * guestCount
+
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => toggleUpsell(key)}
+                        className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${
+                          isSelected
+                            ? 'border-green-500 bg-green-50'
+                            : 'border-gray-200 hover:border-gray-300 bg-white'
+                        }`}
+                      >
+                        <span className="text-2xl">{upsell.icon}</span>
+                        <div className="flex-1 text-left">
+                          <div className="font-semibold text-gray-900">{upsell.name}</div>
+                          <div className="text-sm text-gray-500">{upsell.description}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold text-green-600">
+                            +€{totalDiff.toLocaleString('sr-Latn')}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            +€{upsell.priceDiffPerPersonPerNight}/os/noć
+                          </div>
+                        </div>
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                          isSelected ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                        }`}>
+                          {isSelected && <Check className="w-4 h-4 text-white" />}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Room Upgrades */}
+            {roomUpgrades.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
+                  Nadogradnja sobe
+                </h4>
+                <div className="space-y-2">
+                  {roomUpgrades.map((upsell) => {
+                    const key = getUpsellKey(upsell)
+                    const isSelected = selectedUpsells.has(key)
+                    const totalDiff = (upsell.priceDiffPerPersonPerNight || 0) * nights * guestCount
+
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => toggleUpsell(key)}
+                        className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${
+                          isSelected
+                            ? 'border-green-500 bg-green-50'
+                            : 'border-gray-200 hover:border-gray-300 bg-white'
+                        }`}
+                      >
+                        <span className="text-2xl">{upsell.icon}</span>
+                        <div className="flex-1 text-left">
+                          <div className="font-semibold text-gray-900">{upsell.name}</div>
+                          <div className="text-sm text-gray-500">
+                            {upsell.description} • Do {upsell.maxPersons} osoba
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold text-green-600">
+                            +€{totalDiff.toLocaleString('sr-Latn')}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            +€{upsell.priceDiffPerPersonPerNight}/os/noć
+                          </div>
+                        </div>
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                          isSelected ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                        }`}>
+                          {isSelected && <Check className="w-4 h-4 text-white" />}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Optional Supplements */}
+            {supplements.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
+                  Dodatne usluge
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {supplements.map((upsell) => {
+                    const key = getUpsellKey(upsell)
+                    const isSelected = selectedUpsells.has(key)
+                    const supplementTotal = calculateSupplementTotal(upsell, nights, guestCount)
+
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => toggleUpsell(key)}
+                        className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                          isSelected
+                            ? 'border-green-500 bg-green-50'
+                            : 'border-gray-200 hover:border-gray-300 bg-white'
+                        }`}
+                      >
+                        <span className="text-xl">{upsell.icon}</span>
+                        <div className="flex-1 text-left">
+                          <div className="font-medium text-gray-900 text-sm">{upsell.name}</div>
+                          <div className="text-xs text-gray-500">{upsell.description}</div>
+                        </div>
+                        <div className="font-semibold text-green-600 text-sm">
+                          +€{supplementTotal}
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          isSelected ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                        }`}>
+                          {isSelected && <Check className="w-3 h-3 text-white" />}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Alternative Dates (Better Prices) */}
+        {alternativeDates.length > 0 && (
+          <div className="border-t border-gray-100 pt-6 mt-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-blue-500" />
+              Uštedite sa drugim datumima
+            </h3>
+            <div className="space-y-2">
+              {alternativeDates.map((alt) => (
+                <Link
+                  key={alt.departureId}
+                  href={`/a/${slug}/offer/${alt.departureId}`}
+                  className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-blue-300 bg-white hover:bg-blue-50 transition-all"
+                >
+                  <span className="text-2xl">📅</span>
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">
+                      {format(new Date(alt.departureDate!), 'd. MMM', { locale: sr })} - {format(new Date(alt.returnDate!), 'd. MMM yyyy', { locale: sr })}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Još {alt.availableSpots} mesta
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-blue-600">
+                      €{alt.effectivePrice}/os
+                    </div>
+                    <div className="text-xs text-green-600 font-medium">
+                      Ušteda €{Math.abs(alt.priceDiff || 0)}/os
+                    </div>
+                  </div>
+                  <ArrowUpRight className="w-5 h-5 text-gray-400" />
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Sticky Footer */}
@@ -368,7 +707,7 @@ export default function OfferDetailPage() {
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
               <div className="text-sm text-gray-500">Ukupna cena</div>
-              <div className="flex items-baseline gap-2">
+              <div className="flex items-baseline gap-2 flex-wrap">
                 {hasDiscount && offer.original_price && (
                   <span className="text-sm text-gray-400 line-through">
                     €{(offer.original_price * guestCount).toLocaleString('sr-Latn')}
@@ -377,9 +716,14 @@ export default function OfferDetailPage() {
                 <span className="text-2xl font-bold text-gray-900">
                   €{totalPrice.toLocaleString('sr-Latn')}
                 </span>
-                <span className="text-sm text-gray-500">
-                  za {guestCount} {guestCount === 1 ? 'osobu' : 'osobe'}
-                </span>
+                {selectedUpsells.size > 0 && (
+                  <span className="text-sm text-green-600 font-medium">
+                    (+€{upsellTotal.toLocaleString('sr-Latn')} nadogradnje)
+                  </span>
+                )}
+              </div>
+              <div className="text-sm text-gray-500">
+                za {guestCount} {guestCount === 1 ? 'osobu' : 'osobe'} • {nights} noći
               </div>
             </div>
             <Link
@@ -397,4 +741,35 @@ export default function OfferDetailPage() {
       </div>
     </div>
   )
+}
+
+// Helper functions
+function getUpsellKey(upsell: UpsellOption): string {
+  if (upsell.type === 'meal_upgrade') return `meal-${upsell.code}`
+  if (upsell.type === 'room_upgrade') return `room-${upsell.roomTypeId}`
+  if (upsell.type === 'supplement') return `supp-${upsell.code}`
+  if (upsell.type === 'alternative_date') return `date-${upsell.departureId}`
+  return `${upsell.type}-${upsell.code || upsell.name}`
+}
+
+function mapBoardTypeToMealPlan(board: string): string {
+  const mapping: Record<string, string> = {
+    'all_inclusive': 'AI',
+    'half_board': 'HB',
+    'breakfast': 'BB',
+    'room_only': 'ND',
+    'any': 'BB',
+  }
+  return mapping[board] || 'BB'
+}
+
+function calculateSupplementTotal(supplement: UpsellOption, nights: number, guestCount: number): number {
+  const amount = supplement.amount || 0
+  switch (supplement.per) {
+    case 'night': return amount * nights
+    case 'stay': return amount
+    case 'person_night': return amount * nights * guestCount
+    case 'person_stay': return amount * guestCount
+    default: return amount
+  }
 }

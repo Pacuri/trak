@@ -10,7 +10,7 @@ interface ResultsSectionProps {
   subtitle?: React.ReactNode
   offers: Offer[]
   cardType: 'instant' | 'inquiry'
-  qualification: QualificationData
+  qualification?: QualificationData | null
   slug: string
   responseTimeMinutes?: number
   isWithinWorkingHours?: boolean

@@ -49,6 +49,8 @@ export async function GET(
     const supabase = await createClient()
 
     // Get agency by slug from agency_booking_settings
+    // Note: is_active check removed - column may not exist or have default null
+    // We filter out explicitly inactive agencies (is_active = false) but allow null/true
     const { data: agency, error: agencyError } = await supabase
       .from('agency_booking_settings')
       .select(`
@@ -59,15 +61,23 @@ export async function GET(
         allow_custom_inquiries,
         show_inquiry_with_results,
         inquiry_response_text,
+        is_active,
         organization:organizations(name)
       `)
       .eq('slug', slug)
-      .eq('is_active', true)
       .single()
 
     if (agencyError || !agency) {
       return NextResponse.json(
         { error: 'Agencija nije pronađena' },
+        { status: 404 }
+      )
+    }
+
+    // Check if explicitly deactivated (allow null as active)
+    if (agency.is_active === false) {
+      return NextResponse.json(
+        { error: 'Agencija je trenutno neaktivna' },
         { status: 404 }
       )
     }

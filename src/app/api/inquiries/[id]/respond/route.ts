@@ -88,7 +88,7 @@ export async function POST(
       // Parse qualification data for lead info
       const qualification = inquiry.qualification_data as any
 
-      // Create the lead
+      // Create the lead with reference back to inquiry for rich data
       const { data: newLead, error: leadError } = await supabase
         .from('leads')
         .insert({
@@ -96,13 +96,14 @@ export async function POST(
           name: inquiry.customer_name,
           phone: inquiry.customer_phone,
           email: inquiry.customer_email || null,
-          destination: qualification?.destination?.country || 
+          destination: qualification?.destination?.country ||
             qualification?.destination?.city || null,
           guests: qualification?.guests?.adults || null,
           notes: inquiry.customer_note || null,
           stage_id: defaultStage?.id || null,
           assigned_to: authUser.id,
           source_type: 'website',
+          source_inquiry_id: id, // Reference to original inquiry for rich data display
         })
         .select('id')
         .single()

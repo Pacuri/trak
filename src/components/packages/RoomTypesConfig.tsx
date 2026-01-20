@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { RoomTypeFormData } from '@/types/packages'
-import { Plus, Trash2, Bed, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Trash2, Bed, ChevronDown, ChevronUp, Image as ImageIcon, X } from 'lucide-react'
 
 interface RoomTypesConfigProps {
   roomTypes: RoomTypeFormData[]
@@ -25,15 +25,17 @@ export function RoomTypesConfig({ roomTypes, onChange }: RoomTypesConfigProps) {
     roomTypes.length > 0 ? 0 : null
   )
   const [showPresets, setShowPresets] = useState(false)
+  const [newImageUrls, setNewImageUrls] = useState<Record<number, string>>({})
 
   const addRoomType = (preset?: typeof ROOM_TYPE_PRESETS[0]) => {
     const newRoomType: RoomTypeFormData = preset
-      ? { ...preset, description: '' }
+      ? { ...preset, description: '', images: [] }
       : {
           code: `1/${roomTypes.length + 2}`,
           name: `Tip sobe ${roomTypes.length + 1}`,
           max_persons: 2,
           description: '',
+          images: [],
         }
     onChange([...roomTypes, newRoomType])
     setExpandedIndex(roomTypes.length)
@@ -53,6 +55,22 @@ export function RoomTypesConfig({ roomTypes, onChange }: RoomTypesConfigProps) {
     } else if (expandedIndex !== null && expandedIndex > index) {
       setExpandedIndex(expandedIndex - 1)
     }
+  }
+
+  // Image management
+  const addImage = (index: number) => {
+    const url = newImageUrls[index]?.trim()
+    if (!url) return
+    const currentImages = roomTypes[index].images || []
+    updateRoomType(index, { images: [...currentImages, url] })
+    setNewImageUrls({ ...newImageUrls, [index]: '' })
+  }
+
+  const removeImage = (roomIndex: number, imageIndex: number) => {
+    const currentImages = roomTypes[roomIndex].images || []
+    updateRoomType(roomIndex, {
+      images: currentImages.filter((_, i) => i !== imageIndex)
+    })
   }
 
   // Check which presets are already used
@@ -157,7 +175,15 @@ export function RoomTypesConfig({ roomTypes, onChange }: RoomTypesConfigProps) {
                       <span className="mx-2 text-gray-300">•</span>
                       {roomType.name}
                     </h4>
-                    <p className="text-sm text-gray-500">Max {roomType.max_persons} osoba</p>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <span>Max {roomType.max_persons} osoba</span>
+                      {roomType.images && roomType.images.length > 0 && (
+                        <span className="flex items-center gap-1 text-teal-600">
+                          <ImageIcon className="h-3 w-3" />
+                          {roomType.images.length}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -233,6 +259,72 @@ export function RoomTypesConfig({ roomTypes, onChange }: RoomTypesConfigProps) {
                       placeholder="npr. Soba sa francuskim ležajem ili twin kreveti..."
                       className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 resize-none"
                     />
+                  </div>
+
+                  {/* Images section */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <ImageIcon className="inline-block w-4 h-4 mr-1" />
+                      Slike sobe
+                    </label>
+                    <div className="space-y-3">
+                      {/* Image URL input */}
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <ImageIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                          <input
+                            type="url"
+                            value={newImageUrls[index] || ''}
+                            onChange={(e) => setNewImageUrls({ ...newImageUrls, [index]: e.target.value })}
+                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addImage(index))}
+                            placeholder="Unesite URL slike..."
+                            className="w-full rounded-lg border border-gray-200 pl-10 pr-4 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => addImage(index)}
+                          disabled={!newImageUrls[index]?.trim()}
+                          className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      {/* Image gallery */}
+                      {roomType.images && roomType.images.length > 0 ? (
+                        <div className="grid grid-cols-4 gap-2">
+                          {roomType.images.map((imageUrl, imgIndex) => (
+                            <div key={imgIndex} className="relative group aspect-video rounded-lg overflow-hidden bg-gray-100">
+                              <img
+                                src={imageUrl}
+                                alt={`${roomType.name} ${imgIndex + 1}`}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ccc"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>'
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeImage(index, imgIndex)}
+                                className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                              {imgIndex === 0 && (
+                                <span className="absolute bottom-1 left-1 px-1.5 py-0.5 text-xs bg-teal-600 text-white rounded">
+                                  Glavna
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400">
+                          Nema slika. Dodajte URL-ove slika za ovaj tip sobe.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

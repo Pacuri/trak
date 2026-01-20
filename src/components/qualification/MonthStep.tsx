@@ -123,36 +123,21 @@ export default function MonthStep({ value, onChange, onNext, selectedCountry }: 
         </p>
       )}
 
-      {/* Additional options */}
-      <div className="space-y-3">
+      {/* Exact date option - made prominent */}
+      <div className="mt-2">
         <button
           type="button"
           onClick={() => handleMonthSelect('exact')}
           className={`
-            w-full px-6 py-4 rounded-xl font-medium transition-all
+            w-full px-6 py-5 rounded-xl font-semibold transition-all text-lg
             ${
               value.month === 'exact'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                ? 'bg-blue-600 text-white shadow-lg scale-[1.02]'
+                : 'bg-blue-50 text-blue-700 border-2 border-blue-300 hover:border-blue-400 hover:bg-blue-100'
             }
           `}
         >
-          Imam tačan datum
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleMonthSelect('any')}
-          className={`
-            w-full px-6 py-4 rounded-xl font-medium transition-all
-            ${
-              value.month === null && !value.exactStart
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
-            }
-          `}
-        >
-          Svejedno mi je
+          📅 Imam tačan datum
         </button>
       </div>
     </div>

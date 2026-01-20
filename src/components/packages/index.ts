@@ -7,6 +7,7 @@ export { DepartureRow } from './DepartureRow'
 export { PackageCard } from './PackageCard'
 export { PackagesList } from './PackagesList'
 export { DeparturesTable } from './DeparturesTable'
+export { DepartureModal } from './DepartureModal'
 export { GenerateDeparturesDialog } from './GenerateDeparturesDialog'
 export { PackageForm } from './PackageForm'
 
@@ -27,3 +28,11 @@ export { PriceCalculatorPreview } from './PriceCalculatorPreview'
 
 // Wizard form
 export { PackageFormWizard } from './PackageFormWizard'
+
+// Document Import components
+export { ImportMethodSelector } from './ImportMethodSelector'
+export { ImportReviewScreen } from './ImportReviewScreen'
+export { ImportedPackageForm } from './ImportedPackageForm'
+export { ChildrenPolicyRulesEditor } from './ChildrenPolicyRulesEditor'
+export { TransportPriceListSelector } from './TransportPriceListSelector'
+export { DocumentImportFlow } from './DocumentImportFlow'

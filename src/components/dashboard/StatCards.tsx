@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Phone, FileText, Plane, Euro, AlertTriangle } from 'lucide-react'
 import type { DashboardStats } from '@/types/dashboard'
 
@@ -13,7 +14,9 @@ interface StatCardProps {
   value: string | number
   label: string
   sublabel?: string
+  sublabelLink?: string
   trend?: number
+  trendLabel?: string
   color: 'blue' | 'purple' | 'teal' | 'green' | 'orange'
   loading?: boolean
 }
@@ -22,31 +25,26 @@ const colorClasses = {
   blue: {
     bg: 'bg-blue-50',
     icon: 'text-blue-600',
-    trend: 'text-blue-600',
   },
   purple: {
     bg: 'bg-purple-50',
     icon: 'text-purple-600',
-    trend: 'text-purple-600',
   },
   teal: {
     bg: 'bg-teal-50',
     icon: 'text-teal-600',
-    trend: 'text-teal-600',
   },
   green: {
     bg: 'bg-emerald-50',
     icon: 'text-emerald-600',
-    trend: 'text-emerald-600',
   },
   orange: {
     bg: 'bg-orange-50',
     icon: 'text-orange-600',
-    trend: 'text-orange-600',
   },
 }
 
-function StatCard({ icon, value, label, sublabel, trend, color, loading }: StatCardProps) {
+function StatCard({ icon, value, label, sublabel, sublabelLink, trend, trendLabel, color, loading }: StatCardProps) {
   const colors = colorClasses[color]
 
   if (loading) {
@@ -54,7 +52,6 @@ function StatCard({ icon, value, label, sublabel, trend, color, loading }: StatC
       <div className="bg-white rounded-[14px] border border-slate-200 shadow-sm p-6 animate-pulse">
         <div className="flex items-start justify-between">
           <div className={`w-12 h-12 rounded-xl ${colors.bg}`} />
-          <div className="w-10 h-4 bg-slate-100 rounded" />
         </div>
         <div className="mt-4">
           <div className="w-16 h-8 bg-slate-100 rounded" />
@@ -70,18 +67,19 @@ function StatCard({ icon, value, label, sublabel, trend, color, loading }: StatC
         <div className={`w-12 h-12 rounded-xl ${colors.bg} flex items-center justify-center`}>
           <div className={colors.icon}>{icon}</div>
         </div>
-        {trend !== undefined && trend !== 0 && (
-          <span className={`text-xs font-semibold ${trend > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-            {trend > 0 ? '↑' : '↓'}{Math.abs(trend)}%
-          </span>
-        )}
       </div>
       <div className="mt-4">
         <div className="text-3xl font-bold text-slate-900">{value}</div>
         <div className="text-sm text-slate-500 mt-1">{label}</div>
-        {sublabel && (
-          <div className="text-xs text-slate-400 mt-0.5">{sublabel}</div>
-        )}
+        {sublabel && sublabelLink ? (
+          <Link href={sublabelLink} className="text-xs text-emerald-600 hover:text-emerald-700 mt-0.5 inline-flex items-center gap-1">
+            {sublabel} →
+          </Link>
+        ) : sublabel ? (
+          <div className={`text-xs mt-0.5 ${trend && trend > 0 ? 'text-emerald-600' : trend && trend < 0 ? 'text-red-500' : 'text-slate-400'}`}>
+            {trend && trend > 0 && '↑'}{trend && trend < 0 && '↓'}{sublabel}
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -105,7 +103,7 @@ export function StatCards({ stats, loading }: StatCardsProps) {
         icon={<FileText className="w-6 h-6" />}
         value={stats.pending_inquiries}
         label="Upiti čekaju"
-        sublabel="na upit"
+        sublabel="čekaju odgovor"
         color="purple"
         loading={loading}
       />
@@ -120,11 +118,12 @@ export function StatCards({ stats, loading }: StatCardsProps) {
         loading={loading}
       />
 
-      {/* Mesečno */}
+      {/* Ovog meseca */}
       <StatCard
         icon={<Euro className="w-6 h-6" />}
         value={`€${stats.revenue_this_month.toLocaleString()}`}
-        label="Mesečno"
+        label="Ovog meseca"
+        sublabel={stats.revenue_trend !== 0 ? `${Math.abs(stats.revenue_trend)}%` : undefined}
         trend={stats.revenue_trend}
         color="green"
         loading={loading}
@@ -135,7 +134,8 @@ export function StatCards({ stats, loading }: StatCardsProps) {
         icon={<AlertTriangle className="w-6 h-6" />}
         value={stats.urgent_count}
         label="Hitno"
-        sublabel="zahteva pažnju"
+        sublabel={stats.urgent_count > 0 ? "Vidi sve" : "zahteva pažnju"}
+        sublabelLink={stats.urgent_count > 0 ? "#attention" : undefined}
         color="orange"
         loading={loading}
       />

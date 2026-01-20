@@ -62,9 +62,14 @@ export default function InquirySentPage() {
           <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-800 px-4 py-2 rounded-full">
             <Clock className="w-4 h-4" />
             <span>
-              Očekujte odgovor za{' '}
-              <span className="font-bold">{formatResponseTime(currentResponseTime)}</span>
-              {!isWithinWorkingHours && ' (van radnog vremena)'}
+              {isWithinWorkingHours ? (
+                <>
+                  Očekujte odgovor u roku od{' '}
+                  <span className="font-bold">{formatResponseTime(currentResponseTime)}</span>
+                </>
+              ) : (
+                <>Očekujte odgovor ubrzo!</>
+              )}
             </span>
           </div>
 

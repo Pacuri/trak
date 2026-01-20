@@ -4,15 +4,20 @@ interface ChildrenStepProps {
   value: number
   onChange: (children: number) => void
   onNext: () => void
+  onNextWithChildren: () => void // Goes to child_ages step
 }
 
 const CHILD_COUNTS = [0, 1, 2, 3, 4, 5, 6]
 
-export default function ChildrenStep({ value, onChange, onNext }: ChildrenStepProps) {
+export default function ChildrenStep({ value, onChange, onNext, onNextWithChildren }: ChildrenStepProps) {
   const handleSelect = (count: number) => {
     onChange(count)
-    // Auto-advance after selection
-    onNext()
+    // Auto-advance after selection - use appropriate callback based on count
+    if (count > 0) {
+      onNextWithChildren()
+    } else {
+      onNext()
+    }
   }
 
   return (

@@ -3,6 +3,7 @@ export interface Organization {
   name: string
   slug: string
   industry: string | null
+  language_region?: 'rs' | 'ba' | 'hr' | null
   settings: Record<string, any>
   created_at: string
   updated_at: string
@@ -47,6 +48,7 @@ export interface Lead {
   phone: string | null
   source_id: string | null
   source_type: string | null
+  source_inquiry_id: string | null  // Reference to custom_inquiry for rich data
   stage_id: string | null
   assigned_to: string | null
   destination: string | null
@@ -61,6 +63,8 @@ export interface Lead {
   last_contact_at: string | null
   next_followup_at: string | null
   closed_at: string | null
+  is_archived: boolean
+  archived_at: string | null
   created_at: string
   updated_at: string
   // Joined relations
@@ -68,6 +72,36 @@ export interface Lead {
   source?: LeadSource
   assignee?: User
   assigned_user?: User // Alias for backward compatibility
+  source_inquiry?: CustomInquiry // Rich inquiry data when created from website
+}
+
+// Custom Inquiry (website form submissions)
+export interface CustomInquiry {
+  id: string
+  organization_id: string
+  customer_name: string
+  customer_phone: string
+  customer_email: string | null
+  customer_note: string | null
+  qualification_data: QualificationData | null
+  package_id: string | null
+  status: 'new' | 'contacted' | 'converted' | 'closed'
+  responded_at: string | null
+  responded_by: string | null
+  response_type: string | null
+  response_message: string | null
+  internal_notes: string | null
+  converted_to_lead_id: string | null
+  created_at: string
+  updated_at: string
+  // Joined relations
+  package?: {
+    id: string
+    name: string
+    hotel_name: string | null
+    destination_country: string | null
+    destination_city: string | null
+  }
 }
 
 export interface LeadActivity {
@@ -154,6 +188,9 @@ export interface Offer {
   
   // Joined relations
   images?: OfferImage[]
+
+  // For package-based departures (na upit): link to /a/[slug]/paket/[package_id]
+  package_id?: string
 }
 
 export interface OfferImage {
@@ -495,6 +532,12 @@ export interface QualificationData {
   dates: QualificationDates
   accommodation: QualificationAccommodation
   budget: QualificationBudget
+  // Package inquiry specific fields (optional)
+  package_id?: string
+  package_name?: string
+  selected_date?: string | null
+  selected_room_type_id?: string | null
+  selected_meal_plan?: string | null
 }
 
 // Urgency Label types

@@ -9,6 +9,7 @@ export interface LeadFilters {
   stage_id?: string
   source_id?: string
   assigned_to?: string
+  show_archived?: boolean
 }
 
 export interface CreateLeadData {
@@ -64,6 +65,11 @@ export function useLeads() {
         }
         if (filters?.assigned_to) {
           query = query.eq('assigned_to', filters.assigned_to)
+        }
+
+        // By default, hide archived leads unless explicitly requested
+        if (!filters?.show_archived) {
+          query = query.or('is_archived.is.null,is_archived.eq.false')
         }
 
         const { data, error: fetchError } = await query
@@ -307,6 +313,68 @@ export function useLeads() {
     [supabase, organizationId]
   )
 
+  const archiveLead = useCallback(
+    async (id: string, archive: boolean = true): Promise<Lead | null> => {
+      if (!organizationId) {
+        setError('Organization not found')
+        return null
+      }
+
+      setLoading(true)
+      setError(null)
+
+      try {
+        const {
+          data: { user: authUser },
+          error: authError,
+        } = await supabase.auth.getUser()
+
+        if (authError || !authUser) {
+          setError('User not authenticated')
+          return null
+        }
+
+        const updateData = archive
+          ? { is_archived: true, archived_at: new Date().toISOString() }
+          : { is_archived: false, archived_at: null }
+
+        const { data: updatedLead, error: updateError } = await supabase
+          .from('leads')
+          .update(updateData)
+          .eq('id', id)
+          .eq('organization_id', organizationId)
+          .select(`
+            *,
+            source:lead_sources(id, name),
+            stage:pipeline_stages(id, name),
+            assignee:users!assigned_to(id, email, full_name)
+          `)
+          .single()
+
+        if (updateError) {
+          setError(updateError.message)
+          return null
+        }
+
+        // Log activity
+        await supabase.from('lead_activities').insert({
+          lead_id: id,
+          user_id: authUser.id,
+          type: archive ? 'archived' : 'unarchived',
+          description: archive ? 'Lead arhiviran' : 'Lead vraćen iz arhive',
+        })
+
+        return updatedLead as Lead
+      } catch (err) {
+        setError('Failed to archive lead')
+        return null
+      } finally {
+        setLoading(false)
+      }
+    },
+    [supabase, organizationId]
+  )
+
   const addActivity = useCallback(
     async (
       leadId: string,
@@ -386,6 +454,7 @@ export function useLeads() {
     createLead,
     updateLead,
     deleteLead,
+    archiveLead,
     addActivity,
   }
 }

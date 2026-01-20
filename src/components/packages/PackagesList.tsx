@@ -11,11 +11,12 @@ import { PackageCard } from './PackageCard'
 interface PackagesListProps {
   packages: Package[]
   loading?: boolean
+  onArchive?: (id: string) => Promise<void>
 }
 
 type FilterType = 'all' | PackageType
 
-export function PackagesList({ packages, loading }: PackagesListProps) {
+export function PackagesList({ packages, loading, onArchive }: PackagesListProps) {
   const [filter, setFilter] = useState<FilterType>('all')
   const [search, setSearch] = useState('')
   
@@ -112,7 +113,7 @@ export function PackagesList({ packages, loading }: PackagesListProps) {
       ) : (
         <div className="space-y-3">
           {filteredPackages.map(pkg => (
-            <PackageCard key={pkg.id} package={pkg} />
+            <PackageCard key={pkg.id} package={pkg} onArchive={onArchive} />
           ))}
         </div>
       )}

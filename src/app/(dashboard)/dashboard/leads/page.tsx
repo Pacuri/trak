@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Filter, Search, Facebook, Instagram, Globe, Mail, Phone, Users } from 'lucide-react'
+import { Plus, Filter, Search, Facebook, Instagram, Globe, Mail, Phone, Users, Archive } from 'lucide-react'
 import { useLeads, type LeadFilters } from '@/hooks/use-leads'
 import { useOrganization } from '@/hooks/use-organization'
 import type { Lead } from '@/types'
@@ -25,10 +25,10 @@ function SourceIcon({ source }: { source?: string }) {
       )
     case 'website':
     case 'web':
+    case 'sa sajta':
+    case 'trak':
       return (
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#10B981]">
-          <Globe className="h-3.5 w-3.5 text-white" />
-        </div>
+        <img src="/trak-logo-circle.png" alt="trak" className="h-7 w-7" />
       )
     case 'email':
       return (
@@ -228,6 +228,21 @@ export default function LeadsPage() {
                 ))}
               </select>
             </div>
+
+            {/* Show Archived Toggle */}
+            <div className="flex items-end">
+              <button
+                onClick={() => setFilters({ ...filters, show_archived: !filters.show_archived })}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-[10px] text-sm font-medium transition-all border ${
+                  filters.show_archived
+                    ? 'bg-[#FEF3C7] text-[#92400E] border-[#F59E0B]/30'
+                    : 'bg-white text-[#64748B] border-[#E2E8F0] hover:bg-[#F8FAFC]'
+                }`}
+              >
+                <Archive className="h-4 w-4" />
+                <span className="hidden sm:inline">Arhivirani</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -284,23 +299,37 @@ export default function LeadsPage() {
                   <tr
                     key={lead.id}
                     onClick={() => router.push(`/dashboard/leads/${lead.id}`)}
-                    className="cursor-pointer hover:bg-[#F8FAFC] transition-colors"
+                    className={`cursor-pointer hover:bg-[#F8FAFC] transition-colors ${lead.is_archived ? 'opacity-60' : ''}`}
                   >
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] text-sm font-semibold text-white">
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold text-white ${
+                          lead.is_archived
+                            ? 'bg-[#94A3B8]'
+                            : 'bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6]'
+                        }`}>
                           {lead.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-[#1E293B]">{lead.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-[#1E293B]">{lead.name}</p>
+                            {lead.is_archived && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#F1F5F9] text-[#64748B] text-[10px] font-medium">
+                                <Archive className="h-3 w-3" />
+                                Arhiviran
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-[#64748B]">{lead.email || lead.phone || '-'}</p>
                         </div>
                       </div>
                     </td>
                     <td className="hidden px-5 py-4 sm:table-cell">
                       <div className="flex items-center gap-2">
-                        <SourceIcon source={lead.source?.name} />
-                        <span className="text-sm text-[#64748B]">{lead.source?.name || '-'}</span>
+                        <SourceIcon source={lead.source?.name || lead.source_type} />
+                        <span className="text-sm text-[#64748B]">
+                          {(lead.source?.name?.toLowerCase() === 'website' || lead.source_type === 'website') ? 'trak' : (lead.source?.name || lead.source_type || '-')}
+                        </span>
                       </div>
                     </td>
                     <td className="px-5 py-4">

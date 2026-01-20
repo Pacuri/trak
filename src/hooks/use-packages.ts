@@ -9,6 +9,7 @@ import type {
   PackageFormData, 
   PackageFilters,
   DepartureFormData,
+  PackageDepartureFormData,
   GenerateWeeklyDeparturesParams,
 } from '@/types/packages'
 
@@ -241,39 +242,53 @@ export function usePackages() {
   )
 
   /**
-   * Add a single departure to a package
+   * Add a single departure (package_departures) via DepartureModal
    */
-  const addDeparture = useCallback(
-    async (packageId: string, data: DepartureFormData): Promise<Departure | null> => {
+  const createPackageDeparture = useCallback(
+    async (packageId: string, data: PackageDepartureFormData): Promise<unknown> => {
       if (!user?.organization_id) {
         setError('Organizacija nije pronađena')
         return null
       }
-
       setLoading(true)
       setError(null)
-
       try {
-        const response = await fetch(`/api/packages/${packageId}/departures`, {
+        const res = await fetch(`/api/packages/${packageId}/departures`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         })
-        
-        if (!response.ok) {
-          const respData = await response.json()
-          throw new Error(respData.error || 'Greška pri kreiranju polaska')
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}))
+          throw new Error(j.error || 'Greška pri kreiranju polaska')
         }
-
-        return await response.json()
-      } catch (err: any) {
-        setError(err.message || 'Greška pri kreiranju polaska')
+        return res.json()
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Greška pri kreiranju polaska')
         return null
       } finally {
         setLoading(false)
       }
     },
     [user]
+  )
+
+  const addDeparture = useCallback(
+    async (packageId: string, data: DepartureFormData): Promise<Departure | null> => {
+      if (!user?.organization_id) return null
+      const nights = data.departure_date && data.return_date
+        ? Math.round((new Date(data.return_date).getTime() - new Date(data.departure_date).getTime()) / (24 * 60 * 60 * 1000))
+        : 7
+      const out = await createPackageDeparture(packageId, {
+        departure_date: data.departure_date,
+        return_date: data.return_date,
+        duration_nights: nights,
+        status: 'scheduled',
+        available_slots: data.total_spots ?? 40,
+      })
+      return out as Departure | null
+    },
+    [user, createPackageDeparture]
   )
 
   /**
@@ -296,8 +311,9 @@ export function usePackages() {
           body: JSON.stringify({
             start_date: params.start_date,
             end_date: params.end_date,
-            price: params.price,
+            days_of_week: params.days_of_week,
             capacity: params.capacity,
+            duration_nights: params.duration_nights,
           }),
         })
         
@@ -319,33 +335,33 @@ export function usePackages() {
   )
 
   /**
-   * Update a departure
+   * Update a package_departure (PATCH /api/packages/[id]/departures/[departureId])
    */
-  const updateDeparture = useCallback(
-    async (departureId: string, data: Partial<Departure>): Promise<Departure | null> => {
+  const updatePackageDeparture = useCallback(
+    async (
+      packageId: string,
+      departureId: string,
+      data: Partial<PackageDepartureFormData> & { available_slots?: number }
+    ): Promise<unknown> => {
       if (!user?.organization_id) {
         setError('Organizacija nije pronađena')
         return null
       }
-
       setLoading(true)
       setError(null)
-
       try {
-        const response = await fetch(`/api/departures/${departureId}`, {
+        const res = await fetch(`/api/packages/${packageId}/departures/${departureId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         })
-        
-        if (!response.ok) {
-          const respData = await response.json()
-          throw new Error(respData.error || 'Greška pri ažuriranju polaska')
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}))
+          throw new Error(j.error || 'Greška pri ažuriranju polaska')
         }
-
-        return await response.json()
-      } catch (err: any) {
-        setError(err.message || 'Greška pri ažuriranju polaska')
+        return res.json()
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Greška')
         return null
       } finally {
         setLoading(false)
@@ -355,31 +371,72 @@ export function usePackages() {
   )
 
   /**
-   * Delete a departure
+   * Delete a package_departure
    */
-  const deleteDeparture = useCallback(
-    async (departureId: string): Promise<boolean> => {
-      if (!user?.organization_id) {
-        setError('Organizacija nije pronađena')
-        return false
-      }
-
+  const deletePackageDeparture = useCallback(
+    async (packageId: string, departureId: string): Promise<boolean> => {
+      if (!user?.organization_id) return false
       setLoading(true)
       setError(null)
-
       try {
-        const response = await fetch(`/api/departures/${departureId}`, {
-          method: 'DELETE',
-        })
-        
-        if (!response.ok) {
-          const data = await response.json()
-          throw new Error(data.error || 'Greška pri brisanju polaska')
+        const res = await fetch(`/api/packages/${packageId}/departures/${departureId}`, { method: 'DELETE' })
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}))
+          throw new Error(j.error || 'Greška pri brisanju polaska')
         }
-
         return true
-      } catch (err: any) {
-        setError(err.message || 'Greška pri brisanju polaska')
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Greška')
+        return false
+      } finally {
+        setLoading(false)
+      }
+    },
+    [user]
+  )
+
+  /** @deprecated Use updatePackageDeparture for package_departures */
+  const updateDeparture = useCallback(
+    async (departureId: string, data: Partial<Departure>): Promise<Departure | null> => {
+      if (!user?.organization_id) return null
+      setLoading(true)
+      setError(null)
+      try {
+        const res = await fetch(`/api/departures/${departureId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        })
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}))
+          throw new Error(j.error || 'Greška pri ažuriranju polaska')
+        }
+        return res.json()
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Greška')
+        return null
+      } finally {
+        setLoading(false)
+      }
+    },
+    [user]
+  )
+
+  /** @deprecated Use deletePackageDeparture for package_departures */
+  const deleteDeparture = useCallback(
+    async (departureId: string): Promise<boolean> => {
+      if (!user?.organization_id) return false
+      setLoading(true)
+      setError(null)
+      try {
+        const res = await fetch(`/api/departures/${departureId}`, { method: 'DELETE' })
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}))
+          throw new Error(j.error || 'Greška pri brisanju polaska')
+        }
+        return true
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Greška')
         return false
       } finally {
         setLoading(false)
@@ -389,39 +446,14 @@ export function usePackages() {
   )
 
   /**
-   * Quick update capacity for a departure
+   * Quick update capacity for a package_departure (available_slots)
    */
   const updateCapacity = useCallback(
-    async (departureId: string, availableSpots: number): Promise<boolean> => {
-      if (!user?.organization_id) {
-        setError('Organizacija nije pronađena')
-        return false
-      }
-
-      setLoading(true)
-      setError(null)
-
-      try {
-        const response = await fetch(`/api/departures/${departureId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ available_spots: availableSpots }),
-        })
-        
-        if (!response.ok) {
-          const data = await response.json()
-          throw new Error(data.error || 'Greška pri ažuriranju kapaciteta')
-        }
-
-        return true
-      } catch (err: any) {
-        setError(err.message || 'Greška pri ažuriranju kapaciteta')
-        return false
-      } finally {
-        setLoading(false)
-      }
+    async (packageId: string, departureId: string, availableSlots: number): Promise<boolean> => {
+      const ok = await updatePackageDeparture(packageId, departureId, { available_slots: availableSlots })
+      return ok != null
     },
-    [user]
+    [updatePackageDeparture]
   )
 
   /**
@@ -462,6 +494,9 @@ export function usePackages() {
     // Departure operations
     getDepartures,
     addDeparture,
+    createPackageDeparture,
+    updatePackageDeparture,
+    deletePackageDeparture,
     generateWeeklyDepartures,
     updateDeparture,
     deleteDeparture,

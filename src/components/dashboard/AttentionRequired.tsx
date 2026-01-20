@@ -155,7 +155,7 @@ export function AttentionRequired({ sections, loading, onInquiryClick }: Attenti
   const totalCount = sections.reduce((sum, s) => sum + s.count, 0)
 
   return (
-    <div className="bg-slate-50 rounded-[14px] p-4 h-full">
+    <div className="bg-white rounded-[14px] border border-slate-200 shadow-sm p-5 h-full">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <span className="text-lg">⚠️</span>

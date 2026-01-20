@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Final Sidebar Design</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    .sidebar {
+      width: 260px;
+      background: #1E293B;
+      border-radius: 14px;
+      padding: 16px;
+      height: fit-content;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      color: rgba(255,255,255,0.8);
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .nav-item:hover {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+    .nav-item.active {
+      background: #3B82F6;
+      color: white;
+    }
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: rgba(255,255,255,0.4);
+      padding: 0 12px;
+      margin-bottom: 8px;
+      margin-top: 20px;
+    }
+    .section-label:first-child {
+      margin-top: 0;
+    }
+    .logo-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 12px 16px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 16px;
+    }
+    .logo-section img {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+    }
+    .logo-section h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: white;
+    }
+    .badge {
+      background: #F97316;
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: auto;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 p-8">
+  <h1 class="text-3xl font-bold text-gray-900 mb-2">Final Sidebar Design</h1>
+  <p class="text-gray-600 mb-8">Combined best of Variation 8 (sections) + Variation 9 (naming)</p>
+
+  <div class="flex gap-8">
+
+    <!-- Final Design -->
+    <div>
+      <div class="text-lg font-bold text-gray-900 mb-4">✅ Final Design</div>
+      <div class="sidebar">
+        <div class="logo-section">
+          <div class="w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center">
+            <span class="text-white font-bold text-lg">t</span>
+          </div>
+          <h1>trak</h1>
+        </div>
+
+        <div class="section-label">CRM</div>
+        <div class="nav-item"><i data-lucide="layout-dashboard" class="w-5 h-5"></i> Početna</div>
+        <div class="nav-item active"><i data-lucide="users" class="w-5 h-5"></i> Klijenti <span class="badge">12</span></div>
+        <div class="nav-item"><i data-lucide="package" class="w-5 h-5"></i> Paketi</div>
+
+        <div class="section-label">Booking</div>
+        <div class="nav-item"><i data-lucide="calendar-check" class="w-5 h-5"></i> Rezervacije</div>
+        <div class="nav-item"><i data-lucide="plane-takeoff" class="w-5 h-5"></i> Polasci</div>
+
+        <div class="section-label">Uvid</div>
+        <div class="nav-item"><i data-lucide="bar-chart-3" class="w-5 h-5"></i> Analitika</div>
+
+        <div class="section-label">Podešavanja</div>
+        <div class="nav-item"><i data-lucide="settings" class="w-5 h-5"></i> Podešavanja</div>
+        <div class="nav-item"><i data-lucide="plug" class="w-5 h-5"></i> Integracije</div>
+      </div>
+    </div>
+
+    <!-- With different active states -->
+    <div>
+      <div class="text-lg font-bold text-gray-900 mb-4">Active: Rezervacije</div>
+      <div class="sidebar">
+        <div class="logo-section">
+          <div class="w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center">
+            <span class="text-white font-bold text-lg">t</span>
+          </div>
+          <h1>trak</h1>
+        </div>
+
+        <div class="section-label">CRM</div>
+        <div class="nav-item"><i data-lucide="layout-dashboard" class="w-5 h-5"></i> Početna</div>
+        <div class="nav-item"><i data-lucide="users" class="w-5 h-5"></i> Klijenti <span class="badge">12</span></div>
+        <div class="nav-item"><i data-lucide="package" class="w-5 h-5"></i> Paketi</div>
+
+        <div class="section-label">Booking</div>
+        <div class="nav-item active"><i data-lucide="calendar-check" class="w-5 h-5"></i> Rezervacije</div>
+        <div class="nav-item"><i data-lucide="plane-takeoff" class="w-5 h-5"></i> Polasci</div>
+
+        <div class="section-label">Uvid</div>
+        <div class="nav-item"><i data-lucide="bar-chart-3" class="w-5 h-5"></i> Analitika</div>
+
+        <div class="section-label">Podešavanja</div>
+        <div class="nav-item"><i data-lucide="settings" class="w-5 h-5"></i> Podešavanja</div>
+        <div class="nav-item"><i data-lucide="plug" class="w-5 h-5"></i> Integracije</div>
+      </div>
+    </div>
+
+    <!-- With different active states -->
+    <div>
+      <div class="text-lg font-bold text-gray-900 mb-4">Active: Polasci</div>
+      <div class="sidebar">
+        <div class="logo-section">
+          <div class="w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center">
+            <span class="text-white font-bold text-lg">t</span>
+          </div>
+          <h1>trak</h1>
+        </div>
+
+        <div class="section-label">CRM</div>
+        <div class="nav-item"><i data-lucide="layout-dashboard" class="w-5 h-5"></i> Početna</div>
+        <div class="nav-item"><i data-lucide="users" class="w-5 h-5"></i> Klijenti <span class="badge">12</span></div>
+        <div class="nav-item"><i data-lucide="package" class="w-5 h-5"></i> Paketi</div>
+
+        <div class="section-label">Booking</div>
+        <div class="nav-item"><i data-lucide="calendar-check" class="w-5 h-5"></i> Rezervacije</div>
+        <div class="nav-item active"><i data-lucide="plane-takeoff" class="w-5 h-5"></i> Polasci</div>
+
+        <div class="section-label">Uvid</div>
+        <div class="nav-item"><i data-lucide="bar-chart-3" class="w-5 h-5"></i> Analitika</div>
+
+        <div class="section-label">Podešavanja</div>
+        <div class="nav-item"><i data-lucide="settings" class="w-5 h-5"></i> Podešavanja</div>
+        <div class="nav-item"><i data-lucide="plug" class="w-5 h-5"></i> Integracije</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="mt-12 p-6 bg-white rounded-xl shadow-sm max-w-2xl">
+    <h2 class="text-xl font-bold text-gray-900 mb-4">Summary of Changes:</h2>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b">
+          <th class="text-left py-2 text-gray-500">Before</th>
+          <th class="text-left py-2 text-gray-500">After</th>
+          <th class="text-left py-2 text-gray-500">Icon</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="border-b">
+          <td class="py-2">Pipeline</td>
+          <td class="py-2 font-medium text-blue-600">Klijenti</td>
+          <td class="py-2">Users (was GitBranch)</td>
+        </tr>
+        <tr class="border-b">
+          <td class="py-2">Rezervacije</td>
+          <td class="py-2 font-medium">Rezervacije</td>
+          <td class="py-2">CalendarCheck (was Calendar)</td>
+        </tr>
+        <tr class="border-b">
+          <td class="py-2">Aranžmani</td>
+          <td class="py-2 font-medium text-blue-600">Polasci</td>
+          <td class="py-2">PlaneTakeoff (was Plane)</td>
+        </tr>
+        <tr class="border-b">
+          <td class="py-2">Izveštaji</td>
+          <td class="py-2 font-medium text-blue-600">Analitika</td>
+          <td class="py-2">BarChart3 (same)</td>
+        </tr>
+        <tr>
+          <td class="py-2 text-gray-400">No sections</td>
+          <td class="py-2 font-medium text-blue-600">CRM / Booking / Uvid</td>
+          <td class="py-2">—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

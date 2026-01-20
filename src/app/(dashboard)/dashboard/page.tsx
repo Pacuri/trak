@@ -7,6 +7,7 @@ import { useUser } from '@/hooks/use-user'
 import { StatCards } from '@/components/dashboard/StatCards'
 import { LeadsToCall } from '@/components/dashboard/LeadsToCall'
 import { InquiriesWaiting } from '@/components/dashboard/InquiriesWaiting'
+import { NewEmails } from '@/components/dashboard/NewEmails'
 import { AttentionRequired } from '@/components/dashboard/AttentionRequired'
 import { TodaysDepartures } from '@/components/dashboard/TodaysDepartures'
 import { CapacityOverview } from '@/components/dashboard/CapacityOverview'
@@ -89,36 +90,33 @@ export default function DashboardPage() {
         {/* Stat Cards */}
         <StatCards stats={dashboardData.stats} loading={dashboardData.loading} />
 
-        {/* Main Content Grid - 3 columns on desktop */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        {/* Main Content Grid - 4 columns on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
           {/* Column 1: Pozovi danas */}
-          <div className="lg:col-span-1">
-            <LeadsToCall
-              leads={dashboardData.leads_to_call}
-              loading={dashboardData.loading}
-            />
-          </div>
+          <LeadsToCall
+            leads={dashboardData.leads_to_call}
+            loading={dashboardData.loading}
+          />
 
           {/* Column 2: Upiti čekaju */}
-          <div className="lg:col-span-1">
-            <InquiriesWaiting
-              inquiries={dashboardData.pending_inquiries}
-              loading={dashboardData.loading}
-              onInquiryClick={handleInquiryClick}
-            />
-          </div>
+          <InquiriesWaiting
+            inquiries={dashboardData.pending_inquiries}
+            loading={dashboardData.loading}
+            onInquiryClick={handleInquiryClick}
+          />
 
           {/* Column 3: Zahteva pažnju */}
-          <div className="lg:col-span-1">
-            <AttentionRequired
-              sections={dashboardData.attention}
-              loading={dashboardData.loading}
-              onInquiryClick={(id) => {
-                const inquiry = dashboardData.pending_inquiries.find(i => i.id === id)
-                if (inquiry) handleInquiryClick(inquiry)
-              }}
-            />
-          </div>
+          <AttentionRequired
+            sections={dashboardData.attention}
+            loading={dashboardData.loading}
+            onInquiryClick={(id) => {
+              const inquiry = dashboardData.pending_inquiries.find(i => i.id === id)
+              if (inquiry) handleInquiryClick(inquiry)
+            }}
+          />
+
+          {/* Column 4: Novi emailovi */}
+          <NewEmails onEmailAccepted={() => dashboardData.refresh()} />
         </div>
 
         {/* Bottom Section - 2 columns on desktop */}

@@ -78,24 +78,45 @@ export function useDashboardData() {
       setData(prev => ({ ...prev, loading: true, error: null }))
 
       // Parallel fetch all data
+      // First get closed stage IDs and early stage IDs
+      const closedStageIds = await getClosedStageIds(supabase, organizationId)
+      const earlyStageIds = await getEarlyStageIds(supabase, organizationId)
+      
+      // Build leads query - if no closed stages, get all leads
+      const leadsQuery = supabase
+        .from('leads')
+        .select('id, name, phone, email, destination, guests, value, created_at, last_contact_at, stage_id')
+        .eq('organization_id', organizationId)
+      
+      const allLeadsQuery = supabase
+        .from('leads')
+        .select('id, stage_id, created_at')
+        .eq('organization_id', organizationId)
+      
+      // Only filter out closed stages if there are any
+      if (closedStageIds.length > 0) {
+        leadsQuery.not('stage_id', 'in', `(${closedStageIds.join(',')})`)
+        allLeadsQuery.not('stage_id', 'in', `(${closedStageIds.join(',')})`)
+      }
+
       const [
         leadsResult,
+        allLeadsResult,
         inquiriesResult,
         reservationsResult,
         departuresResult,
         paymentsResult,
         packagesResult,
       ] = await Promise.all([
-        // Leads to call (not contacted in 24h+)
-        supabase
-          .from('leads')
-          .select('id, name, phone, email, destination, guests, value, created_at, last_contact_at')
-          .eq('organization_id', organizationId)
-          .not('stage_id', 'in', `(${await getClosedStageIds(supabase, organizationId)})`)
+        // Leads to call (not contacted in 24h+, not closed)
+        leadsQuery
           .order('created_at', { ascending: true })
-          .limit(10),
+          .limit(20),
 
-        // Pending inquiries
+        // All open leads count (for stats)
+        allLeadsQuery,
+
+        // Pending custom inquiries (from qualification form)
         supabase
           .from('custom_inquiries')
           .select('id, customer_name, customer_phone, customer_email, customer_note, qualification_data, created_at, source')
@@ -170,7 +191,10 @@ export function useDashboardData() {
           .eq('status', 'active'),
       ])
 
-      // Process leads to call
+      // Early stage IDs are now already an array
+      const earlyStageIdList = earlyStageIds
+      
+      // Process leads to call (not contacted in 24h+)
       const leadsToCall: LeadToCall[] = (leadsResult.data || [])
         .filter(lead => {
           const hours = hoursSince(lead.last_contact_at || lead.created_at)
@@ -190,6 +214,12 @@ export function useDashboardData() {
           priority: getLeadPriority(lead.created_at, lead.last_contact_at),
           wait_hours: hoursSince(lead.last_contact_at || lead.created_at),
         }))
+
+      // Count leads in early stages (new, contacted) - these need attention
+      const allOpenLeads = allLeadsResult.data || []
+      const leadsInEarlyStages = allOpenLeads.filter(lead => 
+        earlyStageIdList.includes(lead.stage_id)
+      )
 
       // Process pending inquiries
       const pendingInquiries: PendingInquiry[] = (inquiriesResult.data || [])
@@ -391,9 +421,13 @@ export function useDashboardData() {
         unansweredInquiries.length
 
       // Build stats
+      // pending_inquiries now includes: custom inquiries + leads in early stages
+      const customInquiriesCount = (inquiriesResult.data || []).length
+      const totalPendingInquiries = customInquiriesCount + leadsInEarlyStages.length
+      
       const stats: DashboardStats = {
         leads_to_call: leadsToCall.length,
-        pending_inquiries: (inquiriesResult.data || []).length,
+        pending_inquiries: totalPendingInquiries,
         departures_today: departuresToday.length,
         departures_passengers: passengersToday,
         revenue_this_month: revenueThisMonth,
@@ -440,16 +474,31 @@ export function useDashboardData() {
   }
 }
 
-// Helper to get closed stage IDs
-async function getClosedStageIds(supabase: any, organizationId: string): Promise<string> {
+// Helper to get closed stage IDs (returns array of UUIDs)
+async function getClosedStageIds(supabase: any, organizationId: string): Promise<string[]> {
   const { data } = await supabase
     .from('pipeline_stages')
     .select('id')
     .eq('organization_id', organizationId)
     .or('is_won.eq.true,is_lost.eq.true')
 
-  if (!data || data.length === 0) return "''"
-  return data.map((s: any) => `'${s.id}'`).join(',')
+  if (!data || data.length === 0) return []
+  return data.map((s: any) => s.id)
+}
+
+// Helper to get early stage IDs (stages that need attention - first 3 stages by position)
+async function getEarlyStageIds(supabase: any, organizationId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from('pipeline_stages')
+    .select('id, name, position')
+    .eq('organization_id', organizationId)
+    .eq('is_won', false)
+    .eq('is_lost', false)
+    .order('position', { ascending: true })
+    .limit(3) // First 3 non-closed stages (e.g., Novi, Kontaktiran, Ponuda)
+
+  if (!data || data.length === 0) return []
+  return data.map((s: any) => s.id)
 }
 
 // Helper to get start of current month

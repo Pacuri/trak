@@ -33,7 +33,7 @@ export function usePipeline(): UsePipelineReturn {
       setLoading(true)
       setError(null)
 
-      // Fetch all leads for the organization
+      // Fetch all leads for the organization (excluding archived)
       const { data: leadsData, error: leadsError } = await supabase
         .from('leads')
         .select(`
@@ -43,6 +43,7 @@ export function usePipeline(): UsePipelineReturn {
           assignee:users!assigned_to(id, email, full_name)
         `)
         .eq('organization_id', organizationId)
+        .or('is_archived.is.null,is_archived.eq.false')
         .order('created_at', { ascending: false })
 
       if (leadsError) {

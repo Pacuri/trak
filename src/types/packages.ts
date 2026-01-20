@@ -1,9 +1,22 @@
 // Package Types
 // Hierarchical structure: Package -> Apartments/RoomTypes -> Prices
 
+// Import TransportPriceList from import types
+import type { 
+  TransportPriceList as ImportTransportPriceList, 
+  TransportPrice as ImportTransportPrice 
+} from './import'
+
+// Re-export for convenience
+export type { TransportPriceList, TransportPrice } from './import'
+
+// Local reference for use in this file
+type TransportPriceList = ImportTransportPriceList
+type TransportPrice = ImportTransportPrice
+
 export type PackageType = 'fiksni' | 'na_upit'
 export type PackageStatus = 'active' | 'inactive' | 'archived'
-export type DepartureStatus = 'active' | 'sold_out' | 'cancelled' | 'completed'
+export type DepartureStatus = 'active' | 'sold_out' | 'cancelled' | 'completed' | 'scheduled' | 'confirmed'
 export type DeparturePattern = 'weekly' | 'custom'
 
 // Sale modes for FIKSNI packages
@@ -63,6 +76,10 @@ export interface Package {
   // For na_upit: availability period
   available_from?: string
   available_to?: string
+
+  // Derived from price_intervals (MIN/MAX of interval dates) — for na upit date picker
+  valid_from?: string | null
+  valid_to?: string | null
   
   // Meal plans (multiple allowed)
   meal_plans?: MealPlanCode[]
@@ -82,6 +99,20 @@ export interface Package {
   price_from?: number
   currency: string
   
+  // Import/Currency tracking
+  original_currency?: string // EUR, KM, RSD
+  exchange_rate?: number     // Rate used for conversion
+  prices_are_net?: boolean   // True = agency adds margin
+  margin_percent?: number    // Agency margin %
+  transport_price_list_id?: string
+  
+  // Enhanced import data
+  price_type?: string
+  base_occupancy?: number
+  occupancy_pricing?: Record<string, unknown> | null
+  included_services?: string[] | null
+  parsed_metadata?: Record<string, unknown> | null
+  
   // Flags
   is_featured: boolean
   is_active: boolean
@@ -99,8 +130,16 @@ export interface Package {
   apartments?: Apartment[]
   room_types?: RoomType[]
   price_intervals?: PriceInterval[]
+  hotel_prices?: HotelPrice[]
+  apartment_prices?: ApartmentPrice[]
   children_policies?: ChildrenPolicy[]
   shifts?: Shift[]
+  transport_price_list?: TransportPriceList
+  supplements?: PackageSupplement[]
+  fees?: PackageFee[]
+  discounts?: PackageDiscount[]
+  package_policies?: PackagePolicy[]
+  notes?: PackageNote[]
   
   // Computed from view (packages_with_next_departure)
   next_departure_id?: string
@@ -119,35 +158,35 @@ export interface Departure {
   id: string
   package_id: string
   organization_id: string
-  
+
   // Dates
   departure_date: string
   return_date: string
   departure_time?: string
   arrival_time?: string
-  
-  // Capacity
+
+  // Capacity (legacy: total_spots, available_spots; package_departures: available_slots, booked_slots)
   total_spots: number
   available_spots: number
-  
+
   // Pricing
   price_override?: number
   original_price?: number
   child_price?: number
-  
-  // Status
+
+  // Status (legacy: active,sold_out; package_departures: scheduled,confirmed,cancelled,completed)
   status: DepartureStatus
-  is_visible: boolean
-  
+  is_visible?: boolean
+
   // Timestamps
   created_at: string
   updated_at: string
-  
+
   // Computed
   duration_nights?: number
   urgency_label?: UrgencyLabel
   effective_price?: number
-  
+
   // Joined from view (departures_with_package)
   package_name?: string
   destination_country?: string
@@ -161,9 +200,54 @@ export interface Departure {
   is_featured?: boolean
   package_base_price?: number
   primary_image_url?: string
-  
+
   // Full package relation (when fetched)
   package?: Package
+}
+
+/** Row from package_departures table (DepartureModal / new API) */
+export interface PackageDeparture {
+  id: string
+  package_id: string
+  organization_id: string
+  departure_date: string
+  return_date: string
+  duration_nights: number
+  status: 'scheduled' | 'confirmed' | 'cancelled' | 'completed'
+  available_slots: number
+  booked_slots: number
+  min_travelers?: number | null
+  booking_deadline?: string | null
+  departure_time?: string | null
+  departure_point?: string | null
+  return_time?: string | null
+  transport_notes?: string | null
+  price_adjustment_percent?: number | null
+  price_adjustment_type?: 'increase' | 'decrease' | null
+  internal_notes?: string | null
+  supplier_confirmation?: string | null
+  created_at: string
+  updated_at: string
+  created_by?: string | null
+}
+
+/** Form payload for DepartureModal (create/update) */
+export interface PackageDepartureFormData {
+  departure_date: string
+  return_date: string
+  duration_nights: number
+  status: 'scheduled' | 'confirmed' | 'cancelled' | 'completed'
+  available_slots: number
+  min_travelers?: number | null
+  booking_deadline?: string | null
+  departure_time?: string | null
+  departure_point?: string | null
+  return_time?: string | null
+  transport_notes?: string | null
+  price_adjustment_percent?: number | null
+  price_adjustment_type?: 'increase' | 'decrease' | null
+  internal_notes?: string | null
+  supplier_confirmation?: string | null
 }
 
 export interface PackageImage {
@@ -180,38 +264,51 @@ export interface PackageImage {
 // APARTMENTS (FIKSNI)
 // ============================================
 
+export interface ApartmentImage {
+  id: string
+  apartment_id: string
+  organization_id: string
+  url: string
+  alt_text?: string
+  position: number
+  is_primary: boolean
+  created_at: string
+}
+
 export interface Apartment {
   id: string
   package_id: string
   organization_id: string
-  
+
   name: string
   apartment_type: ApartmentType
-  
+
   // Capacity
   max_persons: number
   max_adults?: number
   max_children?: number
-  
+
   // Room configuration
   bedrooms: number
   beds_description?: string
-  
+
   // Amenities
   has_kitchen: boolean
   has_balcony: boolean
   has_sea_view: boolean
   amenities: string[]
-  
+
   // Inventory
   total_units: number
-  
+
   sort_order: number
   created_at: string
   updated_at: string
-  
+
   // Joined prices
   prices?: ApartmentPrice[]
+  // Joined images
+  images?: ApartmentImage[]
 }
 
 export interface ApartmentPrice {
@@ -227,21 +324,34 @@ export interface ApartmentPrice {
 // ROOM TYPES (NA_UPIT)
 // ============================================
 
+export interface RoomTypeImage {
+  id: string
+  room_type_id: string
+  organization_id: string
+  url: string
+  alt_text?: string
+  position: number
+  is_primary: boolean
+  created_at: string
+}
+
 export interface RoomType {
   id: string
   package_id: string
   organization_id: string
-  
+
   code: string // '1/2', '1/3', '1/4', '1/1'
   name: string // 'Dvokrevetna', 'Trokrevetna'
   max_persons: number
   description?: string
-  
+
   sort_order: number
   created_at: string
-  
+
   // Joined prices
   prices?: HotelPrice[]
+  // Joined images
+  images?: RoomTypeImage[]
 }
 
 export interface HotelPrice {
@@ -420,6 +530,8 @@ export interface ApartmentFormData {
   sort_order?: number
   // Prices per interval
   prices?: Record<string, number> // interval_id -> price_per_night
+  // Images - URLs for new uploads
+  images?: string[]
 }
 
 export interface RoomTypeFormData {
@@ -429,6 +541,8 @@ export interface RoomTypeFormData {
   max_persons: number
   description?: string
   sort_order?: number
+  // Images - URLs for new uploads, or existing image objects
+  images?: string[]
 }
 
 export interface PriceIntervalFormData {
@@ -479,8 +593,89 @@ export interface GenerateWeeklyDeparturesParams {
   package_id: string
   start_date: string
   end_date: string
-  price?: number
+  /** 0=Sun .. 6=Sat; empty = all days in range */
+  days_of_week?: number[]
   capacity?: number
+  duration_nights?: number
+  price?: number
+}
+
+// ============================================
+// ENHANCED PACKAGE DATA (from document import)
+// ============================================
+
+export interface PackageSupplement {
+  id: string
+  package_id: string
+  organization_id: string
+  code: string
+  name: string
+  amount?: number | null
+  percent?: number | null
+  per: 'night' | 'stay' | 'person_night' | 'person_stay'
+  currency?: string | null
+  mandatory: boolean
+  conditions?: Record<string, unknown> | null
+  source_text?: string | null
+  created_at: string
+}
+
+export interface PackageFee {
+  id: string
+  package_id: string
+  organization_id: string
+  code: string
+  name: string
+  rules: Array<{ age_from: number; age_to: number; amount: number }>
+  currency: string
+  per: 'stay' | 'night'
+  source_text?: string | null
+  created_at: string
+}
+
+export interface PackageDiscount {
+  id: string
+  package_id: string
+  organization_id: string
+  code: string
+  name: string
+  percent?: number | null
+  fixed_amount?: number | null
+  conditions?: Record<string, unknown> | null
+  valid_from?: string | null
+  valid_to?: string | null
+  source_text?: string | null
+  created_at: string
+}
+
+export interface PackagePolicy {
+  id: string
+  package_id: string
+  organization_id: string
+  policy_type: 'deposit' | 'cancellation' | 'restriction' | 'payment' | 'general'
+  deposit_percent?: number | null
+  deposit_due?: string | null
+  balance_due_days_before?: number | null
+  cancellation_rules?: Array<{ days_before: number; penalty_percent: number }> | null
+  min_stay?: number | null
+  max_stay?: number | null
+  check_in_days?: string[] | null
+  min_adults?: number | null
+  min_advance_booking_days?: number | null
+  documents_required?: string[] | null
+  source_text?: string | null
+  created_at: string
+}
+
+export interface PackageNote {
+  id: string
+  package_id: string
+  organization_id: string
+  note_type: 'warning' | 'info' | 'promo'
+  text: string
+  applies_to?: string[] | null
+  source_text?: string | null
+  created_at: string
 }
 
 export interface GenerateShiftsParams {
@@ -562,6 +757,7 @@ export interface DeparturesTableProps {
   packageType: PackageType
   onEditDeparture?: (departure: Departure) => void
   onUpdateCapacity?: (id: string, available: number) => void
+  onDeleteDeparture?: (departureId: string) => void
 }
 
 export interface CapacityBarProps {
@@ -574,8 +770,9 @@ export interface CapacityBarProps {
 export interface GenerateDeparturesDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  packageId: string
   packageType: PackageType
-  onGenerate: (departures: DepartureFormData[]) => void
+  onGenerated?: (count: number) => void
 }
 
 // ============================================

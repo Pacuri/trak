@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Calendar, MapPin, Star, Eye, Pencil, Package as PackageIcon, Users } from 'lucide-react'
+import { Calendar, MapPin, Star, Eye, Pencil, Package as PackageIcon, Users, Archive } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Package } from '@/types/packages'
 import { 
@@ -13,9 +13,10 @@ import {
 
 interface PackageCardProps {
   package: Package
+  onArchive?: (id: string) => void
 }
 
-export function PackageCard({ package: pkg }: PackageCardProps) {
+export function PackageCard({ package: pkg, onArchive }: PackageCardProps) {
   const primaryImage = pkg.images?.find(i => i.is_primary) || pkg.images?.[0]
   const location = getLocationString(pkg.destination_city, pkg.destination_country)
 
@@ -129,6 +130,13 @@ export function PackageCard({ package: pkg }: PackageCardProps) {
               Izmeni
             </button>
           </Link>
+          <button 
+            onClick={() => onArchive?.(pkg.id)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <Archive className="h-4 w-4" />
+            Arhiviraj
+          </button>
         </div>
       </div>
     </div>

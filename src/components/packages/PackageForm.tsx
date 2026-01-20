@@ -113,8 +113,8 @@ export function PackageForm({ initialData, mode, onSubmit, loading }: PackageFor
     updateField('departures', formData.departures.filter((_, i) => i !== index))
   }
 
-  const handleGenerateDepartures = (newDepartures: DepartureFormData[]) => {
-    updateField('departures', [...formData.departures, ...newDepartures])
+  const handleGenerated = (_count: number) => {
+    // Generated departures are stored via API; parent may refetch. No local merge.
   }
 
   const addImage = () => {
@@ -408,7 +408,7 @@ export function PackageForm({ initialData, mode, onSubmit, loading }: PackageFor
               <Plus className="h-4 w-4" />
               {PACKAGE_UI_TEXT.add_departure}
             </button>
-            {formData.package_type === 'fiksni' && (
+            {formData.package_type === 'fiksni' && initialData?.id && (
               <button
                 type="button"
                 onClick={() => setShowGenerateDialog(true)}
@@ -537,8 +537,9 @@ export function PackageForm({ initialData, mode, onSubmit, loading }: PackageFor
       <GenerateDeparturesDialog
         open={showGenerateDialog}
         onOpenChange={setShowGenerateDialog}
+        packageId={initialData?.id ?? ''}
         packageType={formData.package_type}
-        onGenerate={handleGenerateDepartures}
+        onGenerated={handleGenerated}
       />
     </form>
   )

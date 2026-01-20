@@ -28,6 +28,23 @@ export async function GET() {
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
+    // First get pipeline stages to determine which are closed/early
+    const { data: stagesData } = await supabase
+      .from('pipeline_stages')
+      .select('id, name, position, is_won, is_lost')
+      .eq('organization_id', organizationId)
+      .order('position', { ascending: true })
+
+    const closedStageIds = (stagesData || [])
+      .filter(s => s.is_won || s.is_lost)
+      .map(s => s.id)
+    
+    // Early stages are first 3 non-closed stages
+    const earlyStageIds = (stagesData || [])
+      .filter(s => !s.is_won && !s.is_lost)
+      .slice(0, 3)
+      .map(s => s.id)
+
     // Fetch all data in parallel
     const [
       leadsResult,
@@ -36,9 +53,8 @@ export async function GET() {
       departuresResult,
       paymentsResult,
       packagesResult,
-      stagesResult,
     ] = await Promise.all([
-      // Leads (for "to call" section)
+      // Leads (for "to call" section and pending count)
       supabase
         .from('leads')
         .select('id, name, phone, email, destination, guests, value, created_at, last_contact_at, stage_id')
@@ -116,26 +132,21 @@ export async function GET() {
         .eq('organization_id', organizationId)
         .eq('package_type', 'fiksni')
         .eq('status', 'active'),
-
-      // Pipeline stages (to filter closed leads)
-      supabase
-        .from('pipeline_stages')
-        .select('id, is_won, is_lost')
-        .eq('organization_id', organizationId),
     ])
-
-    // Get closed stage IDs
-    const closedStageIds = (stagesResult.data || [])
-      .filter(s => s.is_won || s.is_lost)
-      .map(s => s.id)
 
     // Calculate leads to call (not closed, not contacted in 24h)
     const hourAgo24 = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-    const leadsToCall = (leadsResult.data || []).filter(lead => {
+    const allLeads = leadsResult.data || []
+    const leadsToCall = allLeads.filter(lead => {
       if (closedStageIds.includes(lead.stage_id)) return false
       const lastContact = lead.last_contact_at ? new Date(lead.last_contact_at) : null
       return !lastContact || lastContact < hourAgo24
     })
+    
+    // Calculate leads in early stages (needs attention/response)
+    const leadsInEarlyStages = allLeads.filter(lead => 
+      earlyStageIds.includes(lead.stage_id)
+    )
 
     // Process departures for passengers count
     const departuresToday = departuresResult.data || []
@@ -180,10 +191,14 @@ export async function GET() {
       unansweredInquiries.length
 
     // Build response
+    // pending_inquiries = custom inquiries with status 'new' + leads in early stages
+    const customInquiriesCount = (inquiriesResult.data || []).length
+    const totalPendingInquiries = customInquiriesCount + leadsInEarlyStages.length
+    
     const response = {
       stats: {
         leads_to_call: leadsToCall.length,
-        pending_inquiries: (inquiriesResult.data || []).length,
+        pending_inquiries: totalPendingInquiries,
         departures_today: departuresToday.length,
         departures_passengers: passengersToday,
         revenue_this_month: revenueThisMonth,
@@ -195,6 +210,8 @@ export async function GET() {
         expiring_reservations: expiringReservations.length,
         last_seats: lastSeats.length,
         unanswered_inquiries: unansweredInquiries.length,
+        leads_in_early_stages: leadsInEarlyStages.length,
+        custom_inquiries: customInquiriesCount,
       },
       timestamp: now.toISOString(),
     }

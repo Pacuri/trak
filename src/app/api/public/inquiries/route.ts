@@ -4,16 +4,24 @@ import type { QualificationData } from '@/types'
 
 interface CreateInquiryBody {
   slug: string
-  offer_id: string
+  offer_id?: string | null
+  package_id?: string | null
   customer_name: string
   customer_phone: string
   customer_email?: string
   customer_message?: string
+  message?: string
   qualification_data?: QualificationData
+  adults?: number
+  children?: number
+  child_ages?: number[]
+  selected_date?: string | null
+  selected_room_type_id?: string | null
+  selected_meal_plan?: string | null
 }
 
 // POST /api/public/inquiries
-// Create a new inquiry for on-request (inquiry type) offers
+// Create a new inquiry for offers or packages
 export async function POST(request: NextRequest) {
   try {
     const body: CreateInquiryBody = await request.json()
@@ -21,17 +29,33 @@ export async function POST(request: NextRequest) {
     const {
       slug,
       offer_id,
+      package_id,
       customer_name,
       customer_phone,
       customer_email,
       customer_message,
+      message,
       qualification_data,
+      adults,
+      children,
+      child_ages,
+      selected_date,
+      selected_room_type_id,
+      selected_meal_plan,
     } = body
 
     // Validate required fields
-    if (!slug || !offer_id || !customer_name || !customer_phone) {
+    if (!slug || !customer_name || !customer_phone) {
       return NextResponse.json(
         { error: 'Nedostaju obavezni podaci' },
+        { status: 400 }
+      )
+    }
+
+    // Either offer_id or package_id must be provided
+    if (!offer_id && !package_id) {
+      return NextResponse.json(
+        { error: 'Nedostaje ID ponude ili paketa' },
         { status: 400 }
       )
     }
@@ -52,6 +76,141 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Handle package inquiry (use custom_inquiries table)
+    if (package_id) {
+      // Verify package exists
+      const { data: pkg, error: pkgError } = await supabase
+        .from('packages')
+        .select('id, name, hotel_name, destination_country, destination_city')
+        .eq('id', package_id)
+        .eq('organization_id', settings.organization_id)
+        .single()
+
+      if (pkgError || !pkg) {
+        return NextResponse.json(
+          { error: 'Paket nije pronađen' },
+          { status: 404 }
+        )
+      }
+
+      // Build qualification data for the inquiry
+      const inquiryQualificationData = qualification_data || {
+        destination: {
+          country: pkg.destination_country,
+          city: pkg.destination_city || null,
+        },
+        guests: {
+          adults: adults || 2,
+          children: children || 0,
+          childAges: child_ages || [],
+        },
+        dates: {
+          month: null,
+          duration: 7,
+          exactDate: selected_date || null,
+        },
+        accommodation: {
+          type: null,
+          board: selected_meal_plan || null,
+          transport: null,
+        },
+        budget: {
+          min: null,
+          max: null,
+        },
+      }
+
+      // Get the first pipeline stage for new leads
+      const { data: firstStage } = await supabase
+        .from('pipeline_stages')
+        .select('id')
+        .eq('organization_id', settings.organization_id)
+        .eq('is_won', false)
+        .eq('is_lost', false)
+        .order('position', { ascending: true })
+        .limit(1)
+        .single()
+
+      // Create custom inquiry for package
+      const { data: inquiry, error: insertError } = await supabase
+        .from('custom_inquiries')
+        .insert({
+          organization_id: settings.organization_id,
+          customer_name: customer_name.trim(),
+          customer_phone: customer_phone.trim(),
+          customer_email: customer_email?.trim() || null,
+          qualification_data: {
+            ...inquiryQualificationData,
+            package_id: package_id,
+            package_name: pkg.hotel_name || pkg.name,
+            selected_date: selected_date,
+            selected_room_type_id: selected_room_type_id,
+            selected_meal_plan: selected_meal_plan,
+          },
+          customer_note: message || customer_message || null,
+          status: 'new',
+          source: 'package_inquiry',
+        })
+        .select('id')
+        .single()
+
+      if (insertError) {
+        console.error('Error creating package inquiry:', insertError)
+        return NextResponse.json(
+          { error: 'Greška pri slanju upita' },
+          { status: 500 }
+        )
+      }
+
+      // Also create a lead in the pipeline so it shows in Upiti
+      const destination = pkg.destination_city
+        ? `${pkg.destination_city}, ${pkg.destination_country}`
+        : pkg.destination_country
+      const leadData = {
+        organization_id: settings.organization_id,
+        name: customer_name.trim(),
+        phone: customer_phone.trim(),
+        email: customer_email?.trim() || null,
+        source_type: 'website', // From trak website
+        stage_id: firstStage?.id || null,
+        destination: destination || null,
+        guests: (adults || 2) + (children || 0),
+        notes: message || customer_message || null,
+        original_message: message || customer_message || null,
+        source_inquiry_id: inquiry.id, // Link to the custom inquiry
+      }
+
+      const { data: lead, error: leadError } = await supabase
+        .from('leads')
+        .insert(leadData)
+        .select('id')
+        .single()
+
+      if (leadError) {
+        console.error('Error creating lead from package inquiry:', leadError)
+        // Don't fail the request - the inquiry was created successfully
+      } else if (lead) {
+        // Update the custom inquiry to link to the lead
+        await supabase
+          .from('custom_inquiries')
+          .update({ lead_id: lead.id })
+          .eq('id', inquiry.id)
+      }
+
+      const responseTime = calculateResponseTime(settings.working_hours, settings.response_time_working)
+
+      return NextResponse.json({
+        success: true,
+        inquiry: {
+          id: inquiry.id,
+          package: pkg,
+          created_at: new Date().toISOString(),
+        },
+        response_time: responseTime,
+      })
+    }
+
+    // Handle offer inquiry (existing logic)
     // Verify offer exists and is inquiry type
     const { data: offer, error: offerError } = await supabase
       .from('offers')
@@ -84,7 +243,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create inquiry
+    // Create offer inquiry
     const { data: inquiry, error: inquiryError } = await supabase
       .from('offer_inquiries')
       .insert({
@@ -93,7 +252,7 @@ export async function POST(request: NextRequest) {
         customer_name,
         customer_phone,
         customer_email: customer_email || null,
-        customer_message: customer_message || null,
+        customer_message: message || customer_message || null,
         qualification_data: qualification_data || null,
         status: 'pending',
       })
@@ -163,7 +322,7 @@ function calculateResponseTime(
       } else if (i === 1) {
         return { message: `Odgovaramo sutra od ${nextSchedule.start}`, icon: '🌙' }
       } else {
-        const dayLabel = nextDayName === 'monday' ? 'ponedeljak' : 
+        const dayLabel = nextDayName === 'monday' ? 'ponedeljak' :
                         nextDayName === 'tuesday' ? 'utorak' :
                         nextDayName === 'wednesday' ? 'sredu' :
                         nextDayName === 'thursday' ? 'četvrtak' :

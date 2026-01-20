@@ -156,7 +156,7 @@ export default function OnboardingPage() {
         <div className="space-y-6">
           <div>
             <h1 className="text-2xl font-bold text-[#1E293B] mb-2">
-              Dobrodošli u Trak! 👋
+              Dobrodošli u trak! 👋
             </h1>
             <p className="text-sm text-[#64748B]">
               Hajde da podesimo vaš nalog

@@ -10,7 +10,7 @@ import { differenceInDays } from 'date-fns'
 
 interface InstantOfferCardProps {
   offer: Offer
-  qualification: QualificationData
+  qualification?: QualificationData | null
   slug: string
   index?: number
   isFirstRecommended?: boolean
@@ -26,8 +26,9 @@ export default function InstantOfferCard({
   // Get urgency label with frequency control
   const label = getOfferLabel(offer, index, false)
   
-  const guestCount = qualification.guests.adults + qualification.guests.children
-  const totalPrice = offer.price_per_person * guestCount
+  const guestCount = qualification ? qualification.guests.adults + qualification.guests.children : 0
+  const totalPrice = guestCount > 0 ? offer.price_per_person * guestCount : 0
+  const showTotal = qualification != null && guestCount > 0
   const primaryImage = offer.images?.[0]?.url
   const nights = differenceInDays(new Date(offer.return_date), new Date(offer.departure_date))
 
@@ -114,7 +115,7 @@ export default function InstantOfferCard({
         </p>
 
         {/* Row 5: Price */}
-        <div className="flex items-baseline justify-between pt-2 border-t border-gray-100">
+        <div className={`flex items-baseline pt-2 border-t border-gray-100 ${showTotal ? 'justify-between' : ''}`}>
           <div className="flex items-baseline gap-2">
             {offer.original_price && offer.original_price > offer.price_per_person && (
               <span className="text-sm text-gray-400 line-through">
@@ -126,12 +127,14 @@ export default function InstantOfferCard({
             </span>
             <span className="text-sm text-gray-500">/os</span>
           </div>
-          <div className="text-right">
-            <div className="text-xs text-gray-500">Ukupno</div>
-            <div className="text-sm font-semibold text-gray-900">
-              €{totalPrice.toLocaleString('sr-Latn')}
+          {showTotal && (
+            <div className="text-right">
+              <div className="text-xs text-gray-500">Ukupno</div>
+              <div className="text-sm font-semibold text-gray-900">
+                €{totalPrice.toLocaleString('sr-Latn')}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </Link>
