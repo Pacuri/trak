@@ -55,6 +55,13 @@ interface Lead {
   }
 }
 
+interface MetaConversation {
+  id: string
+  platform: 'messenger' | 'instagram' | 'whatsapp'
+  participant_id: string
+  participant_name: string | null
+}
+
 interface PipelineStage {
   id: string
   name: string
@@ -78,6 +85,7 @@ export default function ChatSlideOver({
   const [lead, setLead] = useState<Lead | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [stages, setStages] = useState<PipelineStage[]>([])
+  const [metaConversation, setMetaConversation] = useState<MetaConversation | null>(null)
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -159,16 +167,38 @@ export default function ChatSlideOver({
     }
   }, [organizationId, supabase])
 
+  // Fetch Meta conversation for this lead (if any)
+  const fetchMetaConversation = useCallback(async () => {
+    if (!leadId) return
+
+    try {
+      const { data } = await supabase
+        .from('meta_conversations')
+        .select('id, platform, participant_id, participant_name')
+        .eq('lead_id', leadId)
+        .eq('status', 'active')
+        .order('last_message_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      setMetaConversation(data as MetaConversation | null)
+    } catch (err) {
+      console.error('Error fetching meta conversation:', err)
+    }
+  }, [leadId, supabase])
+
   // Initial fetch
   useEffect(() => {
     if (isOpen && leadId) {
       setLoading(true)
       setError(null)
+      setMetaConversation(null)
       fetchLead()
       fetchMessages()
       fetchStages()
+      fetchMetaConversation()
     }
-  }, [isOpen, leadId, fetchLead, fetchMessages, fetchStages])
+  }, [isOpen, leadId, fetchLead, fetchMessages, fetchStages, fetchMetaConversation])
 
   // Realtime subscription for new messages
   useEffect(() => {
@@ -214,9 +244,18 @@ export default function ChatSlideOver({
     }
   }
 
-  // Send message
+  // Send message (via email or Meta depending on available channels)
   const sendMessage = async () => {
     if (!newMessage.trim() || sending || !leadId) return
+
+    // Check if we can send - need either email or Meta conversation
+    const canSendEmail = !!lead?.email
+    const canSendMeta = !!metaConversation
+
+    if (!canSendEmail && !canSendMeta) {
+      setError('Nema dostupnog kanala za slanje poruke')
+      return
+    }
 
     setSending(true)
     setError(null)
@@ -224,52 +263,66 @@ export default function ChatSlideOver({
     setNewMessage('') // Clear immediately for better UX
 
     try {
-      const response = await fetch(`/api/leads/${leadId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: messageContent }),
-      })
+      let response: Response
+      let data: any
 
-      const data = await response.json()
+      if (canSendMeta) {
+        // Send via Meta (Messenger/Instagram/WhatsApp)
+        response = await fetch('/api/integrations/meta/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversation_id: metaConversation.id,
+            message: messageContent,
+            lead_id: leadId,
+          }),
+        })
+        data = await response.json()
+
+        if (response.ok && data.saved_message) {
+          // Add message to list
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === data.saved_message.id)) return prev
+            return [...prev, data.saved_message]
+          })
+        }
+      } else {
+        // Send via email
+        response = await fetch(`/api/leads/${leadId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: messageContent }),
+        })
+        data = await response.json()
+
+        if (response.ok) {
+          // Add message only if realtime hasn't already added it
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === data.message.id)) return prev
+            return [...prev, data.message]
+          })
+        }
+      }
 
       if (response.ok) {
-        // Add message only if realtime hasn't already added it
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === data.message.id)) return prev
-          return [...prev, data.message]
-        })
         if (textareaRef.current) {
           textareaRef.current.style.height = 'auto'
         }
-        // Update lead's local state from API response
+        // Update lead's local state
         setLead((prev) => {
           if (!prev) return null
           const newStageId = data.stage_id ?? prev.stage_id
-          // Find the new stage details from the stages array
           const newStage = stages.find((s) => s.id === newStageId)
           return {
             ...prev,
-            awaiting_response: data.awaiting_response ?? false,
+            awaiting_response: false,
             stage_id: newStageId,
             stage: newStage ? { id: newStage.id, name: newStage.name, color: newStage.color } : prev.stage,
           }
         })
-        // Notify listeners that a lead was updated (e.g., for inbox refresh)
-        // The API has already committed the transaction, so we can trigger refresh
-        console.log('[ChatSlideOver] Message sent successfully, awaiting_response:', data.awaiting_response)
-        // Call refresh immediately
-        console.log('[ChatSlideOver] Calling onLeadUpdated immediately')
+        // Notify listeners for inbox refresh
         onLeadUpdated?.()
-        // Also call with delay as fallback to ensure DB replication is complete
-        setTimeout(() => {
-          console.log('[ChatSlideOver] Calling onLeadUpdated after 500ms delay')
-          onLeadUpdated?.()
-        }, 500)
-        // Final fallback after 1.5 seconds
-        setTimeout(() => {
-          console.log('[ChatSlideOver] Calling onLeadUpdated after 1.5s delay (final fallback)')
-          onLeadUpdated?.()
-        }, 1500)
+        setTimeout(() => onLeadUpdated?.(), 500)
       } else {
         setError(data.error || 'Greška pri slanju')
         setNewMessage(messageContent) // Restore message on error
@@ -615,7 +668,7 @@ export default function ChatSlideOver({
           <div className="flex items-center gap-2 mb-3">
             <button
               onClick={() => setOffersSearchOpen(true)}
-              disabled={!lead?.email}
+              disabled={!lead?.email && !metaConversation}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Package className="w-4 h-4" />
@@ -631,12 +684,12 @@ export default function ChatSlideOver({
               onKeyDown={handleKeyDown}
               placeholder="Napišite odgovor... (Ctrl+Enter za slanje)"
               rows={1}
-              disabled={!lead?.email}
+              disabled={!lead?.email && !metaConversation}
               className="flex-1 resize-none rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:text-slate-400"
             />
             <button
               onClick={sendMessage}
-              disabled={!newMessage.trim() || sending || !lead?.email}
+              disabled={!newMessage.trim() || sending || (!lead?.email && !metaConversation)}
               className="px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
               {sending ? (
@@ -646,7 +699,7 @@ export default function ChatSlideOver({
               )}
             </button>
           </div>
-          {!lead?.email && (
+          {!lead?.email && !metaConversation && (
             <p className="text-xs text-slate-400 mt-2">
               Klijent nema email adresu. Dodajte email u kartici upita.
             </p>
