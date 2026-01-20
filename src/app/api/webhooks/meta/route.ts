@@ -368,7 +368,6 @@ async function createLeadFromConversation(
       .insert({
         organization_id: integration.organization_id,
         name: leadName,
-        source: platform,
         stage_id: firstStage?.id || null,
         awaiting_response: true,
         last_customer_message_at: messageDate,
