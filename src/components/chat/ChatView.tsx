@@ -216,9 +216,7 @@ export default function ChatView({ leadId, leadName, leadEmail, onClose }: ChatV
                   }`}
                 >
                   {message.subject && message.direction === 'inbound' && (
-                    <p className={`text-xs font-medium mb-1 ${
-                      message.direction === 'outbound' ? 'text-white/80' : 'text-[#64748B]'
-                    }`}>
+                    <p className="text-xs font-medium mb-1 text-[#64748B]">
                       {message.subject}
                     </p>
                   )}
