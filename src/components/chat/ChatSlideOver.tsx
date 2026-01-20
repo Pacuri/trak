@@ -172,11 +172,11 @@ export default function ChatSlideOver({
     if (!leadId) return
 
     try {
+      // Look for any conversation linked to this lead (regardless of status)
       const { data } = await supabase
         .from('meta_conversations')
         .select('id, platform, participant_id, participant_name')
         .eq('lead_id', leadId)
-        .eq('status', 'active')
         .order('last_message_at', { ascending: false })
         .limit(1)
         .maybeSingle()
