@@ -220,30 +220,41 @@ export default function ChatSlideOver({
 
     setSending(true)
     setError(null)
+    const messageContent = newMessage
+    setNewMessage('') // Clear immediately for better UX
 
     try {
       const response = await fetch(`/api/leads/${leadId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newMessage }),
+        body: JSON.stringify({ content: messageContent }),
       })
 
       const data = await response.json()
 
       if (response.ok) {
-        setMessages((prev) => [...prev, data.message])
-        setNewMessage('')
+        // Add message only if realtime hasn't already added it
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === data.message.id)) return prev
+          return [...prev, data.message]
+        })
         if (textareaRef.current) {
           textareaRef.current.style.height = 'auto'
         }
         // Update lead's awaiting_response status
         setLead((prev) => (prev ? { ...prev, awaiting_response: false } : null))
-        onLeadUpdated?.()
+        // Notify listeners that a lead was updated (e.g., for inbox refresh)
+        // Use setTimeout to ensure database transaction is complete
+        setTimeout(() => {
+          onLeadUpdated?.()
+        }, 300)
       } else {
         setError(data.error || 'Greška pri slanju')
+        setNewMessage(messageContent) // Restore message on error
       }
     } catch (err) {
       setError('Greška pri slanju poruke')
+      setNewMessage(messageContent) // Restore message on error
     } finally {
       setSending(false)
     }
@@ -307,6 +318,50 @@ export default function ChatSlideOver({
     } catch {
       return ''
     }
+  }
+
+  // Strip email quote/reply chain from message content
+  const stripEmailQuote = (content: string) => {
+    // Common patterns that indicate the start of quoted content:
+    // 1. "On [date] [name] <email> wrote:" (English)
+    // 2. "[date] [name] <email> je napisao/la:" (Serbian)
+    // 3. Lines starting with ">" (quoted text)
+    // 4. "---------- Forwarded message ---------"
+
+    const patterns = [
+      /\n\n.*\d{1,2}[.,]\s*\w+\s*\d{4}[.,]?\s*(u|at)?\s*\d{1,2}:\d{2}.*<.*@.*>.*:?\s*\n/i, // Date + email pattern
+      /\nOn\s+.*wrote:\s*\n/i, // "On ... wrote:"
+      /\n.*je napisao\/la:\s*\n/i, // Serbian "je napisao/la:"
+      /\n-{5,}\s*(Forwarded|Prosleđena|Original).*-{5,}\n/i, // Forwarded message
+      /\n_{5,}\n/i, // Outlook separator
+    ]
+
+    let cleanContent = content
+
+    for (const pattern of patterns) {
+      const match = cleanContent.match(pattern)
+      if (match && match.index !== undefined) {
+        cleanContent = cleanContent.substring(0, match.index).trim()
+        break
+      }
+    }
+
+    // Also remove trailing quoted lines (lines starting with >)
+    const lines = cleanContent.split('\n')
+    const cleanLines: string[] = []
+    let foundQuote = false
+
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i]
+      if (line.trim().startsWith('>') || (foundQuote && line.trim() === '')) {
+        foundQuote = true
+        continue
+      }
+      foundQuote = false
+      cleanLines.unshift(line)
+    }
+
+    return cleanLines.join('\n').trim()
   }
 
   // Calculate waiting time
@@ -498,9 +553,14 @@ export default function ChatSlideOver({
                     </p>
                   )}
                   <p className="text-sm whitespace-pre-wrap break-words">
-                    {message.content.length > 500
-                      ? message.content.substring(0, 500) + '...'
-                      : message.content}
+                    {(() => {
+                      const content = message.direction === 'inbound'
+                        ? stripEmailQuote(message.content)
+                        : message.content
+                      return content.length > 500
+                        ? content.substring(0, 500) + '...'
+                        : content
+                    })()}
                   </p>
                   <p
                     className={`text-[10px] mt-1 ${

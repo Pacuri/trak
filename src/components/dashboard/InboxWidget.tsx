@@ -63,7 +63,10 @@ export function InboxWidget({ onOpenChat }: InboxWidgetProps) {
   // Subscribe to lead updates from chat (when message is sent)
   useEffect(() => {
     const unsubscribe = subscribeToLeadUpdates(() => {
-      fetchInbox()
+      // Delay to ensure database update is complete before refreshing
+      setTimeout(() => {
+        fetchInbox()
+      }, 800)
     })
     return unsubscribe
   }, [subscribeToLeadUpdates, fetchInbox])
