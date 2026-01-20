@@ -33,7 +33,7 @@ function formatDate(date: Date): string {
 export default function DashboardPage() {
   const { user } = useUser()
   const dashboardData = useDashboardData()
-  const { openChat } = useChat()
+  const { openChat, refreshInbox } = useChat()
   const [selectedInquiry, setSelectedInquiry] = useState<PendingInquiry | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -59,6 +59,10 @@ export default function DashboardPage() {
   // Handler for when email is accepted - opens the chat with the new lead
   const handleEmailAccepted = async (leadId?: string) => {
     dashboardData.refresh()
+    // Refresh inbox widget to show the new lead awaiting response
+    setTimeout(() => {
+      refreshInbox()
+    }, 300)
     // If leadId is provided, open the chat immediately via global context
     if (leadId) {
       openChat(leadId)

@@ -279,6 +279,7 @@ export async function POST(
     }
 
     // Store message in database
+    const now = new Date().toISOString()
     const { data: message, error: insertError } = await supabase
       .from('messages')
       .insert({
@@ -295,7 +296,7 @@ export async function POST(
         external_id: externalId,
         thread_id: threadId,
         status: 'sent',
-        sent_at: new Date().toISOString(),
+        sent_at: now,
       })
       .select()
       .single()
@@ -304,19 +305,60 @@ export async function POST(
       console.error('Error storing message:', insertError)
     }
 
-    // Update lead's last contact and mark as responded
-    await supabase
+    // Get current lead stage to check if we need to auto-progress
+    const { data: currentLead } = await supabase
+      .from('leads')
+      .select('stage_id')
+      .eq('id', leadId)
+      .single()
+
+    // Get pipeline stages to determine if we should auto-progress to "Kontaktiran"
+    let newStageId = currentLead?.stage_id
+    const { data: stages } = await supabase
+      .from('pipeline_stages')
+      .select('id, position, name')
+      .eq('organization_id', userData.organization_id)
+      .eq('is_won', false)
+      .eq('is_lost', false)
+      .order('position', { ascending: true })
+
+    if (stages && stages.length >= 2) {
+      const firstStage = stages[0]
+      const kontaktiranStage = stages[1] // Second stage = "Kontaktiran"
+
+      // If lead is in first stage (or no stage), move to "Kontaktiran"
+      if (currentLead?.stage_id === firstStage.id || currentLead?.stage_id === null) {
+        newStageId = kontaktiranStage.id
+      }
+    }
+
+    // Update lead's last contact, mark as responded, and optionally update stage
+    console.log('[Messages API] Updating lead:', leadId, 'setting awaiting_response: false')
+
+    const { data: updatedLead, error: updateError } = await supabase
       .from('leads')
       .update({
         last_response_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         awaiting_response: false,
+        ...(newStageId !== currentLead?.stage_id ? { stage_id: newStageId } : {}),
       })
       .eq('id', leadId)
+      .select('awaiting_response, stage_id')
+      .single()
+
+    console.log('[Messages API] Update result - updatedLead:', updatedLead, 'error:', updateError)
+
+    if (updateError) {
+      console.error('[Messages API] Error updating lead:', updateError)
+    }
 
     return NextResponse.json({
       success: true,
       message: message,
+      leadUpdated: !updateError,
+      awaiting_response: updatedLead?.awaiting_response ?? false,
+      stage_id: updatedLead?.stage_id,
     })
 
   } catch (error: any) {

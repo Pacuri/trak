@@ -241,13 +241,35 @@ export default function ChatSlideOver({
         if (textareaRef.current) {
           textareaRef.current.style.height = 'auto'
         }
-        // Update lead's awaiting_response status
-        setLead((prev) => (prev ? { ...prev, awaiting_response: false } : null))
+        // Update lead's local state from API response
+        setLead((prev) => {
+          if (!prev) return null
+          const newStageId = data.stage_id ?? prev.stage_id
+          // Find the new stage details from the stages array
+          const newStage = stages.find((s) => s.id === newStageId)
+          return {
+            ...prev,
+            awaiting_response: data.awaiting_response ?? false,
+            stage_id: newStageId,
+            stage: newStage ? { id: newStage.id, name: newStage.name, color: newStage.color } : prev.stage,
+          }
+        })
         // Notify listeners that a lead was updated (e.g., for inbox refresh)
-        // Use setTimeout to ensure database transaction is complete
+        // The API has already committed the transaction, so we can trigger refresh
+        console.log('[ChatSlideOver] Message sent successfully, awaiting_response:', data.awaiting_response)
+        // Call refresh immediately
+        console.log('[ChatSlideOver] Calling onLeadUpdated immediately')
+        onLeadUpdated?.()
+        // Also call with delay as fallback to ensure DB replication is complete
         setTimeout(() => {
+          console.log('[ChatSlideOver] Calling onLeadUpdated after 500ms delay')
           onLeadUpdated?.()
-        }, 300)
+        }, 500)
+        // Final fallback after 1.5 seconds
+        setTimeout(() => {
+          console.log('[ChatSlideOver] Calling onLeadUpdated after 1.5s delay (final fallback)')
+          onLeadUpdated?.()
+        }, 1500)
       } else {
         setError(data.error || 'Greška pri slanju')
         setNewMessage(messageContent) // Restore message on error
@@ -323,20 +345,38 @@ export default function ChatSlideOver({
   // Strip email quote/reply chain from message content
   const stripEmailQuote = (content: string) => {
     // Common patterns that indicate the start of quoted content:
-    // 1. "On [date] [name] <email> wrote:" (English)
+    // 1. "On [date] at [time], [name] <email> wrote:" (English Gmail format)
     // 2. "[date] [name] <email> je napisao/la:" (Serbian)
     // 3. Lines starting with ">" (quoted text)
     // 4. "---------- Forwarded message ---------"
 
-    const patterns = [
-      /\n\n.*\d{1,2}[.,]\s*\w+\s*\d{4}[.,]?\s*(u|at)?\s*\d{1,2}:\d{2}.*<.*@.*>.*:?\s*\n/i, // Date + email pattern
-      /\nOn\s+.*wrote:\s*\n/i, // "On ... wrote:"
-      /\n.*je napisao\/la:\s*\n/i, // Serbian "je napisao/la:"
-      /\n-{5,}\s*(Forwarded|Prosleđena|Original).*-{5,}\n/i, // Forwarded message
-      /\n_{5,}\n/i, // Outlook separator
-    ]
+    // First, remove any lines starting with > (quoted lines)
+    const lines = content.split('\n')
+    const nonQuotedLines: string[] = []
 
-    let cleanContent = content
+    for (const line of lines) {
+      // Skip lines that start with > (quoted content)
+      if (line.trim().startsWith('>')) {
+        continue
+      }
+      nonQuotedLines.push(line)
+    }
+
+    let cleanContent = nonQuotedLines.join('\n')
+
+    // Patterns to find where the quote header starts (must have newline before)
+    const patterns = [
+      // Gmail format: "On Tue, 20 Jan 2026 at 19:48, nikola popovic <email@example.com> wrote:"
+      /\n\s*On\s+\w{3},\s+\d{1,2}\s+\w{3}\s+\d{4}\s+at\s+\d{1,2}:\d{2},?\s+[^<]*<[^>]+>\s*wrote:\s*$/im,
+      // Alternative: "On [any date format]... wrote:"
+      /\n\s*On\s+[^<\n]+<[^>]+>\s*wrote:\s*$/im,
+      // Serbian format
+      /\n\s*[^<\n]*<[^>]+>\s*je napisao\/la:\s*$/im,
+      // Forwarded message
+      /\n-{5,}\s*(Forwarded|Prosleđena|Original).*-{5,}/i,
+      // Outlook separator
+      /\n_{5,}\n/i,
+    ]
 
     for (const pattern of patterns) {
       const match = cleanContent.match(pattern)
@@ -346,22 +386,8 @@ export default function ChatSlideOver({
       }
     }
 
-    // Also remove trailing quoted lines (lines starting with >)
-    const lines = cleanContent.split('\n')
-    const cleanLines: string[] = []
-    let foundQuote = false
-
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const line = lines[i]
-      if (line.trim().startsWith('>') || (foundQuote && line.trim() === '')) {
-        foundQuote = true
-        continue
-      }
-      foundQuote = false
-      cleanLines.unshift(line)
-    }
-
-    return cleanLines.join('\n').trim()
+    // Final cleanup: remove empty lines at the end
+    return cleanContent.trim()
   }
 
   // Calculate waiting time
@@ -535,7 +561,7 @@ export default function ChatSlideOver({
               <p>Nema poruka</p>
             </div>
           ) : (
-            messages.map((message) => (
+            messages.filter((m) => m && m.id).map((message) => (
               <div
                 key={message.id}
                 className={`flex ${message.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
@@ -554,9 +580,8 @@ export default function ChatSlideOver({
                   )}
                   <p className="text-sm whitespace-pre-wrap break-words">
                     {(() => {
-                      const content = message.direction === 'inbound'
-                        ? stripEmailQuote(message.content)
-                        : message.content
+                      // Strip email quotes from both inbound and outbound messages
+                      const content = stripEmailQuote(message.content)
                       return content.length > 500
                         ? content.substring(0, 500) + '...'
                         : content

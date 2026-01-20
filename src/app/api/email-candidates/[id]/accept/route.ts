@@ -87,21 +87,38 @@ export async function POST(
       .eq('id', candidateId)
 
     // Also create initial message in messages table
-    await supabase.from('messages').insert({
+    const now = new Date().toISOString()
+    const messageContent = candidate.content || candidate.snippet || '(Bez sadržaja)'
+
+    console.log('[Accept] Creating message with:', {
+      subject: candidate.subject,
+      content: messageContent,
+      contentLength: messageContent?.length,
+      candidateContent: candidate.content,
+      candidateSnippet: candidate.snippet,
+    })
+
+    const { data: createdMessage, error: messageError } = await supabase.from('messages').insert({
       lead_id: lead.id,
       organization_id: userData.organization_id,
       direction: 'inbound',
       channel: 'email',
-      subject: candidate.subject,
-      content: candidate.content || candidate.snippet,
+      subject: candidate.subject || '(Bez naslova)',
+      content: messageContent,
       from_email: candidate.from_email,
       from_name: candidate.from_name,
       to_email: candidate.to_email,
       external_id: candidate.gmail_message_id,
       thread_id: candidate.gmail_thread_id,
       status: 'sent',
-      sent_at: candidate.email_date,
-    })
+      sent_at: candidate.email_date || now,
+    }).select().single()
+
+    if (messageError) {
+      console.error('[Accept] Error creating initial message:', messageError)
+    } else {
+      console.log('[Accept] Message created successfully:', createdMessage?.id, 'content:', createdMessage?.content?.substring(0, 50))
+    }
 
     return NextResponse.json({
       success: true,

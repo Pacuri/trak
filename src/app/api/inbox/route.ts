@@ -78,6 +78,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       leads: leadsWithLastMessage,
       count: count || 0,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
     })
   } catch (error: any) {
     console.error('Inbox GET error:', error)

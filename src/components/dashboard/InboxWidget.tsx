@@ -39,18 +39,29 @@ export function InboxWidget({ onOpenChat }: InboxWidgetProps) {
   const [leads, setLeads] = useState<InboxLead[]>([])
   const [loading, setLoading] = useState(true)
   const { organizationId } = useUser()
-  const { subscribeToLeadUpdates } = useChat()
+  const { subscribeToInboxRefresh } = useChat()
   const supabase = useMemo(() => createClient(), [])
 
   const fetchInbox = useCallback(async () => {
+    console.log('[InboxWidget] fetchInbox called')
     try {
-      const response = await fetch('/api/inbox')
+      // Add cache-busting timestamp to prevent stale data
+      const response = await fetch(`/api/inbox?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+      })
       if (response.ok) {
         const data = await response.json()
+        console.log('[InboxWidget] Fetched inbox, leads count:', data.leads?.length, 'leads:', data.leads?.map((l: any) => ({ id: l.id, name: l.name, awaiting: l.awaiting_response })))
         setLeads(data.leads || [])
+      } else {
+        console.error('[InboxWidget] Fetch failed with status:', response.status)
       }
     } catch (err) {
-      console.error('Error fetching inbox:', err)
+      console.error('[InboxWidget] Error fetching inbox:', err)
     } finally {
       setLoading(false)
     }
@@ -60,21 +71,25 @@ export function InboxWidget({ onOpenChat }: InboxWidgetProps) {
     fetchInbox()
   }, [fetchInbox])
 
-  // Subscribe to lead updates from chat (when message is sent)
+  // Subscribe to inbox refresh notifications (from chat, email acceptance, etc.)
   useEffect(() => {
-    const unsubscribe = subscribeToLeadUpdates(() => {
-      // Delay to ensure database update is complete before refreshing
-      setTimeout(() => {
-        fetchInbox()
-      }, 800)
+    console.log('[InboxWidget] Subscribing to inbox refresh')
+    const unsubscribe = subscribeToInboxRefresh(() => {
+      console.log('[InboxWidget] Refresh callback triggered, fetching inbox...')
+      // Fetch immediately - the API caller has already ensured DB commit
+      fetchInbox()
     })
-    return unsubscribe
-  }, [subscribeToLeadUpdates, fetchInbox])
+    return () => {
+      console.log('[InboxWidget] Unsubscribing from inbox refresh')
+      unsubscribe()
+    }
+  }, [subscribeToInboxRefresh, fetchInbox])
 
   // Real-time subscription for lead updates
   useEffect(() => {
     if (!organizationId) return
 
+    console.log('[InboxWidget] Setting up realtime subscription for org:', organizationId)
     const channel = supabase
       .channel('inbox-updates')
       .on(
@@ -85,7 +100,8 @@ export function InboxWidget({ onOpenChat }: InboxWidgetProps) {
           table: 'leads',
           filter: `organization_id=eq.${organizationId}`,
         },
-        () => {
+        (payload) => {
+          console.log('[InboxWidget] Realtime: leads table changed', payload)
           fetchInbox()
         }
       )
@@ -97,13 +113,17 @@ export function InboxWidget({ onOpenChat }: InboxWidgetProps) {
           table: 'messages',
           filter: `organization_id=eq.${organizationId}`,
         },
-        () => {
+        (payload) => {
+          console.log('[InboxWidget] Realtime: new message inserted', payload)
           fetchInbox()
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('[InboxWidget] Realtime subscription status:', status)
+      })
 
     return () => {
+      console.log('[InboxWidget] Removing realtime channel')
       supabase.removeChannel(channel)
     }
   }, [supabase, organizationId, fetchInbox])

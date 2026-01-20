@@ -7,8 +7,8 @@ interface ChatContextType {
   isChatOpen: boolean
   openChat: (leadId: string) => void
   closeChat: () => void
-  onLeadUpdated: () => void
-  subscribeToLeadUpdates: (callback: () => void) => () => void
+  refreshInbox: () => void
+  subscribeToInboxRefresh: (callback: () => void) => () => void
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined)
@@ -16,7 +16,7 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined)
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [chatLeadId, setChatLeadId] = useState<string | null>(null)
   const [isChatOpen, setIsChatOpen] = useState(false)
-  const updateListenersRef = useRef<Set<() => void>>(new Set())
+  const inboxListenersRef = useRef<Set<() => void>>(new Set())
 
   const openChat = useCallback((leadId: string) => {
     setChatLeadId(leadId)
@@ -28,21 +28,25 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setChatLeadId(null)
   }, [])
 
-  // Notify all listeners when a lead is updated (e.g., message sent)
-  const onLeadUpdated = useCallback(() => {
-    updateListenersRef.current.forEach(callback => callback())
+  // Trigger inbox refresh - call this when leads change (message sent, email accepted, etc.)
+  const refreshInbox = useCallback(() => {
+    console.log('[ChatContext] refreshInbox called, listeners:', inboxListenersRef.current.size)
+    inboxListenersRef.current.forEach(callback => {
+      console.log('[ChatContext] Calling inbox listener callback')
+      callback()
+    })
   }, [])
 
-  // Subscribe to lead update notifications
-  const subscribeToLeadUpdates = useCallback((callback: () => void) => {
-    updateListenersRef.current.add(callback)
+  // Subscribe to inbox refresh notifications
+  const subscribeToInboxRefresh = useCallback((callback: () => void) => {
+    inboxListenersRef.current.add(callback)
     return () => {
-      updateListenersRef.current.delete(callback)
+      inboxListenersRef.current.delete(callback)
     }
   }, [])
 
   return (
-    <ChatContext.Provider value={{ chatLeadId, isChatOpen, openChat, closeChat, onLeadUpdated, subscribeToLeadUpdates }}>
+    <ChatContext.Provider value={{ chatLeadId, isChatOpen, openChat, closeChat, refreshInbox, subscribeToInboxRefresh }}>
       {children}
     </ChatContext.Provider>
   )

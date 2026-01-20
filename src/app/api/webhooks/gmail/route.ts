@@ -115,8 +115,11 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      console.log(`[Gmail Webhook] Found ${newMessageIds.size} new messages to process:`, Array.from(newMessageIds))
+
       // Process each new message
       for (const messageId of newMessageIds) {
+        console.log(`[Gmail Webhook] Processing message ID: ${messageId}`)
         await processNewEmail(gmail, messageId, integration.organization_id, supabase)
       }
 
@@ -153,6 +156,8 @@ async function processNewEmail(
   supabase: any
 ) {
   try {
+    console.log(`[Gmail Webhook] processNewEmail called for messageId: ${messageId}, orgId: ${organizationId}`)
+
     // Check if already processed in email_candidates
     const { data: existingCandidate } = await supabase
       .from('email_candidates')
@@ -162,6 +167,7 @@ async function processNewEmail(
       .single()
 
     if (existingCandidate) {
+      console.log(`[Gmail Webhook] Message ${messageId} already in email_candidates, skipping`)
       return // Already processed
     }
 
@@ -174,8 +180,11 @@ async function processNewEmail(
       .single()
 
     if (existingMessage) {
+      console.log(`[Gmail Webhook] Message ${messageId} already in messages, skipping`)
       return // Already processed
     }
+
+    console.log(`[Gmail Webhook] Message ${messageId} passed duplicate checks, proceeding...`)
 
     // Fetch message details
     const { data: message } = await gmail.users.messages.get({
@@ -208,17 +217,32 @@ async function processNewEmail(
 
     // Check labels - skip promotions, social, updates
     const labelIds = message.labelIds || []
+
+    console.log(`[Gmail Webhook] Processing message ${messageId}:`)
+    console.log(`[Gmail Webhook]   From: ${from}`)
+    console.log(`[Gmail Webhook]   Subject: ${subject}`)
+    console.log(`[Gmail Webhook]   Labels: ${labelIds.join(', ')}`)
+    console.log(`[Gmail Webhook]   Thread ID: ${message.threadId}`)
+
     if (
       labelIds.includes('CATEGORY_PROMOTIONS') ||
       labelIds.includes('CATEGORY_SOCIAL') ||
       labelIds.includes('CATEGORY_UPDATES') ||
       labelIds.includes('SPAM')
     ) {
+      console.log(`[Gmail Webhook] Skipping - promotional/social/updates/spam`)
       return
     }
 
     // Only process INBOX emails
     if (!labelIds.includes('INBOX')) {
+      console.log(`[Gmail Webhook] Skipping - not in INBOX`)
+      return
+    }
+
+    // Skip SENT emails - these are outbound messages sent by us, not inbound
+    if (labelIds.includes('SENT')) {
+      console.log(`[Gmail Webhook] Skipping - SENT label (our own outbound message)`)
       return
     }
 
@@ -264,32 +288,94 @@ async function processNewEmail(
 
     const emailDate = date ? new Date(date).toISOString() : new Date().toISOString()
 
-    // CHECK: Is this email from an existing lead?
-    const { data: existingLead } = await supabase
-      .from('leads')
-      .select('id, name')
+    // STEP 1: Check if this is part of an existing thread (same gmail thread_id)
+    console.log(`[Gmail Webhook] Looking for existing thread with thread_id: ${message.threadId}`)
+
+    const { data: existingThreadMessage, error: threadError } = await supabase
+      .from('messages')
+      .select('lead_id, lead:leads(id, name)')
       .eq('organization_id', organizationId)
-      .eq('email', fromEmail)
-      .eq('is_archived', false)
+      .eq('thread_id', message.threadId)
+      .not('lead_id', 'is', null)
+      .limit(1)
       .single()
 
-    if (existingLead) {
-      // This is a reply from an existing lead - add to messages table directly
-      await supabase.from('messages').insert({
-        lead_id: existingLead.id,
+    console.log(`[Gmail Webhook] Thread lookup result:`, JSON.stringify(existingThreadMessage), 'error:', threadError?.message)
+
+    if (existingThreadMessage?.lead_id) {
+      console.log(`[Gmail Webhook] Found existing thread! lead_id:`, existingThreadMessage.lead_id)
+      // Same thread - add message to existing lead
+      const leadId = existingThreadMessage.lead_id
+      const leadName = (existingThreadMessage.lead as any)?.name || 'Unknown'
+
+      console.log(`[Gmail Webhook] Adding message to existing thread for lead ${leadName} (${leadId})`)
+      console.log(`[Gmail Webhook] Message details: from=${fromEmail}, subject=${subject}, content length=${content?.length}`)
+      console.log(`[Gmail Webhook] Full insert data:`, {
+        lead_id: leadId,
         organization_id: organizationId,
         direction: 'inbound',
         channel: 'email',
         subject: subject || '(Bez naslova)',
-        content: content || snippet,
+        content: (content || snippet || '').substring(0, 100),
         from_email: fromEmail,
         from_name: fromName,
         to_email: to,
         external_id: messageId,
         thread_id: message.threadId,
-        status: 'received',
+        status: 'sent',
         sent_at: emailDate,
       })
+
+      // Insert the message
+      const { data: insertedMessage, error: insertError } = await supabase.from('messages').insert({
+        lead_id: leadId,
+        organization_id: organizationId,
+        direction: 'inbound',
+        channel: 'email',
+        subject: subject || '(Bez naslova)',
+        content: content || snippet || '',
+        from_email: fromEmail,
+        from_name: fromName,
+        to_email: to,
+        external_id: messageId,
+        thread_id: message.threadId,
+        status: 'sent',
+        sent_at: emailDate,
+      }).select().single()
+
+      if (insertError) {
+        console.error(`[Gmail Webhook] ERROR inserting message:`, insertError)
+        console.error(`[Gmail Webhook] Insert error code:`, insertError.code)
+        console.error(`[Gmail Webhook] Insert error message:`, insertError.message)
+        console.error(`[Gmail Webhook] Insert error details:`, insertError.details)
+        console.error(`[Gmail Webhook] Insert error hint:`, insertError.hint)
+
+        // Try without .select().single() to see if that's the issue
+        console.log(`[Gmail Webhook] Retrying insert without .select().single()...`)
+        const { error: retryError } = await supabase.from('messages').insert({
+          lead_id: leadId,
+          organization_id: organizationId,
+          direction: 'inbound',
+          channel: 'email',
+          subject: subject || '(Bez naslova)',
+          content: content || snippet || '',
+          from_email: fromEmail,
+          from_name: fromName,
+          to_email: to,
+          external_id: messageId,
+          thread_id: message.threadId,
+          status: 'sent',
+          sent_at: emailDate,
+        })
+
+        if (retryError) {
+          console.error(`[Gmail Webhook] Retry also failed:`, retryError)
+        } else {
+          console.log(`[Gmail Webhook] Retry succeeded!`)
+        }
+      } else {
+        console.log(`[Gmail Webhook] Message inserted successfully:`, insertedMessage?.id)
+      }
 
       // Update lead: set awaiting_response = true and update last_customer_message_at
       await supabase
@@ -299,28 +385,44 @@ async function processNewEmail(
           last_customer_message_at: emailDate,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', existingLead.id)
+        .eq('id', leadId)
 
-      console.log(`New message added to lead ${existingLead.name} (${existingLead.id}) from ${fromEmail}`)
-    } else {
-      // New sender - add to email_candidates for review
-      await supabase.from('email_candidates').insert({
-        organization_id: organizationId,
-        gmail_message_id: messageId,
-        gmail_thread_id: message.threadId,
-        from_email: fromEmail,
-        from_name: fromName,
-        to_email: to,
-        subject: subject || '(Bez naslova)',
-        snippet: snippet,
-        content: content,
-        status: 'pending',
-        email_date: emailDate,
-      })
-
-      console.log(`New email candidate created: ${fromEmail} - ${subject}`)
+      console.log(`New message added to existing thread for lead ${leadName} (${leadId}) from ${fromEmail}`)
+      return
     }
-  } catch (error) {
-    console.error(`Error processing message ${messageId}:`, error)
+
+    // STEP 2: Check if we've had this email address before (returning customer)
+    const { data: previousLeads } = await supabase
+      .from('leads')
+      .select('id, name')
+      .eq('organization_id', organizationId)
+      .eq('email', fromEmail)
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    const isReturningCustomer = previousLeads && previousLeads.length > 0
+
+    // STEP 3: New thread - add to email_candidates for review
+    await supabase.from('email_candidates').insert({
+      organization_id: organizationId,
+      gmail_message_id: messageId,
+      gmail_thread_id: message.threadId,
+      from_email: fromEmail,
+      from_name: fromName,
+      to_email: to,
+      subject: subject || '(Bez naslova)',
+      snippet: snippet,
+      content: content,
+      status: 'pending',
+      email_date: emailDate,
+      is_returning_customer: isReturningCustomer,
+    })
+
+    console.log(`New email candidate created: ${fromEmail} - ${subject}${isReturningCustomer ? ' (Postojeći klijent)' : ''}`)
+  } catch (error: any) {
+    console.error(`[Gmail Webhook] FATAL Error processing message ${messageId}:`, error)
+    console.error(`[Gmail Webhook] Error name:`, error?.name)
+    console.error(`[Gmail Webhook] Error message:`, error?.message)
+    console.error(`[Gmail Webhook] Error stack:`, error?.stack)
   }
 }

@@ -17,6 +17,7 @@ interface EmailCandidate {
   created_at: string
   organization_id: string
   status: string
+  is_returning_customer?: boolean
 }
 
 interface NewEmailsProps {
@@ -234,9 +235,16 @@ function EmailRow({
     <div className="py-3 border-b border-slate-100 last:border-0">
       {/* Header: Sender + Time */}
       <div className="flex items-center justify-between mb-1">
-        <span className="font-medium text-slate-900 text-sm">
-          {senderName}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-slate-900 text-sm">
+            {senderName}
+          </span>
+          {email.is_returning_customer && (
+            <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-[10px] font-medium rounded">
+              Postojeći klijent
+            </span>
+          )}
+        </div>
         <span className="text-[10px] text-slate-400">
           {formatTime(email.email_date || email.created_at)}
         </span>
