@@ -70,12 +70,15 @@ export async function middleware(request: NextRequest) {
   // Public API routes (e.g., /api/public/*)
   const isPublicApiRoute = pathname.startsWith('/api/public/')
 
+  // Webhook routes that need to be publicly accessible (called by external services)
+  const isWebhookRoute = pathname.startsWith('/api/webhooks/')
+
   // Onboarding route
   const isOnboardingRoute = pathname === '/onboarding'
 
   // If user is not logged in
   if (!user) {
-    if (!isPublicRoute && !isOnboardingRoute && !isPublicAgencyRoute && !isPublicApiRoute) {
+    if (!isPublicRoute && !isOnboardingRoute && !isPublicAgencyRoute && !isPublicApiRoute && !isWebhookRoute) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
     return response
