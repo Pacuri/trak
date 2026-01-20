@@ -130,14 +130,25 @@ export async function POST(
       )
     }
 
-    // Check if there's an existing thread
+    // Check if there's an existing thread - get thread_id and the original message's external_id
     const { data: lastMessage } = await supabase
       .from('messages')
-      .select('thread_id')
+      .select('thread_id, external_id, subject')
       .eq('lead_id', leadId)
       .eq('channel', 'email')
       .not('thread_id', 'is', null)
       .order('sent_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    // Also get the FIRST inbound message to get the original Message-ID for proper threading
+    const { data: firstInboundMessage } = await supabase
+      .from('messages')
+      .select('external_id, subject')
+      .eq('lead_id', leadId)
+      .eq('channel', 'email')
+      .eq('direction', 'inbound')
+      .order('sent_at', { ascending: true })
       .limit(1)
       .single()
 
@@ -175,13 +186,39 @@ export async function POST(
 
       const gmail = google.gmail({ version: 'v1', auth: oauth2Client })
 
+      // Get the original email's Message-ID header for proper threading
+      let originalMessageId: string | null = null
+      const messageIdToFetch = firstInboundMessage?.external_id || lastMessage?.external_id
+
+      if (messageIdToFetch && threadId) {
+        try {
+          const originalEmail = await gmail.users.messages.get({
+            userId: 'me',
+            id: messageIdToFetch,
+            format: 'metadata',
+            metadataHeaders: ['Message-ID'],
+          })
+
+          const messageIdHeader = originalEmail.data.payload?.headers?.find(
+            (h: any) => h.name?.toLowerCase() === 'message-id'
+          )
+          originalMessageId = messageIdHeader?.value || null
+        } catch (e) {
+          console.error('Could not fetch original message ID:', e)
+        }
+      }
+
       // Build email
       const fromName = emailIntegration.display_name || organization?.name || ''
       const fromEmail = emailIntegration.email_address
       const toName = lead.name || ''
       const toEmail = lead.email
 
-      const emailSubject = subject || `Re: Upit za putovanje`
+      // Use original subject with Re: prefix if replying
+      const originalSubject = firstInboundMessage?.subject || lastMessage?.subject
+      const emailSubject = subject || (originalSubject
+        ? (originalSubject.startsWith('Re:') ? originalSubject : `Re: ${originalSubject}`)
+        : 'Re: Upit za putovanje')
 
       // Create raw email message
       const messageParts = [
@@ -193,10 +230,11 @@ export async function POST(
         'Content-Transfer-Encoding: base64',
       ]
 
-      // Add thread reference if exists
-      if (threadId) {
-        messageParts.splice(3, 0, `References: <${threadId}>`)
-        messageParts.splice(4, 0, `In-Reply-To: <${threadId}>`)
+      // Add thread reference headers using the actual Message-ID (not Gmail's internal thread ID)
+      // This is required for proper email threading on the recipient's side
+      if (originalMessageId) {
+        messageParts.splice(3, 0, `References: ${originalMessageId}`)
+        messageParts.splice(4, 0, `In-Reply-To: ${originalMessageId}`)
       }
 
       messageParts.push('', Buffer.from(content).toString('base64'))
