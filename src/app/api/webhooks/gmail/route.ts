@@ -2,15 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { google } from 'googleapis'
 
-// Use service role for webhook (no user context)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// Create Supabase client lazily to avoid build-time errors
+function getSupabaseClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 // Gmail Push Notification webhook
 // Called by Google Pub/Sub when new email arrives
 export async function POST(request: NextRequest) {
+  const supabase = getSupabaseClient()
+
   try {
     const body = await request.json()
 
