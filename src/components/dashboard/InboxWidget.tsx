@@ -152,8 +152,8 @@ export function InboxWidget({ onOpenChat }: InboxWidgetProps) {
 
     return {
       text,
-      isUrgent: hours >= 2,
-      isCritical: hours >= 4,
+      isUrgent: hours >= 3,
+      isCritical: hours >= 24,
     }
   }
 
@@ -254,14 +254,6 @@ export function InboxWidget({ onOpenChat }: InboxWidgetProps) {
                     }
                   `}
                 >
-                  {/* Urgency indicator dot */}
-                  {(waitingInfo.isUrgent || waitingInfo.isCritical) && (
-                    <div
-                      className={`absolute top-3 right-3 w-2 h-2 rounded-full ${
-                        waitingInfo.isCritical ? 'bg-red-500 animate-pulse' : 'bg-orange-500'
-                      }`}
-                    />
-                  )}
 
                   {/* Lead info */}
                   <div className="flex items-start gap-3">
