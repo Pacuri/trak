@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { MessageCircle, Clock, RefreshCw, CheckCircle2, Send, Mail, Phone, MessageSquare } from 'lucide-react'
+import { MessageCircle, Clock, RefreshCw, CheckCircle2, Send, Mail, Phone, MessageSquare, Facebook, Instagram, X } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { sr } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
@@ -28,7 +28,7 @@ interface InboxLead {
     subject: string | null
     sent_at: string
     direction: 'inbound' | 'outbound'
-    channel?: 'email' | 'phone' | 'sms' | 'whatsapp' | 'manual'
+    channel?: 'email' | 'phone' | 'sms' | 'whatsapp' | 'manual' | 'messenger' | 'instagram'
   } | null
 }
 
@@ -39,6 +39,7 @@ interface InboxWidgetProps {
 export function InboxWidget({ onOpenChat }: InboxWidgetProps) {
   const [leads, setLeads] = useState<InboxLead[]>([])
   const [loading, setLoading] = useState(true)
+  const [dismissingId, setDismissingId] = useState<string | null>(null)
   const { organizationId } = useUser()
   const { subscribeToInboxRefresh } = useChat()
   const supabase = useMemo(() => createClient(), [])
@@ -161,6 +162,46 @@ export function InboxWidget({ onOpenChat }: InboxWidgetProps) {
     return content.substring(0, maxLength).trim() + '...'
   }
 
+  // Dismiss a lead from inbox (mark as not awaiting response)
+  const handleDismiss = async (leadId: string) => {
+    setDismissingId(leadId)
+    try {
+      const response = await fetch(`/api/leads/${leadId}/dismiss`, {
+        method: 'POST',
+      })
+      if (response.ok) {
+        // Remove from local state immediately for responsive UI
+        setLeads(prev => prev.filter(l => l.id !== leadId))
+      }
+    } catch (error) {
+      console.error('[InboxWidget] Error dismissing lead:', error)
+    } finally {
+      setDismissingId(null)
+    }
+  }
+
+  // Get channel icon based on message channel
+  const getChannelIcon = (channel?: string) => {
+    switch (channel) {
+      case 'messenger':
+        return <Facebook className="w-5 h-5 text-[#1877F2]" strokeWidth={1.5} />
+      case 'instagram':
+        return <Instagram className="w-5 h-5 text-[#E4405F]" strokeWidth={1.5} />
+      case 'whatsapp':
+        return <Phone className="w-5 h-5 text-[#25D366]" strokeWidth={1.5} />
+      case 'sms':
+        return <MessageSquare className="w-5 h-5 text-green-500" strokeWidth={1.5} />
+      case 'email':
+      default:
+        return <Mail className="w-5 h-5 text-red-500" strokeWidth={1.5} />
+    }
+  }
+
+  // Check if channel supports dismiss (social channels)
+  const canDismiss = (channel?: string) => {
+    return channel === 'messenger' || channel === 'instagram' || channel === 'whatsapp'
+  }
+
   return (
     <div className="bg-white rounded-[14px] border border-slate-200 shadow-sm p-5 h-full flex flex-col">
       {/* Header */}
@@ -224,9 +265,9 @@ export function InboxWidget({ onOpenChat }: InboxWidgetProps) {
 
                   {/* Lead info */}
                   <div className="flex items-start gap-3">
-                    {/* Channel icon (Gmail style) */}
+                    {/* Channel icon */}
                     <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-white border border-slate-200">
-                      <Mail className="w-5 h-5 text-red-500" strokeWidth={1.5} />
+                      {getChannelIcon(lead.last_message?.channel)}
                     </div>
 
                     <div className="flex-1 min-w-0">
@@ -255,22 +296,41 @@ export function InboxWidget({ onOpenChat }: InboxWidgetProps) {
                         </p>
                       )}
 
-                      {/* Reply button */}
-                      <button
-                        onClick={() => onOpenChat?.(lead.id)}
-                        className={`
-                          inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                          ${waitingInfo.isCritical
-                            ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm'
-                            : waitingInfo.isUrgent
-                              ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm'
-                              : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
-                          }
-                        `}
-                      >
-                        <Send className="w-3 h-3" />
-                        Odgovori
-                      </button>
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-2">
+                        {/* Reply button */}
+                        <button
+                          onClick={() => onOpenChat?.(lead.id)}
+                          className={`
+                            inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                            ${waitingInfo.isCritical
+                              ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm'
+                              : waitingInfo.isUrgent
+                                ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+                            }
+                          `}
+                        >
+                          <Send className="w-3 h-3" />
+                          Odgovori
+                        </button>
+
+                        {/* Dismiss button for social channels */}
+                        {canDismiss(lead.last_message?.channel) && (
+                          <button
+                            onClick={() => handleDismiss(lead.id)}
+                            disabled={dismissingId === lead.id}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-800 disabled:opacity-50"
+                          >
+                            {dismissingId === lead.id ? (
+                              <RefreshCw className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <X className="w-3 h-3" />
+                            )}
+                            Odbaci
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
