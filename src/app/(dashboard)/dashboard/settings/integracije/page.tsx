@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useOrganization } from '@/hooks/use-organization'
 import { createClient } from '@/lib/supabase/client'
-import { Mail, MessageSquare, Check, X, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react'
+import { Mail, MessageSquare, Check, X, ExternalLink, RefreshCw, AlertCircle, Facebook, Instagram, Phone } from 'lucide-react'
 import Link from 'next/link'
 
 interface EmailIntegration {
@@ -17,17 +17,37 @@ interface EmailIntegration {
   last_error: string | null
 }
 
+interface MetaIntegration {
+  id: string
+  page_id: string
+  page_name: string | null
+  instagram_account_id: string | null
+  instagram_username: string | null
+  whatsapp_phone_number_id: string | null
+  messenger_enabled: boolean
+  instagram_enabled: boolean
+  whatsapp_enabled: boolean
+  is_active: boolean
+  last_webhook_at: string | null
+  connected_at: string
+}
+
 export default function IntegrationPage() {
   const { organization } = useOrganization()
   const [emailIntegration, setEmailIntegration] = useState<EmailIntegration | null>(null)
+  const [metaIntegration, setMetaIntegration] = useState<MetaIntegration | null>(null)
   const [loading, setLoading] = useState(true)
+  const [metaLoading, setMetaLoading] = useState(true)
   const [connecting, setConnecting] = useState(false)
+  const [metaConnecting, setMetaConnecting] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
+  const [metaDisconnecting, setMetaDisconnecting] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
     if (organization?.id) {
       loadEmailIntegration()
+      loadMetaIntegration()
     }
   }, [organization?.id])
 
@@ -44,6 +64,19 @@ export default function IntegrationPage() {
       setEmailIntegration(data)
     }
     setLoading(false)
+  }
+
+  const loadMetaIntegration = async () => {
+    try {
+      const response = await fetch('/api/integrations/meta')
+      if (response.ok) {
+        const data = await response.json()
+        setMetaIntegration(data.integration || null)
+      }
+    } catch (err) {
+      console.error('Error loading Meta integration:', err)
+    }
+    setMetaLoading(false)
   }
 
   const handleConnectGmail = async () => {
@@ -90,6 +123,30 @@ export default function IntegrationPage() {
       setEmailIntegration(null)
     }
     setDisconnecting(false)
+  }
+
+  const handleConnectMeta = () => {
+    setMetaConnecting(true)
+    // Redirect to Meta OAuth
+    window.location.href = '/api/integrations/meta/auth'
+  }
+
+  const handleDisconnectMeta = async () => {
+    if (!metaIntegration || !confirm('Da li ste sigurni da želite da prekinete vezu sa Meta nalogom?')) {
+      return
+    }
+
+    setMetaDisconnecting(true)
+
+    try {
+      const response = await fetch('/api/integrations/meta', { method: 'DELETE' })
+      if (response.ok) {
+        setMetaIntegration(null)
+      }
+    } catch (err) {
+      console.error('Error disconnecting Meta:', err)
+    }
+    setMetaDisconnecting(false)
   }
 
   const formatDate = (dateString: string) => {
@@ -241,6 +298,152 @@ export default function IntegrationPage() {
                   )}
                   Poveži Gmail nalog
                   <ExternalLink className="h-4 w-4 text-[#64748B]" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Meta Integration Card (Facebook Messenger, Instagram, WhatsApp) */}
+        <div className="rounded-[14px] bg-white border border-[#E2E8F0] shadow-sm">
+          <div className="flex items-center justify-between p-5 border-b border-[#E2E8F0]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#E7F3FF]">
+                <Facebook className="h-6 w-6 text-[#1877F2]" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-[#1E293B]">Meta Business Suite</h2>
+                <p className="text-sm text-[#64748B]">Facebook Messenger, Instagram DM, WhatsApp</p>
+              </div>
+            </div>
+            {metaIntegration?.is_active && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ECFDF5] px-3 py-1 text-xs font-medium text-[#10B981]">
+                <Check className="h-3.5 w-3.5" />
+                Povezano
+              </span>
+            )}
+          </div>
+
+          <div className="p-5">
+            {metaLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="h-6 w-6 animate-spin text-[#64748B]" />
+              </div>
+            ) : metaIntegration ? (
+              <div className="space-y-4">
+                {/* Connected account info */}
+                <div className="rounded-[10px] bg-[#F8FAFC] p-4 border border-[#E2E8F0]">
+                  <div className="space-y-3">
+                    {/* Facebook Page */}
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1877F2]">
+                        <Facebook className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-[#1E293B]">{metaIntegration.page_name || 'Facebook Page'}</p>
+                        <p className="text-xs text-[#64748B]">
+                          Messenger {metaIntegration.messenger_enabled ? '✓' : '✗'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Instagram */}
+                    {metaIntegration.instagram_account_id && (
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#833AB4] via-[#FD1D1D] to-[#F77737]">
+                          <Instagram className="h-4 w-4 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-[#1E293B]">
+                            @{metaIntegration.instagram_username || 'Instagram'}
+                          </p>
+                          <p className="text-xs text-[#64748B]">
+                            Instagram DM {metaIntegration.instagram_enabled ? '✓' : '✗'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* WhatsApp */}
+                    {metaIntegration.whatsapp_phone_number_id && (
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#25D366]">
+                          <Phone className="h-4 w-4 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-[#1E293B]">WhatsApp Business</p>
+                          <p className="text-xs text-[#64748B]">
+                            WhatsApp {metaIntegration.whatsapp_enabled ? '✓' : '✗'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-[#64748B] mt-3 pt-3 border-t border-[#E2E8F0]">
+                    Povezano: {formatDate(metaIntegration.connected_at)}
+                    {metaIntegration.last_webhook_at && (
+                      <> • Poslednja poruka: {formatDate(metaIntegration.last_webhook_at)}</>
+                    )}
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleDisconnectMeta}
+                    disabled={metaDisconnecting}
+                    className="inline-flex items-center gap-2 rounded-[10px] border border-[#EF4444]/20 bg-[#FEF2F2] px-4 py-2 text-sm font-medium text-[#EF4444] hover:bg-[#FEE2E2] transition-all disabled:opacity-50"
+                  >
+                    {metaDisconnecting ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <X className="h-4 w-4" />
+                    )}
+                    Prekini vezu
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-[#64748B]">
+                  Povežite vašu Facebook stranicu da biste primali i odgovarali na poruke iz Messenger-a, Instagram DM-a i WhatsApp-a.
+                </p>
+
+                <div className="rounded-[10px] bg-[#F0F9FF] p-4 border border-[#3B82F6]/20">
+                  <h4 className="text-sm font-medium text-[#1E293B] mb-2">Šta dobijate povezivanjem:</h4>
+                  <ul className="space-y-1.5">
+                    <li className="flex items-center gap-2 text-sm text-[#64748B]">
+                      <Facebook className="h-4 w-4 text-[#1877F2]" />
+                      Facebook Messenger poruke direktno u trak-u
+                    </li>
+                    <li className="flex items-center gap-2 text-sm text-[#64748B]">
+                      <Instagram className="h-4 w-4 text-[#E4405F]" />
+                      Instagram Direct poruke (ako je povezan)
+                    </li>
+                    <li className="flex items-center gap-2 text-sm text-[#64748B]">
+                      <Phone className="h-4 w-4 text-[#25D366]" />
+                      WhatsApp Business poruke (ako je konfigurisan)
+                    </li>
+                    <li className="flex items-center gap-2 text-sm text-[#64748B]">
+                      <Check className="h-4 w-4 text-[#10B981]" />
+                      Automatsko kreiranje leadova iz poruka
+                    </li>
+                  </ul>
+                </div>
+
+                <button
+                  onClick={handleConnectMeta}
+                  disabled={metaConnecting}
+                  className="inline-flex items-center gap-3 rounded-[10px] bg-[#1877F2] px-5 py-3 text-sm font-medium text-white hover:bg-[#166FE5] transition-all disabled:opacity-50"
+                >
+                  {metaConnecting ? (
+                    <RefreshCw className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Facebook className="h-5 w-5" />
+                  )}
+                  Poveži Facebook stranicu
+                  <ExternalLink className="h-4 w-4 opacity-70" />
                 </button>
               </div>
             )}

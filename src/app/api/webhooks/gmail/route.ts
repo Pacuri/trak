@@ -275,9 +275,13 @@ async function processNewEmail(
       content = extractBody(message.payload)
     }
 
-    // Clean content
+    // Clean content - strip email reply quotes
+    // Gmail format: "On Mon, Jan 20, 2026 at 8:51 PM Someone <email@example.com> wrote:"
     content = content
-      .split(/\n\s*On .+ wrote:|\n-{2,}\s*Forwarded|\n\s*--\s*\n/)[0]
+      .split(/\nOn [A-Z][a-z]{2}, [A-Z][a-z]{2} \d{1,2}, \d{4} at \d{1,2}:\d{2}\s*[AP]M\s+[^<]*<[^>]+>\s*wrote:/i)[0]
+      .split(/\n\s*On .+ wrote:/)[0]
+      .split(/\n-{2,}\s*Forwarded/)[0]
+      .split(/\n\s*--\s*\n/)[0]
       .replace(/https?:\/\/[^\s]{100,}/g, '[link]')
       .replace(/\n{3,}/g, '\n\n')
       .trim()

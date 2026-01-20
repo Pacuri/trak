@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { MessageCircle, Clock, RefreshCw, CheckCircle2, Send, Mail } from 'lucide-react'
+import { MessageCircle, Clock, RefreshCw, CheckCircle2, Send, Mail, Phone, MessageSquare } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { sr } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
@@ -28,6 +28,7 @@ interface InboxLead {
     subject: string | null
     sent_at: string
     direction: 'inbound' | 'outbound'
+    channel?: 'email' | 'phone' | 'sms' | 'whatsapp' | 'manual'
   } | null
 }
 
@@ -223,9 +224,9 @@ export function InboxWidget({ onOpenChat }: InboxWidgetProps) {
 
                   {/* Lead info */}
                   <div className="flex items-start gap-3">
-                    {/* Avatar */}
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                      {lead.name.substring(0, 1).toUpperCase()}
+                    {/* Channel icon (Gmail style) */}
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-white border border-slate-200">
+                      <Mail className="w-5 h-5 text-red-500" strokeWidth={1.5} />
                     </div>
 
                     <div className="flex-1 min-w-0">

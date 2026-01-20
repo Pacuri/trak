@@ -49,12 +49,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Greška pri učitavanju' }, { status: 500 })
     }
 
+    // Helper to strip email quotes from content
+    const stripEmailQuote = (content: string): string => {
+      if (!content) return content
+      return content
+        .split(/\nOn [A-Z][a-z]{2}, [A-Z][a-z]{2} \d{1,2}, \d{4} at \d{1,2}:\d{2}\s*[AP]M\s+[^<]*<[^>]+>\s*wrote:/i)[0]
+        .split(/\n\s*On .+ wrote:/)[0]
+        .split(/\n-{2,}\s*Forwarded/)[0]
+        .trim()
+    }
+
     // For each lead, get the last message preview
     const leadsWithLastMessage = await Promise.all(
       (leads || []).map(async (lead) => {
         const { data: lastMessage } = await supabase
           .from('messages')
-          .select('id, content, subject, sent_at, direction')
+          .select('id, content, subject, sent_at, direction, channel')
           .eq('lead_id', lead.id)
           .order('sent_at', { ascending: false })
           .limit(1)
@@ -62,7 +72,10 @@ export async function GET(request: NextRequest) {
 
         return {
           ...lead,
-          last_message: lastMessage || null,
+          last_message: lastMessage ? {
+            ...lastMessage,
+            content: stripEmailQuote(lastMessage.content),
+          } : null,
         }
       })
     )
