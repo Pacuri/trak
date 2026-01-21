@@ -80,12 +80,20 @@ export function ImportMethodSelector({
     }
   }, [])
 
+  // Store onImportComplete in a ref to avoid dependency issues
+  const onImportCompleteRef = useRef(onImportComplete)
+  onImportCompleteRef.current = onImportComplete
+
+  // Store currency in a ref for the callback
+  const currencyRef = useRef(currency)
+  currencyRef.current = currency
+
   // Subscribe to Realtime updates when we have an importId (for PDFs)
   useEffect(() => {
     if (!importId || importState !== 'processing') return
 
     const supabase = createClient()
-    
+
     // Create channel for this specific import
     const channel = supabase
       .channel(`import-${importId}`)
@@ -112,17 +120,17 @@ export function ImportMethodSelector({
         if (newData.status === 'completed' && newData.parse_result) {
           setImportState('success')
           setProgress(100)
-          
+
           // Unsubscribe immediately
           channel.unsubscribe()
           channelRef.current = null
-          
+
           // Pass result to parent after a short delay for UI feedback
           setTimeout(() => {
-            onImportComplete({
+            onImportCompleteRef.current({
               import_id: importId,
               result: newData.parse_result,
-              currency,
+              currency: currencyRef.current,
             })
           }, 1000)
         }
@@ -132,7 +140,7 @@ export function ImportMethodSelector({
           setError(newData.error_message || 'Greška pri obradi dokumenta')
           setImportState('error')
           setProgress(0)
-          
+
           // Unsubscribe
           channel.unsubscribe()
           channelRef.current = null
@@ -147,7 +155,7 @@ export function ImportMethodSelector({
       channel.unsubscribe()
       channelRef.current = null
     }
-  }, [importId, importState, currency, onImportComplete])
+  }, [importId, importState]) // Removed currency and onImportComplete - using refs instead
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
