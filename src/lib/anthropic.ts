@@ -28,7 +28,7 @@ export async function parseDocumentWithVision(
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-3-5-haiku-20241022',
       max_tokens: 16000,
       messages: [
         {
@@ -105,7 +105,7 @@ ${additionalContext ? `\nAdditional context: ${additionalContext}` : ''}`
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-3-5-haiku-20241022',
       max_tokens: 16000,
       messages: [
         {
@@ -190,12 +190,14 @@ export async function parsePdfDocument(
   languageRegion: LanguageRegion = 'ba'
 ): Promise<DocumentParseResult> {
   const systemPrompt = getSystemPrompt(languageRegion)
-  const userPrompt = getDocumentParsePrompt(languageRegion) + 
+  const userPrompt = getDocumentParsePrompt(languageRegion) +
     (additionalContext ? `\n\nAdditional context: ${additionalContext}` : '')
 
   try {
+    // Using claude-3-5-haiku for faster processing (fits within Vercel 60s timeout)
+    // Haiku is ~4x faster than Sonnet while still being very capable for structured extraction
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-3-5-haiku-20241022',
       max_tokens: 16000,  // Increased for large multi-hotel documents
       messages: [
         {

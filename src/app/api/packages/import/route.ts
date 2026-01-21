@@ -11,7 +11,7 @@ import type { LanguageRegion } from '@/lib/prompts/document-parse-prompt'
 import * as XLSX from 'xlsx'
 import type { DocumentParseResult, DocumentImport } from '@/types/import'
 
-export const maxDuration = 60 // Allow up to 60 seconds for AI processing
+export const maxDuration = 60 // Vercel Hobby limit - using Haiku model for faster processing
 
 /**
  * POST /api/packages/import
