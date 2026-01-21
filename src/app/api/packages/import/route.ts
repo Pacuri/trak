@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { 
   parseDocumentWithVision, 
   parseStructuredData,
+  parsePdfDocument,
   validateParseResult,
   applyMarginToResult 
 } from '@/lib/anthropic'
@@ -10,13 +11,14 @@ import type { LanguageRegion } from '@/lib/prompts/document-parse-prompt'
 import * as XLSX from 'xlsx'
 import type { DocumentParseResult, DocumentImport } from '@/types/import'
 
-export const maxDuration = 60 // Vercel Hobby limit - still needed for image/Excel processing
+export const maxDuration = 300 // 5 minutes - PDF parsing with streaming can take time
 
 /**
  * POST /api/packages/import
- * Upload document and either:
- * - PDF: Invoke Edge Function for async processing (no timeout)
- * - Image/Excel: Process synchronously with Haiku (fast enough for 60s limit)
+ * Upload document and process synchronously:
+ * - PDF: Parse with Claude Sonnet using streaming (handles long operations)
+ * - Image: Parse with Claude Haiku vision
+ * - Excel: Parse structured data with Claude Haiku
  */
 export async function POST(request: NextRequest) {
   try {
@@ -83,9 +85,7 @@ export async function POST(request: NextRequest) {
 
     const isPdf = file.type === 'application/pdf'
 
-    // Create import record with status based on file type
-    // PDF: pending (will be processed by Edge Function)
-    // Other: processing (will be processed here)
+    // Create import record - all files now processed synchronously
     const { data: importRecord, error: insertError } = await supabase
       .from('document_imports')
       .insert({
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         file_type: file.type,
         file_url: '', // Will update after upload
         file_size_bytes: file.size,
-        status: isPdf ? 'pending' : 'processing',
+        status: 'processing',
         progress: 0,
         created_by: user.id,
       })
@@ -123,61 +123,6 @@ export async function POST(request: NextRequest) {
         throw new Error('Failed to upload file')
       }
 
-      // For PDF: Generate signed URL (bucket is private), invoke Edge Function, return immediately
-      if (isPdf) {
-        // Generate signed URL valid for 1 hour
-        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-          .from('documents')
-          .createSignedUrl(fileName, 3600) // 1 hour
-
-        if (signedUrlError || !signedUrlData?.signedUrl) {
-          console.error('Error creating signed URL:', signedUrlError)
-          throw new Error('Failed to create signed URL')
-        }
-
-        // Update import record with file URL (store the path, not signed URL)
-        const { data: urlData } = supabase.storage
-          .from('documents')
-          .getPublicUrl(fileName)
-        
-        await supabase
-          .from('document_imports')
-          .update({ file_url: urlData.publicUrl })
-          .eq('id', importRecord.id)
-
-        // Invoke Edge Function (fire-and-forget)
-        // Don't await - return immediately to the frontend
-        const edgeFunctionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/parse-document`
-        
-        fetch(edgeFunctionUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            import_id: importRecord.id,
-            file_url: signedUrlData.signedUrl,
-            organization_id: organizationId,
-            currency: userCurrency,
-            margin_percent: marginPercent ? parseFloat(marginPercent) : null,
-            language_region: languageRegion,
-          }),
-        }).catch(err => {
-          // Log error but don't fail - Edge Function will update DB on its own errors
-          console.error('Error invoking Edge Function:', err)
-        })
-
-        // Return immediately with import_id
-        return NextResponse.json({
-          success: true,
-          import_id: importRecord.id,
-          status: 'pending',
-          message: 'PDF upload successful. Processing started.',
-        })
-      }
-
-      // For Image/Excel: Process synchronously (uses Haiku which is fast)
       // Get public URL for storage
       const { data: urlData } = supabase.storage
         .from('documents')
@@ -197,8 +142,17 @@ export async function POST(request: NextRequest) {
 
       let parseResult: DocumentParseResult
 
-      if (file.type.startsWith('image/')) {
-        // Image: Send directly to Claude vision
+      if (isPdf) {
+        // PDF: Parse with Claude Sonnet using streaming (handles long operations)
+        console.log('Processing PDF with Claude Sonnet streaming...')
+        const base64 = Buffer.from(fileBuffer).toString('base64')
+        parseResult = await parsePdfDocument(
+          base64,
+          fullContext,
+          languageRegion
+        )
+      } else if (file.type.startsWith('image/')) {
+        // Image: Send directly to Claude Haiku vision
         const base64 = Buffer.from(fileBuffer).toString('base64')
         parseResult = await parseDocumentWithVision(
           base64, 
@@ -207,7 +161,7 @@ export async function POST(request: NextRequest) {
           languageRegion
         )
       } else {
-        // Excel: Parse with XLSX and send structured data to Claude
+        // Excel: Parse with XLSX and send structured data to Claude Haiku
         const workbook = XLSX.read(fileBuffer, { type: 'array' })
         
         // Convert all sheets to text

@@ -649,9 +649,17 @@ Deno.serve(async (req: Request) => {
     }
 
     const pdfBuffer = await pdfResponse.arrayBuffer();
-    const pdfBase64 = btoa(
-      String.fromCharCode(...new Uint8Array(pdfBuffer))
-    );
+
+    // Convert ArrayBuffer to base64 without stack overflow
+    // Using chunked approach instead of spread operator which fails on large arrays
+    const uint8Array = new Uint8Array(pdfBuffer);
+    let binaryString = '';
+    const chunkSize = 8192; // Process in 8KB chunks to avoid stack overflow
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+      binaryString += String.fromCharCode.apply(null, chunk as unknown as number[]);
+    }
+    const pdfBase64 = btoa(binaryString);
 
     // Update progress: 30% - PDF downloaded
     await supabase
@@ -666,10 +674,12 @@ Deno.serve(async (req: Request) => {
     const currencyContext = `IMPORTANT: All prices in this document are in ${currency}. Do NOT convert prices, keep them in their original currency (${currency}).`;
     const userPrompt = getDocumentParsePrompt(language_region) + `\n\n${currencyContext}`;
 
-    // Call Claude Sonnet 4.5 API with native PDF support
-    const response = await anthropic.messages.create({
+    // Use streaming for long-running PDF operations (required by Anthropic SDK)
+    let fullResponse = '';
+
+    const stream = await anthropic.messages.stream({
       model: "claude-sonnet-4-5-20250929",
-      max_tokens: 64000,  // Sonnet 4.5 supports up to 64K output
+      max_tokens: 16000,
       messages: [
         {
           role: "user",
@@ -692,6 +702,15 @@ Deno.serve(async (req: Request) => {
       system: systemPrompt,
     });
 
+    // Collect streamed response
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        fullResponse += event.delta.text;
+      }
+    }
+
+    const response = await stream.finalMessage();
+
     // Update progress: 70% - Claude responded
     await supabase
       .from("document_imports")
@@ -700,19 +719,16 @@ Deno.serve(async (req: Request) => {
 
     console.log(`Claude response received, stop_reason: ${response.stop_reason}`);
 
-    // Extract text from response
-    const textContent = response.content.find((block) => block.type === "text");
-    if (!textContent || textContent.type !== "text") {
-      throw new Error("No text response from Claude");
-    }
-
     // Check if response was truncated
     if (response.stop_reason === "max_tokens") {
       console.warn("Warning: Response was truncated due to max_tokens limit");
     }
 
     // Extract JSON from response
-    let jsonString = textContent.text;
+    if (!fullResponse) {
+      throw new Error("No text response from Claude");
+    }
+    let jsonString = fullResponse;
 
     // Remove markdown code block if present
     const codeBlockMatch = jsonString.match(/```(?:json)?\s*([\s\S]*?)```/);

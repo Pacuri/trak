@@ -181,7 +181,8 @@ function repairJson(jsonString: string): string {
 }
 
 /**
- * Parse PDF using Claude's native PDF support (no conversion needed)
+ * Parse PDF using Claude's native PDF support with STREAMING
+ * Streaming is required for long-running PDF operations (>10 minutes)
  * Reference: https://docs.anthropic.com/en/docs/build-with-claude/pdf-support
  */
 export async function parsePdfDocument(
@@ -195,10 +196,14 @@ export async function parsePdfDocument(
 
   try {
     // PDF requires Sonnet - Haiku doesn't support native PDF parsing
-    // Using claude-sonnet-4 for PDF (only Sonnet/Opus support native PDF)
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 16000,  // Sonnet supports higher token limit
+    // Using streaming for long-running PDF operations (required by Anthropic SDK)
+    console.log('Starting PDF parse with streaming...')
+    
+    let fullResponse = ''
+    
+    const stream = await anthropic.messages.stream({
+      model: 'claude-sonnet-4-5-20250929',
+      max_tokens: 16000,
       messages: [
         {
           role: 'user',
@@ -221,21 +226,29 @@ export async function parsePdfDocument(
       system: systemPrompt,
     })
 
-    const textContent = response.content.find(block => block.type === 'text')
-    if (!textContent || textContent.type !== 'text') {
-      throw new Error('No text response from Claude')
+    // Collect streamed response
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        fullResponse += event.delta.text
+      }
     }
 
+    const finalMessage = await stream.finalMessage()
+    
     // Log response info for debugging
-    console.log(`Claude response length: ${textContent.text.length} chars, stop_reason: ${response.stop_reason}`)
+    console.log(`Claude response length: ${fullResponse.length} chars, stop_reason: ${finalMessage.stop_reason}`)
     
     // Check if response was truncated
-    if (response.stop_reason === 'max_tokens') {
+    if (finalMessage.stop_reason === 'max_tokens') {
       console.warn('Warning: Response was truncated due to max_tokens limit')
     }
 
+    if (!fullResponse) {
+      throw new Error('No text response from Claude')
+    }
+
     // Extract JSON from response (handle markdown code blocks too)
-    let jsonString = textContent.text
+    let jsonString = fullResponse
     
     // Remove markdown code block if present
     const codeBlockMatch = jsonString.match(/```(?:json)?\s*([\s\S]*?)```/)
@@ -246,11 +259,11 @@ export async function parsePdfDocument(
     // Find the JSON object
     const jsonMatch = jsonString.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
-      console.error('Raw response:', textContent.text.substring(0, 500))
+      console.error('Raw response:', fullResponse.substring(0, 500))
       throw new Error('No JSON found in response')
     }
 
-    let jsonToParse = jsonMatch[0]
+    const jsonToParse = jsonMatch[0]
     
     // Try to parse, and if it fails, attempt repair
     try {
