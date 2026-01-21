@@ -135,10 +135,11 @@ export function ImportReviewScreen({
         name: `${parseResult.transport.supplier || parseResult.transport.operator || 'Transport'} - Transport`,
         supplier_name: parseResult.transport.supplier || parseResult.transport.operator,
         transport_type: parseResult.transport.transport_type || parseResult.transport.type,
-        prices: (parseResult.transport.prices || []).map(p => ({
-          city: p.city,
-          location: p.location,
-          price: p.price,
+        // Handle both 'routes' (Claude output) and 'prices' (legacy) field names
+        prices: (parseResult.transport.routes || parseResult.transport.prices || []).map((p: Record<string, unknown>) => ({
+          city: p.departure_city || p.city,
+          location: p.departure_point || p.location,
+          price: p.adult_price || p.price,
           child_price: p.child_price,
         })),
       } : undefined,
