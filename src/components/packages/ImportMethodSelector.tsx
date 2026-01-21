@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { 
   Upload, 
@@ -13,7 +13,9 @@ import {
   FileSpreadsheet,
   Euro,
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import type { Currency } from '@/types/import'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 interface ImportMethodSelectorProps {
   onManualEntry: () => void
@@ -29,6 +31,29 @@ const CURRENCY_OPTIONS: { value: Currency; label: string; description: string }[
   { value: 'RSD', label: 'RSD', description: 'Srpski dinar' },
 ]
 
+// Progress stages with display text
+const PROGRESS_STAGES: Record<number, string> = {
+  0: 'Priprema...',
+  10: 'Uploadujem dokument...',
+  30: 'Analiziram dokument...',
+  70: 'Ekstraktujem pakete...',
+  100: 'Gotovo!',
+}
+
+function getProgressText(progress: number): string {
+  // Find the closest stage <= current progress
+  const stages = Object.keys(PROGRESS_STAGES)
+    .map(Number)
+    .sort((a, b) => b - a)
+  
+  for (const stage of stages) {
+    if (progress >= stage) {
+      return PROGRESS_STAGES[stage]
+    }
+  }
+  return PROGRESS_STAGES[0]
+}
+
 export function ImportMethodSelector({ 
   onManualEntry, 
   onImportComplete,
@@ -40,7 +65,89 @@ export function ImportMethodSelector({
   const [error, setError] = useState<string | null>(null)
   const [marginPercent, setMarginPercent] = useState<string>('')
   const [currency, setCurrency] = useState<Currency>('EUR')
+  const [progress, setProgress] = useState(0)
+  const [importId, setImportId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const channelRef = useRef<RealtimeChannel | null>(null)
+
+  // Cleanup Realtime subscription on unmount
+  useEffect(() => {
+    return () => {
+      if (channelRef.current) {
+        channelRef.current.unsubscribe()
+        channelRef.current = null
+      }
+    }
+  }, [])
+
+  // Subscribe to Realtime updates when we have an importId (for PDFs)
+  useEffect(() => {
+    if (!importId || importState !== 'processing') return
+
+    const supabase = createClient()
+    
+    // Create channel for this specific import
+    const channel = supabase
+      .channel(`import-${importId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'document_imports',
+        filter: `id=eq.${importId}`,
+      }, (payload) => {
+        const newData = payload.new as {
+          progress?: number
+          status?: string
+          parse_result?: any
+          error_message?: string
+          packages_found?: number
+        }
+
+        // Update progress
+        if (typeof newData.progress === 'number') {
+          setProgress(newData.progress)
+        }
+
+        // Handle completion
+        if (newData.status === 'completed' && newData.parse_result) {
+          setImportState('success')
+          setProgress(100)
+          
+          // Unsubscribe immediately
+          channel.unsubscribe()
+          channelRef.current = null
+          
+          // Pass result to parent after a short delay for UI feedback
+          setTimeout(() => {
+            onImportComplete({
+              import_id: importId,
+              result: newData.parse_result,
+              currency,
+            })
+          }, 1000)
+        }
+
+        // Handle failure
+        if (newData.status === 'failed') {
+          setError(newData.error_message || 'Greška pri obradi dokumenta')
+          setImportState('error')
+          setProgress(0)
+          
+          // Unsubscribe
+          channel.unsubscribe()
+          channelRef.current = null
+        }
+      })
+      .subscribe()
+
+    channelRef.current = channel
+
+    // Cleanup on dependency change
+    return () => {
+      channel.unsubscribe()
+      channelRef.current = null
+    }
+  }, [importId, importState, currency, onImportComplete])
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -92,6 +199,7 @@ export function ImportMethodSelector({
 
     setImportState('uploading')
     setError(null)
+    setProgress(0)
 
     try {
       const formData = new FormData()
@@ -100,8 +208,6 @@ export function ImportMethodSelector({
       if (marginPercent) {
         formData.append('margin_percent', marginPercent)
       }
-
-      setImportState('processing')
 
       const response = await fetch('/api/packages/import', {
         method: 'POST',
@@ -114,24 +220,44 @@ export function ImportMethodSelector({
         throw new Error(data.error || 'Failed to import document')
       }
 
-      setImportState('success')
-      
-      // Pass result to parent with currency info
-      setTimeout(() => {
-        onImportComplete({ ...data, currency })
-      }, 1000)
+      // Check if this is a PDF (async processing via Edge Function)
+      if (data.status === 'pending') {
+        // PDF: Set up for Realtime updates
+        setImportId(data.import_id)
+        setImportState('processing')
+        setProgress(10) // Initial progress
+        // Realtime subscription will handle the rest via useEffect
+      } else {
+        // Image/Excel: Result is returned immediately
+        setImportState('success')
+        setProgress(100)
+        
+        // Pass result to parent after a short delay for UI feedback
+        setTimeout(() => {
+          onImportComplete({ ...data, currency })
+        }, 1000)
+      }
 
     } catch (err) {
       console.error('Import error:', err)
       setError(err instanceof Error ? err.message : 'Greška pri importu')
       setImportState('error')
+      setProgress(0)
     }
   }
 
   const handleClear = () => {
+    // Cleanup any active subscription
+    if (channelRef.current) {
+      channelRef.current.unsubscribe()
+      channelRef.current = null
+    }
+    
     setSelectedFile(null)
     setError(null)
     setImportState('idle')
+    setProgress(0)
+    setImportId(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -289,18 +415,32 @@ export function ImportMethodSelector({
         </p>
       </div>
 
+      {/* Progress bar for PDF processing */}
+      {importState === 'processing' && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-teal-600 font-medium">{getProgressText(progress)}</span>
+            <span className="text-gray-500">{progress}%</span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-teal-500 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="text-xs text-gray-500 text-center">
+            {selectedFile?.type === 'application/pdf' 
+              ? 'PDF dokumenti mogu potrajati do 2 minute za obradu.'
+              : 'Obrada u toku...'}
+          </p>
+        </div>
+      )}
+
       {/* Status messages */}
       {importState === 'uploading' && (
         <div className="flex items-center gap-2 text-gray-600">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span>Uploadujem dokument...</span>
-        </div>
-      )}
-
-      {importState === 'processing' && (
-        <div className="flex items-center gap-2 text-teal-600">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span>Claude analizira dokument... Ovo može potrajati do 30 sekundi.</span>
         </div>
       )}
 

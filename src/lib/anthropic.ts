@@ -29,7 +29,7 @@ export async function parseDocumentWithVision(
   try {
     const response = await anthropic.messages.create({
       model: 'claude-3-5-haiku-20241022',
-      max_tokens: 16000,
+      max_tokens: 8192,
       messages: [
         {
           role: 'user',
@@ -106,7 +106,7 @@ ${additionalContext ? `\nAdditional context: ${additionalContext}` : ''}`
   try {
     const response = await anthropic.messages.create({
       model: 'claude-3-5-haiku-20241022',
-      max_tokens: 16000,
+      max_tokens: 8192,
       messages: [
         {
           role: 'user',
@@ -194,11 +194,11 @@ export async function parsePdfDocument(
     (additionalContext ? `\n\nAdditional context: ${additionalContext}` : '')
 
   try {
-    // Using claude-3-5-haiku for faster processing (fits within Vercel 60s timeout)
-    // Haiku is ~4x faster than Sonnet while still being very capable for structured extraction
+    // PDF requires Sonnet - Haiku doesn't support native PDF parsing
+    // Using claude-sonnet-4 for PDF (only Sonnet/Opus support native PDF)
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-haiku-20241022',
-      max_tokens: 16000,  // Increased for large multi-hotel documents
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 16000,  // Sonnet supports higher token limit
       messages: [
         {
           role: 'user',

@@ -3,7 +3,6 @@ import { createClient } from '@/lib/supabase/server'
 import { 
   parseDocumentWithVision, 
   parseStructuredData,
-  parsePdfDocument,
   validateParseResult,
   applyMarginToResult 
 } from '@/lib/anthropic'
@@ -11,11 +10,13 @@ import type { LanguageRegion } from '@/lib/prompts/document-parse-prompt'
 import * as XLSX from 'xlsx'
 import type { DocumentParseResult, DocumentImport } from '@/types/import'
 
-export const maxDuration = 60 // Vercel Hobby limit - using Haiku model for faster processing
+export const maxDuration = 60 // Vercel Hobby limit - still needed for image/Excel processing
 
 /**
  * POST /api/packages/import
- * Upload and parse a document using Claude AI
+ * Upload document and either:
+ * - PDF: Invoke Edge Function for async processing (no timeout)
+ * - Image/Excel: Process synchronously with Haiku (fast enough for 60s limit)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -80,7 +81,11 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Create import record
+    const isPdf = file.type === 'application/pdf'
+
+    // Create import record with status based on file type
+    // PDF: pending (will be processed by Edge Function)
+    // Other: processing (will be processed here)
     const { data: importRecord, error: insertError } = await supabase
       .from('document_imports')
       .insert({
@@ -89,7 +94,8 @@ export async function POST(request: NextRequest) {
         file_type: file.type,
         file_url: '', // Will update after upload
         file_size_bytes: file.size,
-        status: 'processing',
+        status: isPdf ? 'pending' : 'processing',
+        progress: 0,
         created_by: user.id,
       })
       .select()
@@ -117,7 +123,62 @@ export async function POST(request: NextRequest) {
         throw new Error('Failed to upload file')
       }
 
-      // Get file URL
+      // For PDF: Generate signed URL (bucket is private), invoke Edge Function, return immediately
+      if (isPdf) {
+        // Generate signed URL valid for 1 hour
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+          .from('documents')
+          .createSignedUrl(fileName, 3600) // 1 hour
+
+        if (signedUrlError || !signedUrlData?.signedUrl) {
+          console.error('Error creating signed URL:', signedUrlError)
+          throw new Error('Failed to create signed URL')
+        }
+
+        // Update import record with file URL (store the path, not signed URL)
+        const { data: urlData } = supabase.storage
+          .from('documents')
+          .getPublicUrl(fileName)
+        
+        await supabase
+          .from('document_imports')
+          .update({ file_url: urlData.publicUrl })
+          .eq('id', importRecord.id)
+
+        // Invoke Edge Function (fire-and-forget)
+        // Don't await - return immediately to the frontend
+        const edgeFunctionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/parse-document`
+        
+        fetch(edgeFunctionUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            import_id: importRecord.id,
+            file_url: signedUrlData.signedUrl,
+            organization_id: organizationId,
+            currency: userCurrency,
+            margin_percent: marginPercent ? parseFloat(marginPercent) : null,
+            language_region: languageRegion,
+          }),
+        }).catch(err => {
+          // Log error but don't fail - Edge Function will update DB on its own errors
+          console.error('Error invoking Edge Function:', err)
+        })
+
+        // Return immediately with import_id
+        return NextResponse.json({
+          success: true,
+          import_id: importRecord.id,
+          status: 'pending',
+          message: 'PDF upload successful. Processing started.',
+        })
+      }
+
+      // For Image/Excel: Process synchronously (uses Haiku which is fast)
+      // Get public URL for storage
       const { data: urlData } = supabase.storage
         .from('documents')
         .getPublicUrl(fileName)
@@ -125,10 +186,9 @@ export async function POST(request: NextRequest) {
       // Update import record with file URL
       await supabase
         .from('document_imports')
-        .update({ file_url: urlData.publicUrl })
+        .update({ file_url: urlData.publicUrl, progress: 10 })
         .eq('id', importRecord.id)
 
-      // Parse document based on type
       // Add currency context to help AI parse correctly
       const currencyContext = `IMPORTANT: All prices in this document are in ${userCurrency}. Do NOT convert prices, keep them in their original currency (${userCurrency}).`
       const fullContext = additionalContext 
@@ -143,15 +203,6 @@ export async function POST(request: NextRequest) {
         parseResult = await parseDocumentWithVision(
           base64, 
           file.type,
-          fullContext,
-          languageRegion
-        )
-      } else if (file.type === 'application/pdf') {
-        // PDF: Send directly to Claude - it supports native PDF parsing
-        // Reference: https://docs.anthropic.com/en/docs/build-with-claude/pdf-support
-        const base64 = Buffer.from(fileBuffer).toString('base64')
-        parseResult = await parsePdfDocument(
-          base64,
           fullContext,
           languageRegion
         )
@@ -210,6 +261,7 @@ export async function POST(request: NextRequest) {
         .from('document_imports')
         .update({
           status: 'completed',
+          progress: 100,
           parsed_at: new Date().toISOString(),
           parse_result: parseResult,
           packages_found: parseResult.packages.length,
@@ -239,6 +291,7 @@ export async function POST(request: NextRequest) {
         .from('document_imports')
         .update({
           status: 'failed',
+          progress: 0,
           error_message: parseError instanceof Error ? parseError.message : 'Unknown error',
         })
         .eq('id', importRecord.id)
