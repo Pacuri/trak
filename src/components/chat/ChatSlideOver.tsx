@@ -344,7 +344,7 @@ export default function ChatSlideOver({
   }
 
   // Handle offer selection from search panel
-  const handleSelectOffer = (offer: any, formatted: string) => {
+  const handleSelectOffer = (offer: any, formatted: string, trackingUrl?: string) => {
     setNewMessage((prev) => {
       if (prev.trim()) {
         return prev + '\n\n' + formatted
@@ -712,6 +712,7 @@ export default function ChatSlideOver({
         isOpen={offersSearchOpen}
         onClose={() => setOffersSearchOpen(false)}
         onSelectOffer={handleSelectOffer}
+        leadId={leadId || undefined}
       />
     </>
   )

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Users, List } from 'lucide-react'
@@ -7,6 +8,7 @@ import { usePipeline } from '@/hooks/use-pipeline'
 import { useOrganization } from '@/hooks/use-organization'
 import { useLeads } from '@/hooks/use-leads'
 import PipelineBoard from '@/components/pipeline/PipelineBoard'
+import ChatSlideOver from '@/components/chat/ChatSlideOver'
 
 export default function PipelinePage() {
   const router = useRouter()
@@ -14,8 +16,25 @@ export default function PipelinePage() {
   const { teamMembers } = useOrganization()
   const { updateLead } = useLeads()
 
+  // Chat slide-over state
+  const [chatOpen, setChatOpen] = useState(false)
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
+
   const handleLeadClick = (leadId: string) => {
     router.push(`/dashboard/leads/${leadId}`)
+  }
+
+  // Open chat slide-over when clicking Reply
+  const handleReply = (leadId: string) => {
+    setSelectedLeadId(leadId)
+    setChatOpen(true)
+  }
+
+  const handleCloseChat = () => {
+    setChatOpen(false)
+    setSelectedLeadId(null)
+    // Refresh pipeline to update any changes (e.g., sent offers)
+    refresh()
   }
 
   const handleMoveLead = async (leadId: string, newStageId: string | null) => {
@@ -40,7 +59,7 @@ export default function PipelinePage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#1E293B]">U obradi</h1>
+          <h1 className="text-2xl font-bold text-[#1E293B]">U Procesu</h1>
           <p className="mt-1 text-sm text-[#64748B]">
             Prevucite klijente između faza da ažurirate njihov status
           </p>
@@ -110,11 +129,21 @@ export default function PipelinePage() {
             leadsByStage={leadsByStage}
             onMoveLead={handleMoveLead}
             onLeadClick={handleLeadClick}
+            onReply={handleReply}
             teamMembers={teamMembers}
             onAssign={handleAssign}
             allUserIds={allUserIds}
           />
         </div>
+      )}
+
+      {/* Chat Slide-Over */}
+      {selectedLeadId && (
+        <ChatSlideOver
+          isOpen={chatOpen}
+          onClose={handleCloseChat}
+          leadId={selectedLeadId}
+        />
       )}
     </div>
   )

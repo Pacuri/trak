@@ -6,9 +6,21 @@ import { useUser } from './use-user'
 import { useOrganization } from './use-organization'
 import type { Lead, PipelineStage } from '@/types'
 
+// Extended lead type with pipeline card data
+export interface PipelineCardLead extends Lead {
+  // Channel source derived from meta or messages
+  channel_source?: 'messenger' | 'instagram' | 'whatsapp' | 'email' | 'web' | 'phone' | null
+  // Last message from customer
+  last_message_preview?: string | null
+  last_message_at?: string | null
+  has_unread_messages?: boolean
+  // Most recent sent offer
+  sent_offer_destination?: string | null
+}
+
 interface UsePipelineReturn {
   stages: PipelineStage[]
-  leadsByStage: Record<string, Lead[]>
+  leadsByStage: Record<string, PipelineCardLead[]>
   moveLeadToStage: (leadId: string, newStageId: string | null) => Promise<boolean>
   loading: boolean
   error: string | null
@@ -18,7 +30,7 @@ interface UsePipelineReturn {
 export function usePipeline(): UsePipelineReturn {
   const { organizationId } = useUser()
   const { stages } = useOrganization()
-  const [leadsByStage, setLeadsByStage] = useState<Record<string, Lead[]>>({})
+  const [leadsByStage, setLeadsByStage] = useState<Record<string, PipelineCardLead[]>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
@@ -51,25 +63,131 @@ export function usePipeline(): UsePipelineReturn {
         return
       }
 
-      // Group leads by stage_id
-      const grouped: Record<string, Lead[]> = {}
+      if (!leadsData || leadsData.length === 0) {
+        const grouped: Record<string, PipelineCardLead[]> = {}
+        stages.forEach((stage) => {
+          grouped[stage.id] = []
+        })
+        grouped['null'] = []
+        setLeadsByStage(grouped)
+        return
+      }
+
+      const leadIds = leadsData.map(l => l.id)
+
+      // Fetch meta conversations for channel source
+      const { data: metaConversations } = await supabase
+        .from('meta_conversations')
+        .select('lead_id, platform')
+        .in('lead_id', leadIds)
+
+      // Fetch last messages for each lead (from customer)
+      const { data: messages } = await supabase
+        .from('messages')
+        .select('lead_id, content, channel, sent_at, is_from_customer, is_read')
+        .in('lead_id', leadIds)
+        .eq('is_from_customer', true)
+        .order('sent_at', { ascending: false })
+
+      // Fetch sent offers (most recent per lead)
+      const { data: sentOffers } = await supabase
+        .from('lead_sent_offers')
+        .select('lead_id, destination')
+        .in('lead_id', leadIds)
+        .order('sent_at', { ascending: false })
+
+      // Create lookup maps
+      const metaByLeadId = new Map<string, string>()
+      metaConversations?.forEach(mc => {
+        if (!metaByLeadId.has(mc.lead_id)) {
+          metaByLeadId.set(mc.lead_id, mc.platform)
+        }
+      })
+
+      const lastMessageByLeadId = new Map<string, { content: string, channel: string, sent_at: string, is_read: boolean }>()
+      const unreadByLeadId = new Map<string, boolean>()
+      messages?.forEach(msg => {
+        if (!lastMessageByLeadId.has(msg.lead_id)) {
+          lastMessageByLeadId.set(msg.lead_id, {
+            content: msg.content,
+            channel: msg.channel,
+            sent_at: msg.sent_at,
+            is_read: msg.is_read
+          })
+        }
+        // Check if any unread messages
+        if (!msg.is_read) {
+          unreadByLeadId.set(msg.lead_id, true)
+        }
+      })
+
+      const sentOfferByLeadId = new Map<string, string>()
+      sentOffers?.forEach(so => {
+        if (!sentOfferByLeadId.has(so.lead_id)) {
+          sentOfferByLeadId.set(so.lead_id, so.destination)
+        }
+      })
+
+      // Derive channel source
+      const deriveChannelSource = (lead: any): PipelineCardLead['channel_source'] => {
+        // First check meta conversations
+        const metaPlatform = metaByLeadId.get(lead.id)
+        if (metaPlatform === 'messenger' || metaPlatform === 'facebook') return 'messenger'
+        if (metaPlatform === 'instagram') return 'instagram'
+        if (metaPlatform === 'whatsapp') return 'whatsapp'
+
+        // Then check source_type
+        const sourceType = lead.source_type?.toLowerCase()
+        if (sourceType === 'email' || sourceType === 'gmail') return 'email'
+        if (sourceType === 'messenger' || sourceType === 'facebook') return 'messenger'
+        if (sourceType === 'instagram') return 'instagram'
+        if (sourceType === 'whatsapp') return 'whatsapp'
+        if (sourceType === 'phone') return 'phone'
+        if (sourceType === 'web' || sourceType === 'website' || sourceType === 'trak') return 'web'
+
+        // Check last message channel
+        const lastMsg = lastMessageByLeadId.get(lead.id)
+        if (lastMsg?.channel) {
+          const ch = lastMsg.channel.toLowerCase()
+          if (ch === 'email') return 'email'
+          if (ch === 'messenger' || ch === 'facebook') return 'messenger'
+          if (ch === 'instagram') return 'instagram'
+          if (ch === 'whatsapp') return 'whatsapp'
+        }
+
+        return 'web'
+      }
+
+      // Group leads by stage_id with enhanced data
+      const grouped: Record<string, PipelineCardLead[]> = {}
       stages.forEach((stage) => {
         grouped[stage.id] = []
       })
       grouped['null'] = [] // For unassigned leads
 
-      if (leadsData) {
-        leadsData.forEach((lead) => {
-          const stageId = lead.stage_id || 'null'
-          if (!grouped[stageId]) {
-            grouped[stageId] = []
-          }
-          grouped[stageId].push(lead as Lead)
-        })
-      }
+      leadsData.forEach((lead) => {
+        const stageId = lead.stage_id || 'null'
+        if (!grouped[stageId]) {
+          grouped[stageId] = []
+        }
+
+        const lastMsg = lastMessageByLeadId.get(lead.id)
+
+        const enhancedLead: PipelineCardLead = {
+          ...(lead as Lead),
+          channel_source: deriveChannelSource(lead),
+          last_message_preview: lastMsg?.content || lead.original_message || null,
+          last_message_at: lastMsg?.sent_at || lead.created_at,
+          has_unread_messages: unreadByLeadId.get(lead.id) || false,
+          sent_offer_destination: sentOfferByLeadId.get(lead.id) || null,
+        }
+
+        grouped[stageId].push(enhancedLead)
+      })
 
       setLeadsByStage(grouped)
     } catch (err) {
+      console.error('Pipeline fetch error:', err)
       setError('Failed to fetch pipeline data')
     } finally {
       setLoading(false)
@@ -91,7 +209,7 @@ export function usePipeline(): UsePipelineReturn {
       const originalLeadsByStage = { ...leadsByStage }
 
       // Find the lead in current state
-      let leadToMove: Lead | null = null
+      let leadToMove: PipelineCardLead | null = null
       let oldStageId: string | null = null
       for (const stageId in leadsByStage) {
         const lead = leadsByStage[stageId].find(l => l.id === leadId)

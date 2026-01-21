@@ -45,6 +45,8 @@ export default function InquiryPage() {
   const urlAdults = searchParams.get('adults')
   const urlChildren = searchParams.get('children')
   const urlChildAges = searchParams.get('childAges')
+  // Tracking ID from sent offer link
+  const trackingId = searchParams.get('tid') || ''
 
   const [offer, setOffer] = useState<Offer | null>(null)
   const [pkg, setPkg] = useState<PackageData | null>(null)
@@ -150,6 +152,8 @@ export default function InquiryPage() {
           selected_date: formData.selectedDate || null,
           selected_room_type_id: formData.selectedRoomTypeId || null,
           selected_meal_plan: formData.selectedMealPlan || null,
+          // Tracking ID from sent offer link (for conversion tracking)
+          tracking_id: trackingId || null,
         }),
       })
 

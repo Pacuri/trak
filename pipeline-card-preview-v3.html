@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pipeline Card Preview v3 - Ultra Clean</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f1f5f9;
+      padding: 40px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      color: #1e293b;
+      margin-bottom: 8px;
+      font-size: 24px;
+    }
+
+    .subtitle {
+      color: #64748b;
+      margin-bottom: 32px;
+      font-size: 14px;
+    }
+
+    .pipeline {
+      display: flex;
+      gap: 16px;
+      overflow-x: auto;
+      padding-bottom: 20px;
+    }
+
+    .column {
+      min-width: 300px;
+      max-width: 300px;
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .column-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 4px 16px;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 12px;
+    }
+
+    .column-title {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 14px;
+    }
+
+    .column-count {
+      background: #e2e8f0;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .cards {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* ==================== */
+    /* CARD STYLES - ULTRA CLEAN */
+    /* ==================== */
+
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid #e2e8f0;
+      position: relative;
+    }
+
+    .card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      border-color: #cbd5e1;
+    }
+
+    /* Card Header */
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    /* Channel icon - subtle with color hint */
+    .channel-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .channel-icon i {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Channel-specific colors */
+    .channel-icon.messenger {
+      background: #e7f3ff;
+    }
+    .channel-icon.messenger i { color: #0084ff; }
+
+    .channel-icon.instagram {
+      background: #fce7f3;
+    }
+    .channel-icon.instagram i { color: #e1306c; }
+
+    .channel-icon.whatsapp {
+      background: #dcfce7;
+    }
+    .channel-icon.whatsapp i { color: #25d366; }
+
+    .channel-icon.email {
+      background: #f1f5f9;
+    }
+    .channel-icon.email i { color: #64748b; }
+
+    .channel-icon.web {
+      background: #f3e8ff;
+    }
+    .channel-icon.web i { color: #8b5cf6; }
+
+    /* Unread dot on channel icon */
+    .channel-icon .unread-dot {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      width: 10px;
+      height: 10px;
+      background: #3b82f6;
+      border-radius: 50%;
+      border: 2px solid white;
+    }
+
+    .card-name {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 14px;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Waiting Badge - THE MAIN ATTENTION GRABBER */
+    .waiting-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .waiting-badge i {
+      width: 14px;
+      height: 14px;
+    }
+
+    .waiting-badge.critical {
+      background: #fef2f2;
+      color: #dc2626;
+      animation: pulse-critical 2s infinite;
+    }
+
+    .waiting-badge.urgent {
+      background: #fff7ed;
+      color: #ea580c;
+    }
+
+    .waiting-badge.normal {
+      background: #f0fdf4;
+      color: #16a34a;
+    }
+
+    @keyframes pulse-critical {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    /* Message Preview */
+    .message-preview {
+      font-size: 13px;
+      color: #64748b;
+      line-height: 1.45;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* ==================== */
+    /* EXPANDED CARD (HOVER) */
+    /* ==================== */
+
+    .card-expanded {
+      max-height: 0;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .card:hover .card-expanded {
+      max-height: 80px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    .expanded-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .action-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .action-btn i {
+      width: 16px;
+      height: 16px;
+    }
+
+    .action-btn.primary {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .action-btn.primary:hover {
+      background: #2563eb;
+    }
+
+    .action-btn.secondary {
+      background: #f1f5f9;
+      color: #475569;
+    }
+
+    .action-btn.secondary:hover {
+      background: #e2e8f0;
+    }
+
+  </style>
+</head>
+<body>
+  <h1>Pipeline Cards v3 - Ultra Clean</h1>
+  <p class="subtitle">Only 5 elements: Channel icon, Name, Waiting badge, Message preview, Unread dot. Hover to expand.</p>
+
+  <div class="pipeline">
+    <!-- NOVI Column -->
+    <div class="column">
+      <div class="column-header">
+        <span class="column-title">Novi</span>
+        <span class="column-count">5</span>
+      </div>
+      <div class="cards">
+
+        <!-- Critical - 5h waiting -->
+        <div class="card">
+          <div class="card-header">
+            <div class="channel-icon messenger">
+              <i data-lucide="message-circle"></i>
+              <div class="unread-dot"></div>
+            </div>
+            <div class="card-name">Никола Поповић</div>
+            <div class="waiting-badge critical">
+              <i data-lucide="clock"></i>
+              5h
+            </div>
+          </div>
+          <div class="message-preview">
+            "Zdravo! Zanima me putovanje na Maldive za dvoje, imate li nešto za mart?"
+          </div>
+          <div class="card-expanded">
+            <div class="expanded-actions">
+              <button class="action-btn primary">
+                <i data-lucide="message-square"></i>
+                Odgovori
+              </button>
+              <button class="action-btn secondary">
+                <i data-lucide="external-link"></i>
+                Otvori
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Urgent - 3h waiting -->
+        <div class="card">
+          <div class="card-header">
+            <div class="channel-icon instagram">
+              <i data-lucide="instagram"></i>
+              <div class="unread-dot"></div>
+            </div>
+            <div class="card-name">Marija Jovanović</div>
+            <div class="waiting-badge urgent">
+              <i data-lucide="clock"></i>
+              3h
+            </div>
+          </div>
+          <div class="message-preview">
+            "Hej! Videla sam vašu objavu za Bali, koje su cene za maj?"
+          </div>
+          <div class="card-expanded">
+            <div class="expanded-actions">
+              <button class="action-btn primary">
+                <i data-lucide="message-square"></i>
+                Odgovori
+              </button>
+              <button class="action-btn secondary">
+                <i data-lucide="external-link"></i>
+                Otvori
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Normal - 45m waiting -->
+        <div class="card">
+          <div class="card-header">
+            <div class="channel-icon email">
+              <i data-lucide="mail"></i>
+              <div class="unread-dot"></div>
+            </div>
+            <div class="card-name">Petar Nikolić</div>
+            <div class="waiting-badge normal">
+              <i data-lucide="clock"></i>
+              45m
+            </div>
+          </div>
+          <div class="message-preview">
+            "Poštovani, molim vas za ponudu za Egipat, all inclusive, 7 noći, dvoje odraslih i jedno dete..."
+          </div>
+          <div class="card-expanded">
+            <div class="expanded-actions">
+              <button class="action-btn primary">
+                <i data-lucide="message-square"></i>
+                Odgovori
+              </button>
+              <button class="action-btn secondary">
+                <i data-lucide="external-link"></i>
+                Otvori
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- WhatsApp - 20m -->
+        <div class="card">
+          <div class="card-header">
+            <div class="channel-icon whatsapp">
+              <i data-lucide="message-circle"></i>
+              <div class="unread-dot"></div>
+            </div>
+            <div class="card-name">Ana Đorđević</div>
+            <div class="waiting-badge normal">
+              <i data-lucide="clock"></i>
+              20m
+            </div>
+          </div>
+          <div class="message-preview">
+            "Dobar dan, interesuje me Turska za letovanje, jun mesec"
+          </div>
+          <div class="card-expanded">
+            <div class="expanded-actions">
+              <button class="action-btn primary">
+                <i data-lucide="message-square"></i>
+                Odgovori
+              </button>
+              <button class="action-btn secondary">
+                <i data-lucide="external-link"></i>
+                Otvori
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Web - No waiting badge (already responded) -->
+        <div class="card">
+          <div class="card-header">
+            <div class="channel-icon web">
+              <i data-lucide="globe"></i>
+            </div>
+            <div class="card-name">Milan Stojanović</div>
+          </div>
+          <div class="message-preview">
+            "Kontakt forma sa sajta - zainteresovan za grupna putovanja"
+          </div>
+          <div class="card-expanded">
+            <div class="expanded-actions">
+              <button class="action-btn primary">
+                <i data-lucide="message-square"></i>
+                Odgovori
+              </button>
+              <button class="action-btn secondary">
+                <i data-lucide="external-link"></i>
+                Otvori
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- KONTAKTIRAN Column -->
+    <div class="column">
+      <div class="column-header">
+        <span class="column-title">Kontaktiran</span>
+        <span class="column-count">2</span>
+      </div>
+      <div class="cards">
+
+        <!-- No waiting - already in conversation -->
+        <div class="card">
+          <div class="card-header">
+            <div class="channel-icon email">
+              <i data-lucide="mail"></i>
+            </div>
+            <div class="card-name">nikola popovic</div>
+          </div>
+          <div class="message-preview">
+            "INCOMING3 - On Tue, Jan 20, 2026 at 8:51 PM Nikola Popovic wrote..."
+          </div>
+          <div class="card-expanded">
+            <div class="expanded-actions">
+              <button class="action-btn primary">
+                <i data-lucide="message-square"></i>
+                Odgovori
+              </button>
+              <button class="action-btn secondary">
+                <i data-lucide="external-link"></i>
+                Otvori
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Customer replied - needs attention -->
+        <div class="card">
+          <div class="card-header">
+            <div class="channel-icon messenger">
+              <i data-lucide="message-circle"></i>
+              <div class="unread-dot"></div>
+            </div>
+            <div class="card-name">Jelena Marković</div>
+            <div class="waiting-badge urgent">
+              <i data-lucide="clock"></i>
+              1h
+            </div>
+          </div>
+          <div class="message-preview">
+            "Super, hvala na ponudi! Samo da proverim sa mužem i javljam vam se"
+          </div>
+          <div class="card-expanded">
+            <div class="expanded-actions">
+              <button class="action-btn primary">
+                <i data-lucide="message-square"></i>
+                Odgovori
+              </button>
+              <button class="action-btn secondary">
+                <i data-lucide="external-link"></i>
+                Otvori
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- POSLATA PONUDA Column -->
+    <div class="column">
+      <div class="column-header">
+        <span class="column-title">Poslata ponuda</span>
+        <span class="column-count">1</span>
+      </div>
+      <div class="cards">
+
+        <div class="card">
+          <div class="card-header">
+            <div class="channel-icon email">
+              <i data-lucide="mail"></i>
+              <div class="unread-dot"></div>
+            </div>
+            <div class="card-name">Stefan Ilić</div>
+            <div class="waiting-badge urgent">
+              <i data-lucide="clock"></i>
+              2h
+            </div>
+          </div>
+          <div class="message-preview">
+            "Da li možete da spustite cenu za 10%? Imamo budžet od €5,000 za ceo tim..."
+          </div>
+          <div class="card-expanded">
+            <div class="expanded-actions">
+              <button class="action-btn primary">
+                <i data-lucide="message-square"></i>
+                Odgovori
+              </button>
+              <button class="action-btn secondary">
+                <i data-lucide="external-link"></i>
+                Otvori
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

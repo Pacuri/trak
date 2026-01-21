@@ -1,14 +1,16 @@
 'use client'
 
 import { DragDropContext, DropResult } from '@hello-pangea/dnd'
-import type { PipelineStage, Lead, User } from '@/types'
+import type { PipelineStage, User } from '@/types'
+import type { PipelineCardLead } from '@/hooks/use-pipeline'
 import PipelineColumn from './PipelineColumn'
 
 interface PipelineBoardProps {
   stages: PipelineStage[]
-  leadsByStage: Record<string, Lead[]>
+  leadsByStage: Record<string, PipelineCardLead[]>
   onMoveLead: (leadId: string, newStageId: string | null) => Promise<void>
   onLeadClick: (leadId: string) => void
+  onReply?: (leadId: string) => void
   teamMembers?: User[]
   onAssign?: (leadId: string, userId: string | null) => void
   allUserIds?: string[]
@@ -19,6 +21,7 @@ export default function PipelineBoard({
   leadsByStage,
   onMoveLead,
   onLeadClick,
+  onReply,
   teamMembers = [],
   onAssign,
   allUserIds = [],
@@ -42,6 +45,7 @@ export default function PipelineBoard({
             stage={stage}
             leads={leadsByStage[stage.id] || []}
             onLeadClick={onLeadClick}
+            onReply={onReply}
             teamMembers={teamMembers}
             onAssign={onAssign}
             allUserIds={allUserIds}

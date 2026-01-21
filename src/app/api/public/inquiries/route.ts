@@ -18,6 +18,7 @@ interface CreateInquiryBody {
   selected_date?: string | null
   selected_room_type_id?: string | null
   selected_meal_plan?: string | null
+  tracking_id?: string | null  // From sent offer link for conversion tracking
 }
 
 // POST /api/public/inquiries
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
       selected_date,
       selected_room_type_id,
       selected_meal_plan,
+      tracking_id,
     } = body
 
     // Validate required fields
@@ -74,6 +76,21 @@ export async function POST(request: NextRequest) {
         { error: 'Agencija nije pronađena' },
         { status: 404 }
       )
+    }
+
+    // If tracking_id is provided, update the lead_sent_offers record
+    // to mark that the client submitted an inquiry from the sent link
+    if (tracking_id) {
+      const { error: trackingError } = await supabase
+        .from('lead_sent_offers')
+        .update({ inquiry_submitted_at: new Date().toISOString() })
+        .eq('tracking_id', tracking_id)
+        .is('inquiry_submitted_at', null)  // Only update if not already set
+
+      if (trackingError) {
+        console.error('Error updating tracking record:', trackingError)
+        // Don't fail the request - tracking is secondary
+      }
     }
 
     // Handle package inquiry (use custom_inquiries table)

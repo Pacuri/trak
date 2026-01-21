@@ -1,13 +1,15 @@
 'use client'
 
 import { Droppable, Draggable } from '@hello-pangea/dnd'
-import type { Lead, PipelineStage, User } from '@/types'
-import PipelineCard from './PipelineCard'
+import type { PipelineStage, User } from '@/types'
+import type { PipelineCardLead } from '@/hooks/use-pipeline'
+import PipelineCardV2 from './PipelineCardV2'
 
 interface PipelineColumnProps {
   stage: PipelineStage
-  leads: Lead[]
+  leads: PipelineCardLead[]
   onLeadClick: (leadId: string) => void
+  onReply?: (leadId: string) => void
   teamMembers?: User[]
   onAssign?: (leadId: string, userId: string | null) => void
   allUserIds?: string[]
@@ -40,7 +42,7 @@ function getStageColor(stageName: string): string {
   }
 }
 
-export default function PipelineColumn({ stage, leads, onLeadClick, teamMembers = [], onAssign, allUserIds = [] }: PipelineColumnProps) {
+export default function PipelineColumn({ stage, leads, onLeadClick, onReply, teamMembers = [], onAssign, allUserIds = [] }: PipelineColumnProps) {
   const totalValue = leads.reduce((sum, lead) => sum + (lead.value || 0), 0)
   const stageColor = getStageColor(stage.name)
 
@@ -98,9 +100,10 @@ export default function PipelineColumn({ stage, leads, onLeadClick, teamMembers 
                           : 'none',
                       }}
                     >
-                        <PipelineCard
+                        <PipelineCardV2
                           lead={lead}
                           onClick={() => onLeadClick(lead.id)}
+                          onReply={onReply}
                           teamMembers={teamMembers}
                           onAssign={onAssign}
                           allUserIds={allUserIds}
