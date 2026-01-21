@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>U Procesu Icon Options</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: white;
+      padding: 40px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #94a3b8;
+      margin-bottom: 40px;
+    }
+    .category {
+      margin-bottom: 40px;
+    }
+    .category h2 {
+      font-size: 16px;
+      color: #3b82f6;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #334155;
+    }
+    .icons-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .icon-card {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.2s;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+    .icon-card:hover {
+      background: #334155;
+      border-color: #3b82f6;
+      transform: translateY(-2px);
+    }
+    .icon-card i {
+      width: 28px;
+      height: 28px;
+      color: #e2e8f0;
+    }
+    .icon-card span {
+      font-size: 11px;
+      color: #94a3b8;
+      text-align: center;
+    }
+    .preview {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+    .preview-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: #334155;
+      border-radius: 10px;
+    }
+    .preview-item.active {
+      background: #3b82f6;
+    }
+    .preview-item i {
+      width: 20px;
+      height: 20px;
+    }
+    .preview-item span {
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .badge {
+      background: #f97316;
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: 8px;
+    }
+    .recommended {
+      border-color: #22c55e !important;
+      position: relative;
+    }
+    .recommended::after {
+      content: 'RECOMMENDED';
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      background: #22c55e;
+      color: white;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Icon Options for "U Procesu"</h1>
+  <p class="subtitle">Click any icon to see how it would look in the sidebar. Lucide icon names shown below each.</p>
+
+  <!-- Process / Flow Icons -->
+  <div class="category">
+    <h2>Process / Flow Icons (Best for "In Process")</h2>
+    <div class="icons-grid">
+      <div class="icon-card recommended" onclick="setIcon('loader')">
+        <i data-lucide="loader"></i>
+        <span>Loader</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('loader-circle')">
+        <i data-lucide="loader-circle"></i>
+        <span>LoaderCircle</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('rotate-cw')">
+        <i data-lucide="rotate-cw"></i>
+        <span>RotateCw</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('refresh-cw')">
+        <i data-lucide="refresh-cw"></i>
+        <span>RefreshCw</span>
+      </div>
+      <div class="icon-card recommended" onclick="setIcon('circle-dot')">
+        <i data-lucide="circle-dot"></i>
+        <span>CircleDot</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('circle-dot-dashed')">
+        <i data-lucide="circle-dot-dashed"></i>
+        <span>CircleDotDashed</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('timer')">
+        <i data-lucide="timer"></i>
+        <span>Timer</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('hourglass')">
+        <i data-lucide="hourglass"></i>
+        <span>Hourglass</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('clock')">
+        <i data-lucide="clock"></i>
+        <span>Clock</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('alarm-clock')">
+        <i data-lucide="alarm-clock"></i>
+        <span>AlarmClock</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pipeline / Kanban Icons -->
+  <div class="category">
+    <h2>Pipeline / Kanban Style</h2>
+    <div class="icons-grid">
+      <div class="icon-card recommended" onclick="setIcon('kanban')">
+        <i data-lucide="kanban"></i>
+        <span>Kanban</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('columns-3')">
+        <i data-lucide="columns-3"></i>
+        <span>Columns3</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('layout-grid')">
+        <i data-lucide="layout-grid"></i>
+        <span>LayoutGrid</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('layout-list')">
+        <i data-lucide="layout-list"></i>
+        <span>LayoutList</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('rows-3')">
+        <i data-lucide="rows-3"></i>
+        <span>Rows3</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('gallery-horizontal')">
+        <i data-lucide="gallery-horizontal"></i>
+        <span>GalleryHorizontal</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('panels-top-left')">
+        <i data-lucide="panels-top-left"></i>
+        <span>PanelsTopLeft</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('square-stack')">
+        <i data-lucide="square-stack"></i>
+        <span>SquareStack</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity / Progress Icons -->
+  <div class="category">
+    <h2>Activity / Progress</h2>
+    <div class="icons-grid">
+      <div class="icon-card recommended" onclick="setIcon('activity')">
+        <i data-lucide="activity"></i>
+        <span>Activity</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('trending-up')">
+        <i data-lucide="trending-up"></i>
+        <span>TrendingUp</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('signal')">
+        <i data-lucide="signal"></i>
+        <span>Signal</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('bar-chart-3')">
+        <i data-lucide="bar-chart-3"></i>
+        <span>BarChart3</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('chart-line')">
+        <i data-lucide="chart-line"></i>
+        <span>ChartLine</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('gauge')">
+        <i data-lucide="gauge"></i>
+        <span>Gauge</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('circle-gauge')">
+        <i data-lucide="circle-gauge"></i>
+        <span>CircleGauge</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('percent')">
+        <i data-lucide="percent"></i>
+        <span>Percent</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arrow / Movement Icons -->
+  <div class="category">
+    <h2>Arrow / Movement</h2>
+    <div class="icons-grid">
+      <div class="icon-card recommended" onclick="setIcon('arrow-right-circle')">
+        <i data-lucide="arrow-right-circle"></i>
+        <span>ArrowRightCircle</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('move-right')">
+        <i data-lucide="move-right"></i>
+        <span>MoveRight</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('chevrons-right')">
+        <i data-lucide="chevrons-right"></i>
+        <span>ChevronsRight</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('fast-forward')">
+        <i data-lucide="fast-forward"></i>
+        <span>FastForward</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('play')">
+        <i data-lucide="play"></i>
+        <span>Play</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('play-circle')">
+        <i data-lucide="play-circle"></i>
+        <span>PlayCircle</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('skip-forward')">
+        <i data-lucide="skip-forward"></i>
+        <span>SkipForward</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('iteration-cw')">
+        <i data-lucide="iteration-cw"></i>
+        <span>IterationCw</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Workflow / Git Style -->
+  <div class="category">
+    <h2>Workflow / Git Style</h2>
+    <div class="icons-grid">
+      <div class="icon-card" onclick="setIcon('git-pull-request-draft')">
+        <i data-lucide="git-pull-request-draft"></i>
+        <span>GitPullRequestDraft (current)</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('git-branch')">
+        <i data-lucide="git-branch"></i>
+        <span>GitBranch</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('git-merge')">
+        <i data-lucide="git-merge"></i>
+        <span>GitMerge</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('git-pull-request')">
+        <i data-lucide="git-pull-request"></i>
+        <span>GitPullRequest</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('git-commit-horizontal')">
+        <i data-lucide="git-commit-horizontal"></i>
+        <span>GitCommitHorizontal</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('workflow')">
+        <i data-lucide="workflow"></i>
+        <span>Workflow</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('waypoints')">
+        <i data-lucide="waypoints"></i>
+        <span>Waypoints</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('route')">
+        <i data-lucide="route"></i>
+        <span>Route</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task / List Icons -->
+  <div class="category">
+    <h2>Task / List Style</h2>
+    <div class="icons-grid">
+      <div class="icon-card recommended" onclick="setIcon('list-todo')">
+        <i data-lucide="list-todo"></i>
+        <span>ListTodo</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('clipboard-list')">
+        <i data-lucide="clipboard-list"></i>
+        <span>ClipboardList</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('list-checks')">
+        <i data-lucide="list-checks"></i>
+        <span>ListChecks</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('check-square')">
+        <i data-lucide="check-square"></i>
+        <span>CheckSquare</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('square-check')">
+        <i data-lucide="square-check"></i>
+        <span>SquareCheck</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('list-filter')">
+        <i data-lucide="list-filter"></i>
+        <span>ListFilter</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('filter')">
+        <i data-lucide="filter"></i>
+        <span>Filter</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('sliders-horizontal')">
+        <i data-lucide="sliders-horizontal"></i>
+        <span>SlidersHorizontal</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- People / User Icons -->
+  <div class="category">
+    <h2>People / User Related</h2>
+    <div class="icons-grid">
+      <div class="icon-card" onclick="setIcon('users')">
+        <i data-lucide="users"></i>
+        <span>Users</span>
+      </div>
+      <div class="icon-card recommended" onclick="setIcon('user-cog')">
+        <i data-lucide="user-cog"></i>
+        <span>UserCog</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('user-check')">
+        <i data-lucide="user-check"></i>
+        <span>UserCheck</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('contact')">
+        <i data-lucide="contact"></i>
+        <span>Contact</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('handshake')">
+        <i data-lucide="handshake"></i>
+        <span>Handshake</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('person-standing')">
+        <i data-lucide="person-standing"></i>
+        <span>PersonStanding</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('briefcase')">
+        <i data-lucide="briefcase"></i>
+        <span>Briefcase</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('badge')">
+        <i data-lucide="badge"></i>
+        <span>Badge</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unique / Abstract Icons -->
+  <div class="category">
+    <h2>Unique / Abstract</h2>
+    <div class="icons-grid">
+      <div class="icon-card recommended" onclick="setIcon('sparkles')">
+        <i data-lucide="sparkles"></i>
+        <span>Sparkles</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('zap')">
+        <i data-lucide="zap"></i>
+        <span>Zap</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('flame')">
+        <i data-lucide="flame"></i>
+        <span>Flame</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('target')">
+        <i data-lucide="target"></i>
+        <span>Target</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('crosshair')">
+        <i data-lucide="crosshair"></i>
+        <span>Crosshair</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('focus')">
+        <i data-lucide="focus"></i>
+        <span>Focus</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('radar')">
+        <i data-lucide="radar"></i>
+        <span>Radar</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('orbit')">
+        <i data-lucide="orbit"></i>
+        <span>Orbit</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('atom')">
+        <i data-lucide="atom"></i>
+        <span>Atom</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('satellite')">
+        <i data-lucide="satellite"></i>
+        <span>Satellite</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('compass')">
+        <i data-lucide="compass"></i>
+        <span>Compass</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('navigation')">
+        <i data-lucide="navigation"></i>
+        <span>Navigation</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Folder / Container Icons -->
+  <div class="category">
+    <h2>Folder / Container</h2>
+    <div class="icons-grid">
+      <div class="icon-card" onclick="setIcon('folder-open')">
+        <i data-lucide="folder-open"></i>
+        <span>FolderOpen</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('folder-kanban')">
+        <i data-lucide="folder-kanban"></i>
+        <span>FolderKanban</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('folder-cog')">
+        <i data-lucide="folder-cog"></i>
+        <span>FolderCog</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('archive')">
+        <i data-lucide="archive"></i>
+        <span>Archive</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('box')">
+        <i data-lucide="box"></i>
+        <span>Box</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('package')">
+        <i data-lucide="package"></i>
+        <span>Package</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('layers')">
+        <i data-lucide="layers"></i>
+        <span>Layers</span>
+      </div>
+      <div class="icon-card" onclick="setIcon('database')">
+        <i data-lucide="database"></i>
+        <span>Database</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview at bottom -->
+  <div class="preview">
+    <div class="preview-item">
+      <i data-lucide="inbox"></i>
+      <span>Novi Upiti</span>
+    </div>
+    <div class="preview-item active">
+      <i id="preview-icon" data-lucide="git-pull-request-draft"></i>
+      <span>U Procesu</span>
+      <span class="badge">3</span>
+    </div>
+    <div class="preview-item">
+      <i data-lucide="users"></i>
+      <span>Aktivni</span>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    function setIcon(iconName) {
+      const previewIcon = document.getElementById('preview-icon');
+      previewIcon.setAttribute('data-lucide', iconName);
+      lucide.createIcons();
+
+      // Show toast with icon name
+      const toast = document.createElement('div');
+      toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#22c55e;color:white;padding:12px 20px;border-radius:8px;font-weight:600;z-index:1000;';
+      toast.textContent = `Selected: ${iconName}`;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+    }
+  </script>
+</body>
+</html>

@@ -194,7 +194,7 @@ async function processMessagingEvent(
           .from('meta_conversations')
           .update({
             lead_id: lead.id,
-            status: 'active',
+            status: 'accepted',
             last_message_at: new Date(timestamp).toISOString(),
             updated_at: new Date().toISOString(),
           })
@@ -237,7 +237,7 @@ async function processMessagingEvent(
             .from('meta_conversations')
             .update({
               lead_id: lead.id,
-              status: 'active',
+              status: 'accepted',
             })
             .eq('id', newConversation.id)
 

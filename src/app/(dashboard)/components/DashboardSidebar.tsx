@@ -15,7 +15,7 @@ import {
   PlaneTakeoff,
   Package,
   Inbox,
-  GitPullRequestDraft,
+  UserCog,
 } from 'lucide-react'
 
 // Navigation item type
@@ -33,11 +33,11 @@ const primaryNavigation: NavItem[] = [
   { name: 'Paketi', href: '/dashboard/packages', icon: Package },
 ]
 
-// Prodaja (Sales) Section
-const prodajaNavigation: NavItem[] = [
-  { name: 'Novi upiti', href: '/dashboard/inquiries', icon: Inbox },
-  { name: 'U obradi', href: '/dashboard/pipeline', icon: GitPullRequestDraft, badge: true },
-  { name: 'Klijenti', href: '/dashboard/leads', icon: Users },
+// Klijenti (Clients) Section
+const klijentiNavigation: NavItem[] = [
+  { name: 'Novi Upiti', href: '/dashboard/inquiries', icon: Inbox },
+  { name: 'U Procesu', href: '/dashboard/pipeline', icon: UserCog, badge: true },
+  { name: 'Aktivni', href: '/dashboard/leads', icon: Users },
 ]
 
 // Booking Section
@@ -157,13 +157,13 @@ export default function DashboardSidebar({ leadsCount = 0 }: DashboardSidebarPro
               ))}
             </div>
 
-            {/* Prodaja Section */}
+            {/* Klijenti Section */}
             <div className="mb-4">
               <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/40">
-                Prodaja
+                Klijenti
               </p>
               <div className="space-y-1">
-                {prodajaNavigation.map((item) => (
+                {klijentiNavigation.map((item) => (
                   <NavItemComponent key={item.name} item={item} />
                 ))}
               </div>
