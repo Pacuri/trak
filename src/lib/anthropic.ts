@@ -203,7 +203,7 @@ export async function parsePdfDocument(
     
     const stream = await anthropic.messages.stream({
       model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 16000,
+      max_tokens: 64000,
       messages: [
         {
           role: 'user',

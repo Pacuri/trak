@@ -679,7 +679,7 @@ Deno.serve(async (req: Request) => {
 
     const stream = await anthropic.messages.stream({
       model: "claude-sonnet-4-5-20250929",
-      max_tokens: 16000,
+      max_tokens: 64000,
       messages: [
         {
           role: "user",
@@ -739,7 +739,7 @@ Deno.serve(async (req: Request) => {
     // Find the JSON object
     const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error("Raw response:", textContent.text.substring(0, 500));
+      console.error("Raw response:", fullResponse.substring(0, 500));
       throw new Error("No JSON found in response");
     }
 
