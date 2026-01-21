@@ -137,10 +137,10 @@ export function ImportReviewScreen({
         transport_type: parseResult.transport.transport_type || parseResult.transport.type,
         // Handle both 'routes' (Claude output) and 'prices' (legacy) field names
         prices: (parseResult.transport.routes || parseResult.transport.prices || []).map((p: Record<string, unknown>) => ({
-          city: p.departure_city || p.city,
-          location: p.departure_point || p.location,
-          price: p.adult_price || p.price,
-          child_price: p.child_price,
+          city: String(p.departure_city || p.city || ''),
+          location: p.departure_point || p.location ? String(p.departure_point || p.location) : undefined,
+          price: Number(p.adult_price || p.price || 0),
+          child_price: p.child_price ? Number(p.child_price) : undefined,
         })),
       } : undefined,
       // Enhanced fields
