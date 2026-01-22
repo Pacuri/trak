@@ -109,7 +109,16 @@ export async function POST(request: NextRequest) {
     try {
       // Upload file to Supabase Storage
       const fileBuffer = await file.arrayBuffer()
-      const fileName = `${organizationId}/${importRecord.id}/${file.name}`
+
+      // Sanitize filename for Supabase Storage (no spaces, special chars)
+      const fileExtension = file.name.split('.').pop() || 'pdf'
+      const sanitizedName = file.name
+        .replace(/\.[^/.]+$/, '') // Remove extension
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove accents
+        .replace(/[^a-zA-Z0-9-_]/g, '_') // Replace special chars with underscore
+        .replace(/_+/g, '_') // Collapse multiple underscores
+        .substring(0, 100) // Limit length
+      const fileName = `${organizationId}/${importRecord.id}/${sanitizedName}.${fileExtension}`
 
       const { error: uploadError } = await supabase.storage
         .from('documents')
