@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -26,7 +26,7 @@ interface InvitationData {
   }
 }
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const inviteToken = searchParams.get('invite')
@@ -296,5 +296,17 @@ export default function RegisterPage() {
         </Link>
       </p>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 text-[#3B82F6] animate-spin" />
+      </div>
+    }>
+      <RegisterForm />
+    </Suspense>
   )
 }
