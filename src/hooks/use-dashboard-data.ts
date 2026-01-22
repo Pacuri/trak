@@ -119,7 +119,7 @@ export function useDashboardData() {
         // Pending custom inquiries (from qualification form)
         supabase
           .from('custom_inquiries')
-          .select('id, customer_name, customer_phone, customer_email, customer_note, qualification_data, created_at, source')
+          .select('id, customer_name, customer_phone, customer_email, customer_note, qualification_data, created_at, source, lead_id')
           .eq('organization_id', organizationId)
           .eq('status', 'new')
           .order('created_at', { ascending: true })
@@ -235,6 +235,7 @@ export function useDashboardData() {
           priority: getInquiryPriority(inquiry.created_at),
           wait_hours: hoursSince(inquiry.created_at),
           source: inquiry.source,
+          lead_id: inquiry.lead_id,
         }))
 
       // Process attention items

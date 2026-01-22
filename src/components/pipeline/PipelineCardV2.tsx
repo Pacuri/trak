@@ -19,6 +19,7 @@ import { getInitials, getAvatarGradient } from '@/lib/avatar-utils'
 
 interface PipelineCardV2Props {
   lead: PipelineCardLead
+  stageName?: string
   onClick: () => void
   onReply?: (leadId: string) => void
   teamMembers?: User[]
