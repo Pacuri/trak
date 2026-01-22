@@ -29,13 +29,13 @@ export interface DocumentParseResult {
   supplier_name?: string
   currency: Currency
   business_model: BusinessModel
-  
+
   // Parsed hotels/packages
   packages: ParsedPackage[]
-  
+
   // Shared transport (if present)
   transport?: ParsedTransport
-  
+
   // Enhanced fields
   supplements?: ParsedSupplement[]
   mandatory_fees?: ParsedMandatoryFee[]
@@ -43,7 +43,8 @@ export interface DocumentParseResult {
   policies?: ParsedPolicies
   included_services?: string[]
   important_notes?: ParsedImportantNote[]
-  
+  tax_disclaimer?: string
+
   // Parsing confidence
   confidence: {
     overall: number
@@ -386,7 +387,7 @@ export interface SaveImportedPackagesRequest {
   business_model: BusinessModel
   margin_percent?: number
   currency?: Currency // User-specified document currency
-  
+
   // Enhanced fields
   supplements?: ParsedSupplement[]
   mandatory_fees?: ParsedMandatoryFee[]
@@ -394,6 +395,7 @@ export interface SaveImportedPackagesRequest {
   policies?: ParsedPolicies
   included_services?: string[]
   important_notes?: ParsedImportantNote[]
+  tax_disclaimer?: string
 }
 
 export interface SaveImportedPackagesResponse {

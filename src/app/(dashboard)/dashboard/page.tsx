@@ -5,13 +5,12 @@ import { RefreshCw } from 'lucide-react'
 import { useDashboardData } from '@/hooks/use-dashboard-data'
 import { useUser } from '@/hooks/use-user'
 import { useChat } from '@/contexts/ChatContext'
-import { InquiriesWaiting } from '@/components/dashboard/InquiriesWaiting'
 import { NewEmails } from '@/components/dashboard/NewEmails'
 import { AttentionRequired } from '@/components/dashboard/AttentionRequired'
 import { TodaysDepartures } from '@/components/dashboard/TodaysDepartures'
 import { CapacityOverview } from '@/components/dashboard/CapacityOverview'
-import { InquirySlideOver } from '@/components/dashboard/InquirySlideOver'
 import { InboxWidget } from '@/components/dashboard/InboxWidget'
+import { InquirySlideOver } from '@/components/dashboard/InquirySlideOver'
 import type { PendingInquiry } from '@/types/dashboard'
 
 // Format current date in Serbian
@@ -34,26 +33,13 @@ export default function DashboardPage() {
   const { user } = useUser()
   const dashboardData = useDashboardData()
   const { openChat, refreshInbox } = useChat()
-  const [selectedInquiry, setSelectedInquiry] = useState<PendingInquiry | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [selectedInquiry, setSelectedInquiry] = useState<PendingInquiry | null>(null)
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
     await dashboardData.refresh()
     setIsRefreshing(false)
-  }
-
-  const handleInquiryClick = (inquiry: PendingInquiry) => {
-    setSelectedInquiry(inquiry)
-  }
-
-  const handleInquiryClose = () => {
-    setSelectedInquiry(null)
-  }
-
-  const handleInquiryResponded = () => {
-    setSelectedInquiry(null)
-    dashboardData.refresh()
   }
 
   // Handler for when email is accepted - opens the chat with the new lead
@@ -67,6 +53,23 @@ export default function DashboardPage() {
     if (leadId) {
       openChat(leadId)
     }
+  }
+
+  // Handler for opening inquiry slideover
+  const handleOpenInquiry = (inquiry: PendingInquiry) => {
+    setSelectedInquiry(inquiry)
+  }
+
+  // Handler for closing inquiry slideover
+  const handleCloseInquiry = () => {
+    setSelectedInquiry(null)
+  }
+
+  // Handler for when inquiry is responded
+  const handleInquiryResponded = () => {
+    setSelectedInquiry(null)
+    dashboardData.refresh()
+    refreshInbox()
   }
 
   // Get first name for greeting
@@ -103,24 +106,15 @@ export default function DashboardPage() {
 
         {/* Main Content Grid - 4 columns on desktop */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:min-h-[520px]">
-          {/* Column 1: Čeka odgovor (Inbox) */}
-          <InboxWidget onOpenChat={openChat} />
-
-          {/* Column 2: Upiti čekaju */}
-          <InquiriesWaiting
-            inquiries={dashboardData.pending_inquiries}
-            loading={dashboardData.loading}
-            onInquiryClick={handleInquiryClick}
-          />
+          {/* Column 1-2: Čeka odgovor (Inbox) - includes website inquiries - takes 2 columns */}
+          <div className="lg:col-span-2">
+            <InboxWidget onOpenChat={openChat} onOpenInquiry={handleOpenInquiry} />
+          </div>
 
           {/* Column 3: Zahteva pažnju */}
           <AttentionRequired
             sections={dashboardData.attention}
             loading={dashboardData.loading}
-            onInquiryClick={(id) => {
-              const inquiry = dashboardData.pending_inquiries.find(i => i.id === id)
-              if (inquiry) handleInquiryClick(inquiry)
-            }}
           />
 
           {/* Column 4: Novi emailovi */}
@@ -151,11 +145,11 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Inquiry Slide Over */}
+      {/* Inquiry Slide Over for Trak inquiries */}
       <InquirySlideOver
         inquiry={selectedInquiry}
         isOpen={!!selectedInquiry}
-        onClose={handleInquiryClose}
+        onClose={handleCloseInquiry}
         onResponded={handleInquiryResponded}
       />
     </div>

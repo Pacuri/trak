@@ -31,9 +31,15 @@ export default function DashboardHeader({ user, title, subtitle }: DashboardHead
   }, [])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    try {
+      await supabase.auth.signOut()
+      // Force a hard redirect to clear any cached state
+      window.location.href = '/login'
+    } catch (error) {
+      console.error('Logout error:', error)
+      // Force redirect even on error
+      window.location.href = '/login'
+    }
   }
 
   const getInitials = (email: string) => {

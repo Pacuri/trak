@@ -354,7 +354,7 @@ function TransportPriceListCreateForm({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="npr. Transturist Albanija 2026"
+              placeholder="npr. Autobus Grčka leto 2026"
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
             />
           </div>
@@ -367,7 +367,7 @@ function TransportPriceListCreateForm({
               type="text"
               value={supplierName}
               onChange={(e) => setSupplierName(e.target.value)}
-              placeholder="npr. Transturist"
+              placeholder="npr. Prevoz Plus"
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
             />
           </div>

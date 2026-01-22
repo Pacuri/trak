@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lead Detail Page - Redesign Proposal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+
+  <!-- Top Navigation -->
+  <div class="bg-white border-b border-slate-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+      <div class="flex items-center justify-between h-14">
+        <button class="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors">
+          <i class="fas fa-arrow-left"></i>
+          <span class="font-medium">Nazad</span>
+        </button>
+        <div class="flex items-center gap-3">
+          <button class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+            <i class="fas fa-ellipsis-h"></i>
+          </button>
+          <button class="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2">
+            <i class="fas fa-archive"></i>
+            <span>Arhiviraj</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- LEFT COLUMN: Client Info + Activity -->
+      <div class="lg:col-span-1 space-y-6">
+
+        <!-- Client Card -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <!-- Header with Avatar -->
+          <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-8 text-center">
+            <div class="w-20 h-20 bg-white rounded-full mx-auto flex items-center justify-center text-2xl font-bold text-blue-600 shadow-lg">
+              NI
+            </div>
+            <h1 class="mt-4 text-xl font-bold text-white">Nikola</h1>
+            <p class="text-blue-100 text-sm">Kreiran 21. januar 2026.</p>
+          </div>
+
+          <!-- Contact Info -->
+          <div class="p-6 space-y-4">
+            <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+              <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <i class="fas fa-envelope text-blue-600"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs text-slate-500 uppercase tracking-wide">Email</p>
+                <p class="text-sm font-medium text-slate-900 truncate">popin.mail@gmail.com</p>
+              </div>
+              <button class="text-slate-400 hover:text-blue-600 transition-colors">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+              <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <i class="fas fa-phone text-green-600"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs text-slate-500 uppercase tracking-wide">Telefon</p>
+                <p class="text-sm font-medium text-slate-900">+381 64 123 4567</p>
+              </div>
+              <button class="text-slate-400 hover:text-green-600 transition-colors">
+                <i class="fab fa-whatsapp text-lg"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Status Controls -->
+          <div class="px-6 pb-6 space-y-3">
+            <div>
+              <label class="text-xs text-slate-500 uppercase tracking-wide block mb-1.5">Faza</label>
+              <select class="w-full px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <option>🆕 Novi</option>
+                <option selected>📞 Kontaktiran</option>
+                <option>📋 Ponuda poslata</option>
+                <option>✅ Rezervisano</option>
+                <option>❌ Izgubljeno</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-xs text-slate-500 uppercase tracking-wide block mb-1.5">Zadužen</label>
+              <select class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option>Nije dodeljeno</option>
+                <option>Marko Marković</option>
+                <option>Ana Anić</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Client Request Card -->
+        <div class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-200 overflow-hidden">
+          <div class="px-5 py-4 border-b border-amber-200 flex items-center gap-3">
+            <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+              <i class="fas fa-comment-dots text-amber-600"></i>
+            </div>
+            <h3 class="font-semibold text-amber-900">Poruka klijenta</h3>
+          </div>
+          <div class="p-5">
+            <p class="text-amber-900 leading-relaxed">"Želimo da rezervišemo letovanje u Albaniji za 4 osobe, 2 odraslih i 2 deteta (8 i 12 godina). Interesuje nas hotel sa 4 ili 5 zvezdica, polupansion. Termin jun ili jul 2026."</p>
+          </div>
+          <!-- Extracted Info Tags -->
+          <div class="px-5 pb-5 flex flex-wrap gap-2">
+            <span class="px-3 py-1 bg-white/60 rounded-full text-xs font-medium text-amber-800">📍 Albanija</span>
+            <span class="px-3 py-1 bg-white/60 rounded-full text-xs font-medium text-amber-800">👥 4 osobe</span>
+            <span class="px-3 py-1 bg-white/60 rounded-full text-xs font-medium text-amber-800">📅 Jun/Jul 2026</span>
+            <span class="px-3 py-1 bg-white/60 rounded-full text-xs font-medium text-amber-800">⭐ 4-5★</span>
+          </div>
+        </div>
+
+        <!-- Activity Timeline -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                <i class="fas fa-stream text-purple-600"></i>
+              </div>
+              <h3 class="font-semibold text-slate-900">Aktivnosti</h3>
+            </div>
+            <span class="text-xs text-slate-500">Poslednja: pre 2h</span>
+          </div>
+
+          <div class="p-5">
+            <div class="space-y-4">
+              <!-- Activity Item -->
+              <div class="flex gap-3">
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-paper-plane text-blue-600 text-xs"></i>
+                  </div>
+                  <div class="w-0.5 h-full bg-slate-200 mt-2"></div>
+                </div>
+                <div class="flex-1 pb-4">
+                  <p class="text-sm font-medium text-slate-900">Ponuda poslata</p>
+                  <p class="text-xs text-slate-500 mt-0.5">Hotel Horizont - 7 noći</p>
+                  <p class="text-xs text-slate-400 mt-1">Danas, 18:57</p>
+                </div>
+              </div>
+
+              <!-- Activity Item -->
+              <div class="flex gap-3">
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-eye text-green-600 text-xs"></i>
+                  </div>
+                  <div class="w-0.5 h-full bg-slate-200 mt-2"></div>
+                </div>
+                <div class="flex-1 pb-4">
+                  <p class="text-sm font-medium text-slate-900">Klijent otvorio ponudu</p>
+                  <p class="text-xs text-slate-500 mt-0.5">Hotel Horizont link kliknut</p>
+                  <p class="text-xs text-slate-400 mt-1">Danas, 19:12</p>
+                </div>
+              </div>
+
+              <!-- Activity Item -->
+              <div class="flex gap-3">
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-exchange-alt text-amber-600 text-xs"></i>
+                  </div>
+                </div>
+                <div class="flex-1">
+                  <p class="text-sm font-medium text-slate-900">Promena faze</p>
+                  <p class="text-xs text-slate-500 mt-0.5">Novi → Kontaktiran</p>
+                  <p class="text-xs text-slate-400 mt-1">21. jan 2026, 18:57</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: Communication -->
+      <div class="lg:col-span-2">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden h-full flex flex-col">
+
+          <!-- Chat Header -->
+          <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-comments text-indigo-600"></i>
+              </div>
+              <div>
+                <h3 class="font-semibold text-slate-900">Komunikacija</h3>
+                <p class="text-xs text-slate-500">Email prepiska sa klijentom</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2">
+                <i class="fas fa-sync-alt"></i>
+                Osveži
+              </button>
+            </div>
+          </div>
+
+          <!-- Messages Area -->
+          <div class="flex-1 p-6 overflow-y-auto bg-slate-50 space-y-4" style="min-height: 500px;">
+
+            <!-- Client Message (Left) -->
+            <div class="flex gap-3 max-w-[80%]">
+              <div class="w-8 h-8 bg-slate-300 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white">
+                N
+              </div>
+              <div>
+                <div class="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm border border-slate-200">
+                  <p class="text-sm text-slate-700">hdhddhh</p>
+                  <p class="text-sm text-slate-700 mt-1">jdjdjdh</p>
+                </div>
+                <p class="text-xs text-slate-400 mt-1.5 ml-1">pre 22 minute</p>
+              </div>
+            </div>
+
+            <!-- Agent Message (Right) - Text -->
+            <div class="flex gap-3 max-w-[80%] ml-auto flex-row-reverse">
+              <div class="w-8 h-8 bg-blue-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white">
+                A
+              </div>
+              <div>
+                <div class="bg-blue-600 rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm">
+                  <p class="text-sm text-white">Pozdrav! Hvala na interesovanju. Evo jedne odlične ponude za vas:</p>
+                </div>
+                <p class="text-xs text-slate-400 mt-1.5 mr-1 text-right">pre 17 minuta</p>
+              </div>
+            </div>
+
+            <!-- Agent Message (Right) - Offer Card -->
+            <div class="flex gap-3 max-w-[85%] ml-auto flex-row-reverse">
+              <div class="w-8 h-8 bg-blue-600 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white">
+                A
+              </div>
+              <div>
+                <!-- OFFER CARD -->
+                <div class="bg-white rounded-2xl rounded-tr-sm shadow-sm border border-slate-200 overflow-hidden w-80">
+                  <!-- Image Header -->
+                  <div class="relative h-32 bg-gradient-to-br from-blue-400 to-indigo-500">
+                    <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&h=200&fit=crop" class="w-full h-full object-cover" alt="Hotel">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    <div class="absolute top-3 right-3 bg-white/90 backdrop-blur px-2 py-1 rounded-lg text-xs font-semibold text-amber-600">
+                      ★★★★
+                    </div>
+                    <div class="absolute bottom-3 left-4 right-4">
+                      <h4 class="text-white font-bold text-lg drop-shadow">Hotel Horizont</h4>
+                      <p class="text-white/90 text-sm">📍 Drač, Albanija</p>
+                    </div>
+                  </div>
+
+                  <!-- Details -->
+                  <div class="p-4">
+                    <div class="grid grid-cols-4 gap-2 text-center mb-3">
+                      <div>
+                        <p class="text-[10px] text-slate-500 uppercase">Polazak</p>
+                        <p class="text-xs font-semibold text-slate-800">13. jun</p>
+                      </div>
+                      <div>
+                        <p class="text-[10px] text-slate-500 uppercase">Noći</p>
+                        <p class="text-xs font-semibold text-slate-800">7</p>
+                      </div>
+                      <div>
+                        <p class="text-[10px] text-slate-500 uppercase">Soba</p>
+                        <p class="text-xs font-semibold text-slate-800">1/2</p>
+                      </div>
+                      <div>
+                        <p class="text-[10px] text-slate-500 uppercase">Gosti</p>
+                        <p class="text-xs font-semibold text-slate-800">2</p>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 mb-3">
+                      <span class="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-lg">🍽️ Polupansion</span>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+                      <div>
+                        <p class="text-xs text-slate-500">Ukupno</p>
+                        <p class="text-xl font-bold text-slate-900">€1,240</p>
+                      </div>
+                      <a href="#" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
+                        Pogledaj →
+                      </a>
+                    </div>
+                  </div>
+
+                  <!-- Tracking indicator -->
+                  <div class="px-4 py-2 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                    <span class="text-xs text-slate-500">🔗 Link praćen</span>
+                    <span class="text-xs text-emerald-600 font-medium">✓ Otvoren 2x</span>
+                  </div>
+                </div>
+
+                <p class="text-xs text-slate-400 mt-1.5 mr-1 text-right">pre 17 minuta</p>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Message Input -->
+          <div class="p-4 border-t border-slate-100 bg-white">
+            <div class="flex items-end gap-3">
+              <div class="flex-1 relative">
+                <textarea
+                  placeholder="Unesite poruku..."
+                  rows="1"
+                  class="w-full px-4 py-3 bg-slate-100 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                ></textarea>
+              </div>
+              <button class="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors">
+                <i class="fas fa-paper-plane"></i>
+              </button>
+              <button class="p-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-colors" title="Pronađi ponudu">
+                <i class="fas fa-gift"></i>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>

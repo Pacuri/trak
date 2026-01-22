@@ -7,7 +7,7 @@ import type { AttentionSection, AttentionItem } from '@/types/dashboard'
 interface AttentionRequiredProps {
   sections: AttentionSection[]
   loading?: boolean
-  onInquiryClick: (id: string) => void
+  onInquiryClick?: (id: string) => void
 }
 
 const categoryConfig = {
@@ -37,15 +37,15 @@ const categoryConfig = {
   },
 }
 
-function AttentionItemRow({ 
-  item, 
-  onInquiryClick 
-}: { 
+function AttentionItemRow({
+  item,
+  onInquiryClick
+}: {
   item: AttentionItem
-  onInquiryClick: (id: string) => void 
+  onInquiryClick?: (id: string) => void
 }) {
   const handleClick = () => {
-    if (item.inquiry_id) {
+    if (item.inquiry_id && onInquiryClick) {
       onInquiryClick(item.inquiry_id)
     }
   }
@@ -86,12 +86,12 @@ function AttentionItemRow({
   )
 }
 
-function CategorySection({ 
-  section, 
-  onInquiryClick 
-}: { 
+function CategorySection({
+  section,
+  onInquiryClick
+}: {
   section: AttentionSection
-  onInquiryClick: (id: string) => void 
+  onInquiryClick?: (id: string) => void
 }) {
   const config = categoryConfig[section.category]
 

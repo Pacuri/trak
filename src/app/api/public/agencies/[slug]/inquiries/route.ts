@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import type { CreateInquiryRequest, CreateInquiryResponse } from '@/types/inquiry'
 
@@ -34,7 +34,7 @@ export async function POST(
       )
     }
 
-    const supabase = await createClient()
+    const supabase = createServiceClient()
 
     // Get agency by slug
     const { data: agency, error: agencyError } = await supabase
@@ -93,7 +93,7 @@ export async function POST(
       )
     }
 
-    // Also create a lead in the pipeline so it shows in Upiti
+    // Also create a lead in the pipeline so it shows in "Čeka odgovor"
     const destination = body.qualification_data.destination
     const guests = body.qualification_data.guests
     const leadData = {
@@ -101,7 +101,7 @@ export async function POST(
       name: body.customer_name.trim(),
       phone: body.customer_phone.trim(),
       email: body.customer_email?.trim() || null,
-      source_type: 'website', // From trak website
+      source_type: 'trak', // From trak website
       stage_id: firstStage?.id || null,
       destination: destination?.country
         ? `${destination.city ? destination.city + ', ' : ''}${destination.country}`
@@ -110,6 +110,8 @@ export async function POST(
       notes: body.customer_note?.trim() || null,
       original_message: body.customer_note?.trim() || null,
       source_inquiry_id: inquiry.id, // Link to the custom inquiry
+      awaiting_response: true, // Show in inbox widget
+      last_customer_message_at: new Date().toISOString(), // For sorting in inbox
     }
 
     const { data: lead, error: leadError } = await supabase

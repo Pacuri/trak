@@ -10,6 +10,7 @@ export interface LeadFilters {
   source_id?: string
   assigned_to?: string
   show_archived?: boolean
+  only_won?: boolean // Only show leads in "won/closed" stages
 }
 
 export interface CreateLeadData {
@@ -46,6 +47,23 @@ export function useLeads() {
       setError(null)
 
       try {
+        // If filtering for only won leads, first get won stage IDs
+        let wonStageIds: string[] = []
+        if (filters?.only_won) {
+          const { data: wonStages } = await supabase
+            .from('pipeline_stages')
+            .select('id')
+            .eq('organization_id', organizationId)
+            .eq('is_won', true)
+          wonStageIds = wonStages?.map(s => s.id) || []
+
+          // If no won stages found, return empty (no customers yet)
+          if (wonStageIds.length === 0) {
+            setLoading(false)
+            return []
+          }
+        }
+
         let query = supabase
           .from('leads')
           .select(`
@@ -65,6 +83,11 @@ export function useLeads() {
         }
         if (filters?.assigned_to) {
           query = query.eq('assigned_to', filters.assigned_to)
+        }
+
+        // Filter for only won/closed leads (actual customers)
+        if (filters?.only_won && wonStageIds.length > 0) {
+          query = query.in('stage_id', wonStageIds)
         }
 
         // By default, hide archived leads unless explicitly requested

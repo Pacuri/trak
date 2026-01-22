@@ -233,11 +233,11 @@ export default function OfferDetailPage() {
             Ova ponuda više nije dostupna ili ne postoji.
           </p>
           <Link
-            href={`/a/${slug}/results`}
+            href={`/a/${slug}/ponude`}
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium"
           >
             <ArrowLeft className="w-4 h-4" />
-            Nazad na rezultate
+            Nazad na ponude
           </Link>
         </div>
       </div>
@@ -313,7 +313,7 @@ export default function OfferDetailPage() {
         {/* Top navigation */}
         <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4">
           <Link
-            href={`/a/${slug}/results`}
+            href={`/a/${slug}/ponude`}
             className="bg-black/50 backdrop-blur-sm text-white p-2 rounded-full hover:bg-black/70 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />

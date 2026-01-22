@@ -48,8 +48,8 @@ const CHANNEL_CONFIG = {
   },
   email: {
     icon: Mail,
-    bgColor: '#f1f5f9',
-    iconColor: '#64748b',
+    bgColor: '#fee2e2',
+    iconColor: '#ef4444',
     label: 'Email'
   },
   web: {
@@ -57,6 +57,12 @@ const CHANNEL_CONFIG = {
     bgColor: '#f3e8ff',
     iconColor: '#8b5cf6',
     label: 'Web'
+  },
+  trak: {
+    icon: Globe,
+    bgColor: '#dbeafe',
+    iconColor: '#3b82f6',
+    label: 'Trak'
   },
   phone: {
     icon: Phone,
@@ -71,6 +77,41 @@ const WAITING_THRESHOLDS = {
   critical: 4 * 60, // 4 hours in minutes
   urgent: 2 * 60,   // 2 hours in minutes
   normal: 0
+}
+
+// Get destination emoji based on destination name
+function getDestinationEmoji(destination: string): string {
+  const dest = destination.toLowerCase()
+  if (dest.includes('maldiv')) return '🏝️'
+  if (dest.includes('tursk') || dest.includes('turkey')) return '🏖️'
+  if (dest.includes('egipat') || dest.includes('egypt')) return '🏜️'
+  if (dest.includes('grčk') || dest.includes('greece')) return '🏛️'
+  if (dest.includes('italij') || dest.includes('italy')) return '🍝'
+  if (dest.includes('špan') || dest.includes('spain')) return '🌞'
+  if (dest.includes('portugal')) return '🇵🇹'
+  if (dest.includes('švajcar') || dest.includes('swiss')) return '🏔️'
+  if (dest.includes('austrij') || dest.includes('austria')) return '⛷️'
+  if (dest.includes('francusk') || dest.includes('france')) return '🗼'
+  if (dest.includes('dubai') || dest.includes('uae')) return '🌆'
+  if (dest.includes('tayland') || dest.includes('thailand')) return '🛕'
+  if (dest.includes('bali') || dest.includes('indonezij')) return '🌴'
+  if (dest.includes('dominikan')) return '🌊'
+  if (dest.includes('kub') || dest.includes('cuba')) return '🏖️'
+  if (dest.includes('meksik') || dest.includes('mexico')) return '🌮'
+  if (dest.includes('zanzibar')) return '🏝️'
+  return '✈️'
+}
+
+// Format meal plan
+function formatMealPlan(mealPlan: string): string {
+  const plan = mealPlan.toLowerCase()
+  if (plan.includes('all') || plan === 'ai' || plan === 'all_inclusive') return 'AI'
+  if (plan.includes('ultra')) return 'Ultra AI'
+  if (plan.includes('half') || plan === 'hb') return 'Polupansion'
+  if (plan.includes('full') || plan === 'fb') return 'Pun pansion'
+  if (plan.includes('breakfast') || plan === 'bb') return 'Doručak'
+  if (plan.includes('room') || plan === 'ro') return 'Samo smeštaj'
+  return mealPlan
 }
 
 export default function PipelineCardV2({
@@ -135,7 +176,7 @@ export default function PipelineCardV2({
 
   // Get channel config
   const channel = lead.channel_source || 'web'
-  const channelConfig = CHANNEL_CONFIG[channel] || CHANNEL_CONFIG.web
+  const channelConfig = CHANNEL_CONFIG[channel as keyof typeof CHANNEL_CONFIG] || CHANNEL_CONFIG.web
   const ChannelIcon = channelConfig.icon
 
   const assignee = lead.assignee || lead.assigned_user
@@ -214,7 +255,7 @@ export default function PipelineCardV2({
       className="bg-white rounded-[10px] border border-[#E2E8F0] p-3 shadow-sm hover:shadow-md hover:border-[#cbd5e1] transition-all cursor-pointer group relative"
     >
       {/* Card Header */}
-      <div className="flex items-center gap-2.5 mb-2">
+      <div className="flex items-center gap-2.5 mb-2" style={{ paddingRight: '32px' }}>
         {/* Channel Icon with Unread Dot */}
         <div
           className="relative w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -237,7 +278,7 @@ export default function PipelineCardV2({
           </h3>
         </div>
 
-        {/* Waiting Badge */}
+        {/* Waiting Badge - with margin-right for avatar space */}
         {waitingUrgency && waitingTimeFormatted && (
           <div
             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold flex-shrink-0 ${
@@ -257,13 +298,28 @@ export default function PipelineCardV2({
         </p>
       )}
 
-      {/* Sent Offer Tag */}
-      {lead.sent_offer_destination && (
-        <div className="flex items-center gap-1.5 mb-2">
-          <MapPin className="w-3 h-3 text-[#10b981]" />
-          <span className="text-xs font-medium text-[#10b981] truncate">
-            Ponuda: {lead.sent_offer_destination}
-          </span>
+      {/* Sent Offer Card */}
+      {lead.sent_offer && (
+        <div className="mb-2 p-2.5 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center text-lg shadow-sm flex-shrink-0">
+              {getDestinationEmoji(lead.sent_offer.destination || lead.sent_offer.package_name || '')}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900 truncate">
+                {lead.sent_offer.package_name || lead.sent_offer.destination}
+              </p>
+              <p className="text-xs text-gray-500">
+                {lead.sent_offer.duration_nights && `${lead.sent_offer.duration_nights} noći`}
+                {lead.sent_offer.meal_plan && ` • ${formatMealPlan(lead.sent_offer.meal_plan)}`}
+              </p>
+            </div>
+            {lead.sent_offer.price_total && (
+              <div className="text-right flex-shrink-0">
+                <p className="text-sm font-bold text-purple-600">€{lead.sent_offer.price_total.toLocaleString()}</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

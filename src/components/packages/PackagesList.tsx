@@ -12,11 +12,13 @@ interface PackagesListProps {
   packages: Package[]
   loading?: boolean
   onArchive?: (id: string) => Promise<void>
+  onToggleFeatured?: (id: string, isFeatured: boolean) => Promise<boolean>
+  organizationSlug?: string | null
 }
 
 type FilterType = 'all' | PackageType
 
-export function PackagesList({ packages, loading, onArchive }: PackagesListProps) {
+export function PackagesList({ packages, loading, onArchive, onToggleFeatured, organizationSlug }: PackagesListProps) {
   const [filter, setFilter] = useState<FilterType>('all')
   const [search, setSearch] = useState('')
   
@@ -113,7 +115,13 @@ export function PackagesList({ packages, loading, onArchive }: PackagesListProps
       ) : (
         <div className="space-y-3">
           {filteredPackages.map(pkg => (
-            <PackageCard key={pkg.id} package={pkg} onArchive={onArchive} />
+            <PackageCard
+              key={pkg.id}
+              package={pkg}
+              onArchive={onArchive}
+              onToggleFeatured={onToggleFeatured}
+              organizationSlug={organizationSlug}
+            />
           ))}
         </div>
       )}

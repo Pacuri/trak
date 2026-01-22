@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import {
   Check,
@@ -21,6 +22,10 @@ import {
   Sparkles,
   Waves,
   Building,
+  Image as ImageIcon,
+  Upload,
+  Trash2,
+  Loader2,
 } from 'lucide-react'
 import type { ImportPackageFormData, ImportTransportFormData, BusinessModel, Currency } from '@/types/import'
 import { ChildrenPolicyRulesEditor, type ChildrenPolicyRuleFormData } from './ChildrenPolicyRulesEditor'
@@ -37,9 +42,17 @@ interface ImportedPackageFormProps {
   organizationId: string
   onChange: (updates: Partial<ImportPackageFormData>) => void
   onTransportListCreated?: (listId: string) => void
+  onImagesChange?: (images: { url: string; is_primary: boolean }[]) => void
 }
 
-type Section = 'basic' | 'description' | 'rooms' | 'intervals' | 'prices' | 'children' | 'transport'
+type Section = 'basic' | 'description' | 'rooms' | 'intervals' | 'prices' | 'children' | 'transport' | 'images'
+
+interface PackageImage {
+  id: string
+  url: string
+  position: number
+  is_primary: boolean
+}
 
 export function ImportedPackageForm({
   package: pkg,
@@ -51,10 +64,14 @@ export function ImportedPackageForm({
   organizationId,
   onChange,
   onTransportListCreated,
+  onImagesChange,
 }: ImportedPackageFormProps) {
   const [expandedSections, setExpandedSections] = useState<Set<Section>>(new Set(['basic']))
   const [editingSection, setEditingSection] = useState<Section | null>(null)
   const [transportListId, setTransportListId] = useState<string | undefined>()
+  const [images, setImages] = useState<PackageImage[]>([])
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const toggleSection = (section: Section) => {
     const newExpanded = new Set(expandedSections)
@@ -83,9 +100,96 @@ export function ImportedPackageForm({
         return pkg.children_policies.length > 0 ? 'complete' : 'warning'
       case 'transport':
         return 'complete' // Transport is optional
+      case 'images':
+        return images.length > 0 ? 'complete' : 'warning'
       default:
         return 'complete'
     }
+  }
+
+  // Notify parent of image changes
+  const notifyImagesChange = (newImages: PackageImage[]) => {
+    onImagesChange?.(newImages.map(img => ({ url: img.url, is_primary: img.is_primary })))
+  }
+
+  // Image handlers
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setUploadingImage(true)
+    try {
+      const newImages: PackageImage[] = []
+      for (const file of Array.from(files)) {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          const newImage: PackageImage = {
+            id: `new_${Date.now()}_${Math.random()}`,
+            url: data.url,
+            position: images.length + newImages.length,
+            is_primary: images.length === 0 && newImages.length === 0,
+          }
+          newImages.push(newImage)
+        }
+      }
+      if (newImages.length > 0) {
+        const updatedImages = [...images, ...newImages]
+        setImages(updatedImages)
+        notifyImagesChange(updatedImages)
+      }
+    } catch (err) {
+      console.error('Upload error:', err)
+    } finally {
+      setUploadingImage(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
+  const handleImageUrlAdd = () => {
+    const url = prompt('Unesite URL slike:')
+    if (url && url.trim()) {
+      const newImage: PackageImage = {
+        id: `new_${Date.now()}`,
+        url: url.trim(),
+        position: images.length,
+        is_primary: images.length === 0,
+      }
+      const updatedImages = [...images, newImage]
+      setImages(updatedImages)
+      notifyImagesChange(updatedImages)
+    }
+  }
+
+  const removeImage = (id: string) => {
+    setImages(prev => {
+      const filtered = prev.filter(img => img.id !== id)
+      if (filtered.length > 0 && !filtered.some(img => img.is_primary)) {
+        filtered[0].is_primary = true
+      }
+      notifyImagesChange(filtered)
+      return filtered
+    })
+  }
+
+  const setPrimaryImage = (id: string) => {
+    setImages(prev => {
+      const updated = prev.map(img => ({
+        ...img,
+        is_primary: img.id === id,
+      }))
+      notifyImagesChange(updated)
+      return updated
+    })
   }
 
   const SectionHeader = ({ 
@@ -523,7 +627,7 @@ export function ImportedPackageForm({
                             newIntervals[i] = { ...interval, end_date: e.target.value }
                             onChange({ price_intervals: newIntervals })
                           }}
-                          className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                          className="py-1.5 focus:border-teal-500 focus:ring-teal-500/20"
                         />
                       </div>
                     </div>
@@ -676,6 +780,117 @@ export function ImportedPackageForm({
                   onTransportListCreated?.(listId)
                 }}
               />
+            </div>
+          )}
+        </div>
+
+        {/* Images */}
+        <div>
+          <SectionHeader
+            section="images"
+            title="Slike"
+            icon={ImageIcon}
+            subtitle={`${images.length} slik${images.length === 1 ? 'a' : 'e'}`}
+          />
+          {expandedSections.has('images') && (
+            <div className="px-4 pb-4">
+              {/* Upload area */}
+              <div className="mb-4">
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className={cn(
+                    'border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors',
+                    uploadingImage
+                      ? 'border-teal-300 bg-teal-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  )}
+                >
+                  {uploadingImage ? (
+                    <Loader2 className="h-8 w-8 mx-auto text-teal-500 animate-spin" />
+                  ) : (
+                    <Upload className="h-8 w-8 mx-auto text-gray-300" />
+                  )}
+                  <p className="mt-2 text-sm font-medium text-gray-700">
+                    {uploadingImage ? 'Učitavam...' : 'Kliknite za upload slika'}
+                  </p>
+                  <p className="text-xs text-gray-500">ili prevucite slike ovde</p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </div>
+                <div className="flex justify-center mt-2">
+                  <button
+                    type="button"
+                    onClick={handleImageUrlAdd}
+                    className="text-sm text-teal-600 hover:text-teal-700"
+                  >
+                    ili dodajte URL slike
+                  </button>
+                </div>
+              </div>
+
+              {/* Images grid */}
+              {images.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {images.map((img, index) => (
+                    <div
+                      key={img.id}
+                      className={cn(
+                        'relative aspect-video rounded-lg overflow-hidden bg-gray-100 group',
+                        img.is_primary && 'ring-2 ring-teal-500'
+                      )}
+                    >
+                      <Image
+                        src={img.url}
+                        alt={`Slika ${index + 1}`}
+                        fill
+                        className="object-cover"
+                      />
+                      {/* Controls overlay */}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                        {!img.is_primary && (
+                          <button
+                            type="button"
+                            onClick={() => setPrimaryImage(img.id)}
+                            className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100"
+                            title="Postavi kao glavnu"
+                          >
+                            <Star className="h-4 w-4" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeImage(img.id)}
+                          className="p-2 bg-red-500 rounded-full text-white hover:bg-red-600"
+                          title="Obriši"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      {/* Primary badge */}
+                      {img.is_primary && (
+                        <span className="absolute top-2 left-2 bg-teal-500 text-white text-[10px] px-2 py-0.5 rounded">
+                          Glavna
+                        </span>
+                      )}
+                      {/* Position indicator */}
+                      <span className="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded">
+                        {index + 1}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                  <ImageIcon className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm text-gray-500">Nema učitanih slika</p>
+                </div>
+              )}
             </div>
           )}
         </div>

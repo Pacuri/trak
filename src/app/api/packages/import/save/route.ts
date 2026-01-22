@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
       policies,
       included_services,
       important_notes,
+      tax_disclaimer,
     } = body
     
     // Default to EUR if not provided
@@ -123,7 +124,8 @@ export async function POST(request: NextRequest) {
           margin_percent,
           transportPriceListId,
           documentCurrency,
-          included_services
+          included_services,
+          tax_disclaimer
         )
         createdPackages.push(packageId)
         
@@ -181,7 +183,8 @@ async function createPackageFromImport(
   marginPercent: number | undefined,
   transportPriceListId: string | undefined,
   currency: string,
-  includedServices?: string[]
+  includedServices?: string[],
+  taxDisclaimer?: string
 ): Promise<string> {
   // Determine available meal plans from price matrix
   const mealPlans = new Set<string>()
@@ -233,6 +236,10 @@ async function createPackageFromImport(
     base_occupancy: pkg.base_occupancy || 2,
     occupancy_pricing: pkg.occupancy_pricing || null,
     included_services: includedServices || null,
+    // Single occupancy surcharge (from occupancy_pricing)
+    single_surcharge_percent: pkg.occupancy_pricing?.single_supplement_percent || null,
+    // Tax disclaimer text
+    tax_disclaimer: taxDisclaimer || null,
     // Hotel info fields (requires migration 022_package_hotel_description.sql)
     hotel_amenities: pkg.hotel_amenities || null,
     distance_from_beach: pkg.distance_from_beach || null,
@@ -251,11 +258,18 @@ async function createPackageFromImport(
     throw new Error(`Failed to create package: ${packageError?.message || 'Unknown error'} - ${packageError?.code || ''} - ${packageError?.details || ''}`)
   }
 
-  // Create room types
+  // Create room types with enhanced details from room_details
   const roomTypeMap: Record<string, string> = {} // code -> id
   const roomTypes = pkg.room_types || []
+  const roomDetailsMap = new Map(
+    (pkg.room_details || []).map(rd => [rd.room_type_code, rd])
+  )
+
   for (let i = 0; i < roomTypes.length; i++) {
     const rt = roomTypes[i]
+    // Get enhanced details for this room type
+    const details = roomDetailsMap.get(rt.code)
+
     const { data: roomType, error: rtError } = await supabase
       .from('room_types')
       .insert({
@@ -263,9 +277,15 @@ async function createPackageFromImport(
         organization_id: organizationId,
         code: rt.code,
         name: rt.name,
-        max_persons: rt.max_persons,
-        description: rt.description,
+        max_persons: details?.max_occupancy || rt.max_persons,
+        description: details?.description || rt.description,
         sort_order: i,
+        // Enhanced fields from room_details
+        min_adults: details?.min_adults || null,
+        min_occupancy: details?.min_adults || null, // Use min_adults as min_occupancy if not separate
+        warnings: details?.warnings || null,
+        distance_from_beach: details?.distance_from_beach || null,
+        size_sqm: details?.size_sqm || null,
       })
       .select()
       .single()

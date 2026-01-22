@@ -86,38 +86,58 @@ export async function POST(
       })
       .eq('id', candidateId)
 
-    // Also create initial message in messages table
+    // Find all candidates from the same thread (including follow-up replies)
+    const { data: threadCandidates } = await supabase
+      .from('email_candidates')
+      .select('*')
+      .eq('organization_id', userData.organization_id)
+      .eq('gmail_thread_id', candidate.gmail_thread_id)
+      .order('email_date', { ascending: true })
+
     const now = new Date().toISOString()
-    const messageContent = candidate.content || candidate.snippet || '(Bez sadržaja)'
 
-    console.log('[Accept] Creating message with:', {
-      subject: candidate.subject,
-      content: messageContent,
-      contentLength: messageContent?.length,
-      candidateContent: candidate.content,
-      candidateSnippet: candidate.snippet,
-    })
+    // Create messages for all candidates in this thread
+    for (const threadCandidate of (threadCandidates || [])) {
+      const messageContent = threadCandidate.content || threadCandidate.snippet || '(Bez sadržaja)'
 
-    const { data: createdMessage, error: messageError } = await supabase.from('messages').insert({
-      lead_id: lead.id,
-      organization_id: userData.organization_id,
-      direction: 'inbound',
-      channel: 'email',
-      subject: candidate.subject || '(Bez naslova)',
-      content: messageContent,
-      from_email: candidate.from_email,
-      from_name: candidate.from_name,
-      to_email: candidate.to_email,
-      external_id: candidate.gmail_message_id,
-      thread_id: candidate.gmail_thread_id,
-      status: 'sent',
-      sent_at: candidate.email_date || now,
-    }).select().single()
+      console.log('[Accept] Creating message for:', {
+        subject: threadCandidate.subject,
+        gmail_message_id: threadCandidate.gmail_message_id,
+      })
 
-    if (messageError) {
-      console.error('[Accept] Error creating initial message:', messageError)
-    } else {
-      console.log('[Accept] Message created successfully:', createdMessage?.id, 'content:', createdMessage?.content?.substring(0, 50))
+      const { data: createdMessage, error: messageError } = await supabase.from('messages').insert({
+        lead_id: lead.id,
+        organization_id: userData.organization_id,
+        direction: 'inbound',
+        channel: 'email',
+        subject: threadCandidate.subject || '(Bez naslova)',
+        content: messageContent,
+        from_email: threadCandidate.from_email,
+        from_name: threadCandidate.from_name,
+        to_email: threadCandidate.to_email,
+        external_id: threadCandidate.gmail_message_id,
+        thread_id: threadCandidate.gmail_thread_id,
+        status: 'sent',
+        sent_at: threadCandidate.email_date || now,
+      }).select().single()
+
+      if (messageError) {
+        console.error('[Accept] Error creating message:', messageError)
+      } else {
+        console.log('[Accept] Message created successfully:', createdMessage?.id)
+      }
+
+      // Mark all thread candidates as accepted
+      if (threadCandidate.id !== candidateId) {
+        await supabase
+          .from('email_candidates')
+          .update({
+            status: 'accepted',
+            lead_id: lead.id,
+            processed_at: now,
+          })
+          .eq('id', threadCandidate.id)
+      }
     }
 
     return NextResponse.json({

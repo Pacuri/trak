@@ -7,15 +7,32 @@ import { useOrganization } from './use-organization'
 import type { Lead, PipelineStage } from '@/types'
 
 // Extended lead type with pipeline card data
+// Sent offer data for pipeline cards
+export interface PipelineSentOffer {
+  id: string
+  destination: string | null
+  package_name: string | null
+  price_total: number | null
+  duration_nights: number | null
+  meal_plan: string | null
+  guests_adults: number | null
+  guests_children: number | null
+  sent_at: string
+}
+
 export interface PipelineCardLead extends Lead {
   // Channel source derived from meta or messages
-  channel_source?: 'messenger' | 'instagram' | 'whatsapp' | 'email' | 'web' | 'phone' | null
+  channel_source?: 'messenger' | 'instagram' | 'whatsapp' | 'email' | 'web' | 'phone' | 'trak' | null
   // Last message from customer
   last_message_preview?: string | null
   last_message_at?: string | null
   has_unread_messages?: boolean
-  // Most recent sent offer
+  // Most recent sent offer (for display)
   sent_offer_destination?: string | null
+  // Full sent offer data
+  sent_offer?: PipelineSentOffer | null
+  // Package name for Trak leads
+  package_name?: string | null
 }
 
 interface UsePipelineReturn {
@@ -46,6 +63,7 @@ export function usePipeline(): UsePipelineReturn {
       setError(null)
 
       // Fetch all leads for the organization (excluding archived)
+      // Note: Using explicit foreign key reference for source_inquiry to avoid ambiguity
       const { data: leadsData, error: leadsError } = await supabase
         .from('leads')
         .select(`
@@ -75,11 +93,32 @@ export function usePipeline(): UsePipelineReturn {
 
       const leadIds = leadsData.map(l => l.id)
 
+      // Get source_inquiry_ids for package name lookup
+      const sourceInquiryIds = leadsData
+        .filter(l => l.source_inquiry_id)
+        .map(l => l.source_inquiry_id)
+
       // Fetch meta conversations for channel source
       const { data: metaConversations } = await supabase
         .from('meta_conversations')
         .select('lead_id, platform')
         .in('lead_id', leadIds)
+
+      // Fetch package names for Trak leads (via custom_inquiries -> packages)
+      let packageNameByInquiryId = new Map<string, string>()
+      if (sourceInquiryIds.length > 0) {
+        const { data: inquiriesWithPackages } = await supabase
+          .from('custom_inquiries')
+          .select('id, package:packages(name)')
+          .in('id', sourceInquiryIds)
+
+        inquiriesWithPackages?.forEach(inq => {
+          const pkgName = (inq as any).package?.name
+          if (pkgName) {
+            packageNameByInquiryId.set(inq.id, pkgName)
+          }
+        })
+      }
 
       // Fetch last messages for each lead (from customer)
       const { data: messages } = await supabase
@@ -89,10 +128,10 @@ export function usePipeline(): UsePipelineReturn {
         .eq('is_from_customer', true)
         .order('sent_at', { ascending: false })
 
-      // Fetch sent offers (most recent per lead)
+      // Fetch sent offers (most recent per lead) with full data
       const { data: sentOffers } = await supabase
         .from('lead_sent_offers')
-        .select('lead_id, destination')
+        .select('id, lead_id, destination, package_name, price_total, duration_nights, meal_plan, guests_adults, guests_children, sent_at')
         .in('lead_id', leadIds)
         .order('sent_at', { ascending: false })
 
@@ -121,10 +160,20 @@ export function usePipeline(): UsePipelineReturn {
         }
       })
 
-      const sentOfferByLeadId = new Map<string, string>()
+      const sentOfferByLeadId = new Map<string, PipelineSentOffer>()
       sentOffers?.forEach(so => {
         if (!sentOfferByLeadId.has(so.lead_id)) {
-          sentOfferByLeadId.set(so.lead_id, so.destination)
+          sentOfferByLeadId.set(so.lead_id, {
+            id: so.id,
+            destination: so.destination,
+            package_name: so.package_name,
+            price_total: so.price_total,
+            duration_nights: so.duration_nights,
+            meal_plan: so.meal_plan,
+            guests_adults: so.guests_adults,
+            guests_children: so.guests_children,
+            sent_at: so.sent_at,
+          })
         }
       })
 
@@ -143,7 +192,8 @@ export function usePipeline(): UsePipelineReturn {
         if (sourceType === 'instagram') return 'instagram'
         if (sourceType === 'whatsapp') return 'whatsapp'
         if (sourceType === 'phone') return 'phone'
-        if (sourceType === 'web' || sourceType === 'website' || sourceType === 'trak') return 'web'
+        if (sourceType === 'trak') return 'trak'
+        if (sourceType === 'web' || sourceType === 'website') return 'web'
 
         // Check last message channel
         const lastMsg = lastMessageByLeadId.get(lead.id)
@@ -173,13 +223,21 @@ export function usePipeline(): UsePipelineReturn {
 
         const lastMsg = lastMessageByLeadId.get(lead.id)
 
+        // Get package name from source inquiry if available (via separate lookup)
+        const packageName = lead.source_inquiry_id
+          ? packageNameByInquiryId.get(lead.source_inquiry_id) || null
+          : null
+        const sentOffer = sentOfferByLeadId.get(lead.id) || null
+
         const enhancedLead: PipelineCardLead = {
           ...(lead as Lead),
           channel_source: deriveChannelSource(lead),
           last_message_preview: lastMsg?.content || lead.original_message || null,
           last_message_at: lastMsg?.sent_at || lead.created_at,
           has_unread_messages: unreadByLeadId.get(lead.id) || false,
-          sent_offer_destination: sentOfferByLeadId.get(lead.id) || null,
+          sent_offer_destination: sentOffer?.destination || null,
+          sent_offer: sentOffer,
+          package_name: packageName,
         }
 
         grouped[stageId].push(enhancedLead)

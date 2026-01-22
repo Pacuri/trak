@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import type { Offer } from '@/types'
 import { useAgencySettings } from '@/hooks/use-agency-settings'
-import ResultsSection from '@/components/public/ResultsSection'
+import PremiumOfferCard from '@/components/public/PremiumOfferCard'
 import type { AgencyInquirySettings } from '@/types/inquiry'
 import type { Departure } from '@/types/packages'
 
@@ -58,12 +58,7 @@ function mapDepartureToOffer(departure: Departure & { package_id?: string }): Of
   } as Offer & { valid_from?: string; valid_to?: string; duration_nights?: number }
 }
 
-function splitByType(offers: Offer[]): { owned: Offer[]; inquiry: Offer[] } {
-  return {
-    owned: offers.filter((o) => o.inventory_type === 'owned'),
-    inquiry: offers.filter((o) => o.inventory_type === 'inquiry'),
-  }
-}
+// No longer split by type - unified display
 
 const BOARD_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'Sve' },
@@ -244,14 +239,15 @@ export default function PonudePage() {
     }
   }
 
-  const filteredBySearch = searchQuery.trim()
+  const filteredOffers = searchQuery.trim()
     ? offers.filter((o) => {
         const q = searchQuery.toLowerCase()
         return [o.name, o.country, o.city].some((f) => f?.toLowerCase().includes(q))
       })
     : offers
 
-  const { owned, inquiry } = splitByType(filteredBySearch)
+  // Find the first recommended offer index for badge display
+  const firstRecommendedIndex = filteredOffers.findIndex(offer => offer.is_recommended)
 
   if (loading) {
     return (
@@ -377,30 +373,29 @@ export default function PonudePage() {
 
         {!error && (
           <>
-            {owned.length > 0 && (
-              <ResultsSection
-                title="Rezervišite odmah"
-                subtitle="Garantovana dostupnost • Cena zaključana 72h"
-                offers={owned}
-                cardType="instant"
-                qualification={undefined}
-                slug={slug}
-              />
+            {/* Unified results grid */}
+            {filteredOffers.length > 0 && (
+              <section className="space-y-4">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Sve ponude</h2>
+                  <p className="text-gray-500">{filteredOffers.length} {filteredOffers.length === 1 ? 'ponuda' : 'ponuda'}</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {filteredOffers.map((offer, index) => (
+                    <PremiumOfferCard
+                      key={offer.id}
+                      offer={offer}
+                      qualification={null}
+                      slug={slug}
+                      index={index}
+                      isFirstRecommended={index === firstRecommendedIndex}
+                    />
+                  ))}
+                </div>
+              </section>
             )}
 
-            {inquiry.length > 0 && (
-              <ResultsSection
-                title="Na upit"
-                offers={inquiry}
-                cardType="inquiry"
-                qualification={undefined}
-                slug={slug}
-                responseTimeMinutes={currentResponseTime}
-                isWithinWorkingHours={isWithinWorkingHours}
-              />
-            )}
-
-            {filteredBySearch.length === 0 && !loading && (
+            {filteredOffers.length === 0 && !loading && (
               <div className="text-center py-12">
                 <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h2 className="text-xl font-bold text-gray-900 mb-2">Nema ponuda</h2>
@@ -424,7 +419,7 @@ export default function PonudePage() {
               </div>
             )}
 
-            {filteredBySearch.length > 0 && (
+            {filteredOffers.length > 0 && (
               <div ref={loadMoreRef} className="py-8 flex flex-col items-center gap-4">
                 {loadingMore && (
                   <div className="flex items-center gap-3 text-gray-500">
@@ -438,12 +433,12 @@ export default function PonudePage() {
                   </button>
                 )}
                 {!hasMore && (
-                  <p className="text-gray-400 text-sm">Prikazano {filteredBySearch.length} ponuda</p>
+                  <p className="text-gray-400 text-sm">Prikazano {filteredOffers.length} ponuda</p>
                 )}
               </div>
             )}
 
-            {filteredBySearch.length > 0 && inquirySettings?.show_inquiry_with_results && inquirySettings?.allow_custom_inquiries && (
+            {filteredOffers.length > 0 && inquirySettings?.show_inquiry_with_results && inquirySettings?.allow_custom_inquiries && (
               <div className="text-center pt-4 pb-8 border-t border-gray-100">
                 <p className="text-gray-500 text-sm mb-2">Niste pronašli što tražite?</p>
                 <Link href={`/a/${slug}/inquiry`} className="inline-flex items-center gap-1 text-teal-600 hover:text-teal-700 font-medium">

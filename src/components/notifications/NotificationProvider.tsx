@@ -158,6 +158,90 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }, [supabase, organizationId, addToast])
 
+  // Listen for new custom inquiries (from qualification flow)
+  useEffect(() => {
+    if (!organizationId) return
+
+    const channel = supabase
+      .channel('notifications-inquiries')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'custom_inquiries',
+          filter: `organization_id=eq.${organizationId}`,
+        },
+        (payload) => {
+          const inquiry = payload.new as any
+
+          // Build description from qualification data
+          const destination = inquiry.qualification_data?.destination?.country || ''
+          const guests = inquiry.qualification_data?.guests
+          const guestText = guests?.adults ? `${guests.adults + (guests.children || 0)} putnika` : ''
+          const description = [destination, guestText].filter(Boolean).join(' • ')
+
+          addToast({
+            type: 'new_inquiry',
+            title: `Novi upit: ${inquiry.customer_name || 'Nepoznat'}`,
+            message: description || 'Novi upit sa sajta',
+            leadId: inquiry.lead_id, // May be null initially, but will link later
+          })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [supabase, organizationId, addToast])
+
+  // Listen for offer quote confirmations
+  useEffect(() => {
+    if (!organizationId) return
+
+    const channel = supabase
+      .channel('notifications-offers')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'offer_quotes',
+          filter: `organization_id=eq.${organizationId}`,
+        },
+        (payload) => {
+          const offer = payload.new as any
+          const oldOffer = payload.old as any
+
+          // Only notify when status changes to 'confirmed'
+          if (offer.status === 'confirmed' && oldOffer.status !== 'confirmed') {
+            addToast({
+              type: 'offer_confirmed',
+              title: `Ponuda potvrđena!`,
+              message: `${offer.customer_name} je potvrdio ponudu od €${offer.total_amount?.toLocaleString()}`,
+              leadId: offer.lead_id,
+            })
+          }
+
+          // Also notify when viewed
+          if (offer.status === 'viewed' && oldOffer.status === 'sent') {
+            addToast({
+              type: 'offer_viewed',
+              title: `Ponuda pregledana`,
+              message: `${offer.customer_name} je otvorio vašu ponudu`,
+              leadId: offer.lead_id,
+            })
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [supabase, organizationId, addToast])
+
   const handleOpenChat = useCallback((leadId: string) => {
     openChat(leadId)
   }, [openChat])

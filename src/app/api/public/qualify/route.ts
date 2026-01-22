@@ -22,14 +22,16 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
 
     // Get organization ID from slug
+    // Note: Don't require is_active = true, just check slug exists (matching landing API behavior)
     const { data: settings, error: settingsError } = await supabase
       .from('agency_booking_settings')
       .select('organization_id, response_time_working, response_time_outside, working_hours')
       .eq('slug', slug)
-      .eq('is_active', true)
+      .neq('is_active', false)  // Allow null or true
       .single()
 
     if (settingsError || !settings) {
+      console.error('Agency not found for slug:', slug, settingsError)
       return NextResponse.json(
         { error: 'Agencija nije pronađena' },
         { status: 404 }

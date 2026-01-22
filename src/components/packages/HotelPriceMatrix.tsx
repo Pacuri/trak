@@ -166,7 +166,7 @@ export function HotelPriceMatrix({ intervals, roomTypes, mealPlans, onChange }: 
         <div>
           <h3 className="text-lg font-semibold text-gray-900">Cenovnik</h3>
           <p className="text-sm text-gray-500">
-            Cena po osobi po noćenju za svaki tip sobe i pansion
+            Cena po osobi za ceo boravak, za svaki tip sobe i pansion
           </p>
         </div>
         <button
@@ -311,7 +311,7 @@ export function HotelPriceMatrix({ intervals, roomTypes, mealPlans, onChange }: 
 
           <p className="text-xs text-gray-500 flex items-center gap-1">
             <AlertCircle className="h-3 w-3" />
-            Cene su po osobi po noćenju. Ostavite prazno ako usluga nije dostupna.
+            Cene su po osobi za ceo boravak. Ostavite prazno ako usluga nije dostupna.
           </p>
         </div>
       )}

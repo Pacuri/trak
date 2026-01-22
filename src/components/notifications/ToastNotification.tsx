@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, Mail, MessageSquare, ExternalLink } from 'lucide-react'
+import { X, Mail, MessageSquare, ExternalLink, UserPlus, CheckCircle, Eye } from 'lucide-react'
 
 export interface Toast {
   id: string
-  type: 'new_message' | 'new_email'
+  type: 'new_message' | 'new_email' | 'new_inquiry' | 'offer_confirmed' | 'offer_viewed'
   title: string
   message: string
   leadId?: string
@@ -43,14 +43,30 @@ export function ToastNotification({ toast, onDismiss, onOpenChat }: ToastNotific
     }
   }
 
-  const Icon = toast.type === 'new_email' ? Mail : MessageSquare
+  const Icon =
+    toast.type === 'new_email' ? Mail :
+    toast.type === 'new_inquiry' ? UserPlus :
+    toast.type === 'offer_confirmed' ? CheckCircle :
+    toast.type === 'offer_viewed' ? Eye :
+    MessageSquare
+
+  const getIconStyles = () => {
+    switch (toast.type) {
+      case 'new_email': return { bg: 'bg-blue-100', text: 'text-blue-600', bar: 'bg-blue-500' }
+      case 'new_inquiry': return { bg: 'bg-teal-100', text: 'text-teal-600', bar: 'bg-teal-500' }
+      case 'offer_confirmed': return { bg: 'bg-emerald-100', text: 'text-emerald-600', bar: 'bg-emerald-500' }
+      case 'offer_viewed': return { bg: 'bg-amber-100', text: 'text-amber-600', bar: 'bg-amber-500' }
+      default: return { bg: 'bg-green-100', text: 'text-green-600', bar: 'bg-green-500' }
+    }
+  }
+  const styles = getIconStyles()
 
   return (
     <div
       className={`
-        w-80 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden
+        w-96 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden
         transform transition-all duration-300 ease-out
-        ${isLeaving ? 'opacity-0 translate-x-full' : 'opacity-100 translate-x-0'}
+        ${isLeaving ? 'opacity-0 -translate-y-2 scale-95' : 'opacity-100 translate-y-0 scale-100'}
       `}
     >
       <div className="p-4">
@@ -58,9 +74,9 @@ export function ToastNotification({ toast, onDismiss, onOpenChat }: ToastNotific
           {/* Icon */}
           <div className={`
             flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center
-            ${toast.type === 'new_email' ? 'bg-blue-100' : 'bg-green-100'}
+            ${styles.bg}
           `}>
-            <Icon className={`w-5 h-5 ${toast.type === 'new_email' ? 'text-blue-600' : 'text-green-600'}`} />
+            <Icon className={`w-5 h-5 ${styles.text}`} />
           </div>
 
           {/* Content */}
@@ -97,7 +113,7 @@ export function ToastNotification({ toast, onDismiss, onOpenChat }: ToastNotific
       {/* Progress bar for auto-dismiss */}
       <div className="h-1 bg-slate-100">
         <div
-          className={`h-full ${toast.type === 'new_email' ? 'bg-blue-500' : 'bg-green-500'} animate-shrink-width`}
+          className={`h-full ${styles.bar} animate-shrink-width`}
           style={{ animationDuration: '5s' }}
         />
       </div>
@@ -119,7 +135,7 @@ export function ToastContainer({ toasts, onDismiss, onOpenChat }: ToastContainer
   if (visibleToasts.length === 0) return null
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col-reverse gap-2">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2">
       {visibleToasts.map((toast) => (
         <ToastNotification
           key={toast.id}

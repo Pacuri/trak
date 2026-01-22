@@ -295,6 +295,7 @@ async function processNewEmail(
     // STEP 1: Check if this is part of an existing thread (same gmail thread_id)
     console.log(`[Gmail Webhook] Looking for existing thread with thread_id: ${message.threadId}`)
 
+    // First check messages table
     const { data: existingThreadMessage, error: threadError } = await supabase
       .from('messages')
       .select('lead_id, lead:leads(id, name)')
@@ -306,11 +307,26 @@ async function processNewEmail(
 
     console.log(`[Gmail Webhook] Thread lookup result:`, JSON.stringify(existingThreadMessage), 'error:', threadError?.message)
 
-    if (existingThreadMessage?.lead_id) {
-      console.log(`[Gmail Webhook] Found existing thread! lead_id:`, existingThreadMessage.lead_id)
+    // Also check if there's an accepted email_candidate with same thread_id that has a lead
+    const { data: existingAcceptedCandidate } = await supabase
+      .from('email_candidates')
+      .select('lead_id')
+      .eq('organization_id', organizationId)
+      .eq('gmail_thread_id', message.threadId)
+      .eq('status', 'accepted')
+      .not('lead_id', 'is', null)
+      .limit(1)
+      .single()
+
+
+    // Use lead_id from messages or from accepted candidate
+    const leadIdFromThread = existingThreadMessage?.lead_id || existingAcceptedCandidate?.lead_id
+
+    if (leadIdFromThread) {
+      console.log(`[Gmail Webhook] Found existing thread! lead_id:`, leadIdFromThread)
       // Same thread - add message to existing lead
-      const leadId = existingThreadMessage.lead_id
-      const leadName = (existingThreadMessage.lead as any)?.name || 'Unknown'
+      const leadId = leadIdFromThread
+      const leadName = (existingThreadMessage?.lead as any)?.name || 'Unknown'
 
       console.log(`[Gmail Webhook] Adding message to existing thread for lead ${leadName} (${leadId})`)
       console.log(`[Gmail Webhook] Message details: from=${fromEmail}, subject=${subject}, content length=${content?.length}`)

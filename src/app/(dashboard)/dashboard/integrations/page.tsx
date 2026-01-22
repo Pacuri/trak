@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useOrganization } from '@/hooks/use-organization'
 import { createClient } from '@/lib/supabase/client'
@@ -35,7 +35,7 @@ interface MetaIntegration {
 
 export default function IntegrationsPage() {
   const searchParams = useSearchParams()
-  const { organization } = useOrganization()
+  const { organization, loading: orgLoading } = useOrganization()
   const [emailIntegration, setEmailIntegration] = useState<EmailIntegration | null>(null)
   const [metaIntegration, setMetaIntegration] = useState<MetaIntegration | null>(null)
   const [loading, setLoading] = useState(true)
@@ -46,6 +46,21 @@ export default function IntegrationsPage() {
   const [metaDisconnecting, setMetaDisconnecting] = useState(false)
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const supabase = createClient()
+
+  // Load meta integration - defined with useCallback so it can be called from success handler
+  const loadMetaIntegration = useCallback(async () => {
+    setMetaLoading(true)
+    try {
+      const response = await fetch('/api/integrations/meta')
+      if (response.ok) {
+        const data = await response.json()
+        setMetaIntegration(data.integration || null)
+      }
+    } catch (err) {
+      console.error('Error loading Meta integration:', err)
+    }
+    setMetaLoading(false)
+  }, [])
 
   // Check for success/error from OAuth callback
   useEffect(() => {
@@ -79,13 +94,6 @@ export default function IntegrationsPage() {
     }
   }, [searchParams])
 
-  useEffect(() => {
-    if (organization?.id) {
-      loadEmailIntegration()
-      loadMetaIntegration()
-    }
-  }, [organization?.id])
-
   // Auto-hide notification
   useEffect(() => {
     if (notification) {
@@ -94,33 +102,40 @@ export default function IntegrationsPage() {
     }
   }, [notification])
 
-  const loadEmailIntegration = async () => {
-    if (!organization?.id) return
+  // Load integrations when organization is ready
+  useEffect(() => {
+    if (orgLoading) return // Wait for organization to finish loading
 
-    const { data, error } = await supabase
-      .from('email_integrations')
-      .select('*')
-      .eq('organization_id', organization.id)
-      .single()
-
-    if (data && !error) {
-      setEmailIntegration(data)
+    if (!organization?.id) {
+      // No organization, stop loading
+      setLoading(false)
+      setMetaLoading(false)
+      return
     }
-    setLoading(false)
-  }
 
-  const loadMetaIntegration = async () => {
-    try {
-      const response = await fetch('/api/integrations/meta')
-      if (response.ok) {
-        const data = await response.json()
-        setMetaIntegration(data.integration || null)
+    // Load email integration
+    const loadEmail = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('email_integrations')
+          .select('*')
+          .eq('organization_id', organization.id)
+          .maybeSingle()
+
+        if (error) {
+          console.error('Error loading email integration:', error)
+        } else if (data) {
+          setEmailIntegration(data)
+        }
+      } catch (err) {
+        console.error('Exception loading email integration:', err)
       }
-    } catch (err) {
-      console.error('Error loading Meta integration:', err)
+      setLoading(false)
     }
-    setMetaLoading(false)
-  }
+
+    loadEmail()
+    loadMetaIntegration()
+  }, [organization?.id, orgLoading, supabase, loadMetaIntegration])
 
   const handleConnectGmail = () => {
     setConnecting(true)

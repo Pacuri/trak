@@ -3,9 +3,19 @@
 import { useState, useEffect } from 'react'
 import { useOrganization } from '@/hooks/use-organization'
 import { createClient } from '@/lib/supabase/client'
-import { Save, Building2, Users, UserPlus, Globe, Settings, MapPin, Link2, Copy, Check, Mail, MessageSquare, Plug, Bell, Volume2, VolumeX } from 'lucide-react'
+import { Save, Building2, Users, UserPlus, Globe, Settings, Link2, Copy, Check, Mail, MessageSquare, Plug, Bell, Volume2, VolumeX, X, Loader2, Clock, Send } from 'lucide-react'
 import Link from 'next/link'
 import type { LanguageRegion } from '@/lib/prompts/document-parse-prompt'
+
+interface TeamInvitation {
+  id: string
+  email: string
+  role: string
+  status: string
+  expires_at: string
+  created_at: string
+  invited_by: { full_name: string | null; email: string } | null
+}
 
 const LANGUAGE_REGION_OPTIONS: { value: LanguageRegion; label: string }[] = [
   { value: 'ba', label: 'Bosna i Hercegovina' },
@@ -25,6 +35,15 @@ export default function SettingsPage() {
   const [notificationSoundEnabled, setNotificationSoundEnabled] = useState(true)
   const supabase = createClient()
 
+  // Team invitation state
+  const [showInviteModal, setShowInviteModal] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState<'admin' | 'agent'>('agent')
+  const [inviting, setInviting] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const [inviteSuccess, setInviteSuccess] = useState<{ url: string } | null>(null)
+  const [pendingInvitations, setPendingInvitations] = useState<TeamInvitation[]>([])
+
   // Load notification sound preference
   useEffect(() => {
     const stored = localStorage.getItem('notification_sound_enabled')
@@ -32,6 +51,23 @@ export default function SettingsPage() {
       setNotificationSoundEnabled(stored === 'true')
     }
   }, [])
+
+  // Load pending invitations
+  useEffect(() => {
+    async function loadInvitations() {
+      if (!organization) return
+      try {
+        const response = await fetch('/api/team/invite')
+        const data = await response.json()
+        if (data.invitations) {
+          setPendingInvitations(data.invitations.filter((inv: TeamInvitation) => inv.status === 'pending'))
+        }
+      } catch (err) {
+        console.error('Failed to load invitations:', err)
+      }
+    }
+    loadInvitations()
+  }, [organization])
 
   const toggleNotificationSound = () => {
     const newValue = !notificationSoundEnabled
@@ -50,6 +86,56 @@ export default function SettingsPage() {
       setTimeout(() => setCopiedUrl(null), 2000)
     } catch {
       // ignore
+    }
+  }
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!inviteEmail) return
+
+    setInviting(true)
+    setInviteError(null)
+    setInviteSuccess(null)
+
+    try {
+      const response = await fetch('/api/team/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        setInviteError(data.error || 'Failed to send invitation')
+        setInviting(false)
+        return
+      }
+
+      setInviteSuccess({ url: data.invitation.invite_url })
+      setInviteEmail('')
+      // Refresh pending invitations
+      const invResponse = await fetch('/api/team/invite')
+      const invData = await invResponse.json()
+      if (invData.invitations) {
+        setPendingInvitations(invData.invitations.filter((inv: TeamInvitation) => inv.status === 'pending'))
+      }
+    } catch (err) {
+      setInviteError('Greška pri slanju pozivnice')
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  const handleRevokeInvitation = async (invitationId: string) => {
+    try {
+      const response = await fetch(`/api/team/invite?id=${invitationId}`, {
+        method: 'DELETE',
+      })
+      if (response.ok) {
+        setPendingInvitations(prev => prev.filter(inv => inv.id !== invitationId))
+      }
+    } catch (err) {
+      console.error('Failed to revoke invitation:', err)
     }
   }
 
@@ -122,135 +208,128 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="max-w-3xl mx-auto">
+      {/* Header */}
+      <div className="mb-8">
         <h1 className="text-2xl font-bold text-[#1E293B]">Podešavanja</h1>
         <p className="mt-1 text-sm text-[#64748B]">Upravljajte podešavanjima vaše organizacije</p>
       </div>
 
       {loading ? (
-        <div className="rounded-[14px] bg-white p-12 text-center border border-[#E2E8F0] shadow-sm">
+        <div className="rounded-xl bg-white p-12 text-center border border-[#E2E8F0] shadow-sm">
           <div className="animate-pulse flex flex-col items-center">
             <div className="h-12 w-12 bg-gray-200 rounded-full mb-4"></div>
             <div className="h-4 bg-gray-200 rounded w-32"></div>
           </div>
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Organization Settings */}
-          <div className="rounded-[14px] bg-white border border-[#E2E8F0] shadow-sm">
-            <div className="flex items-center gap-3 p-5 border-b border-[#E2E8F0]">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFF6FF]">
-                <Building2 className="h-5 w-5 text-[#3B82F6]" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-[#1E293B]">Organizacija</h2>
-                <p className="text-sm text-[#64748B]">Osnovni podaci o vašoj organizaciji</p>
+        <div className="space-y-6">
+          {/* 1. Organization Section */}
+          <section className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm">
+            <div className="px-6 py-4 border-b border-[#E2E8F0]">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFF6FF]">
+                  <Building2 className="h-5 w-5 text-[#3B82F6]" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-[#1E293B]">Organizacija</h2>
+                  <p className="text-sm text-[#64748B]">Osnovni podaci o vašoj agenciji</p>
+                </div>
               </div>
             </div>
 
-            <form onSubmit={handleSave} className="p-5 space-y-4">
+            <form onSubmit={handleSave} className="p-6 space-y-5">
               {saveError && (
-                <div className="rounded-[10px] bg-[#FEF2F2] p-4 border border-[#EF4444]/20">
+                <div className="rounded-lg bg-[#FEF2F2] p-4 border border-[#EF4444]/20">
                   <p className="text-sm font-medium text-[#EF4444]">{saveError}</p>
                 </div>
               )}
 
               {saveSuccess && (
-                <div className="rounded-[10px] bg-[#ECFDF5] p-4 border border-[#10B981]/20">
+                <div className="rounded-lg bg-[#ECFDF5] p-4 border border-[#10B981]/20">
                   <p className="text-sm font-medium text-[#10B981]">Podešavanja uspešno sačuvana!</p>
                 </div>
               )}
 
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-[#1E293B] mb-1.5">
-                  Naziv organizacije
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="block w-full rounded-[10px] border border-[#E2E8F0] px-4 py-2.5 text-sm text-[#1E293B] bg-white focus:border-[#3B82F6] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/20 transition-all"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="industry" className="block text-sm font-medium text-[#1E293B] mb-1.5">
-                  Industrija
-                </label>
-                <select
-                  id="industry"
-                  value={industry}
-                  onChange={(e) => setIndustry(e.target.value)}
-                  className="block w-full rounded-[10px] border border-[#E2E8F0] px-4 py-2.5 text-sm text-[#1E293B] bg-white focus:border-[#3B82F6] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/20 transition-all"
-                >
-                  <option value="">Izaberite industriju</option>
-                  {industries.map((ind) => (
-                    <option key={ind.value} value={ind.value}>
-                      {ind.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Regionalne postavke / Regional Settings */}
-              <div className="pt-4 border-t border-[#E2E8F0]">
-                <h3 className="text-sm font-medium text-[#1E293B] mb-1 flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-[#64748B]" />
-                  Regionalne postavke
-                </h3>
-                <p className="text-xs text-[#64748B] mb-3">
-                  Utiče na jezik AI pri uvozu dokumenata (nazivi polupansion, sobe, itd.)
-                </p>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="language_region" className="block text-sm font-medium text-[#1E293B] mb-1.5">
-                    Država poslovanja
+                  <label htmlFor="name" className="block text-sm font-medium text-[#1E293B] mb-1.5">
+                    Naziv
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="block w-full rounded-lg border border-[#E2E8F0] px-4 py-2.5 text-sm text-[#1E293B] bg-white focus:border-[#3B82F6] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/20 transition-all"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="industry" className="block text-sm font-medium text-[#1E293B] mb-1.5">
+                    Industrija
                   </label>
                   <select
-                    id="language_region"
-                    value={languageRegion}
-                    onChange={(e) => setLanguageRegion(e.target.value as LanguageRegion)}
-                    className="block w-full rounded-[10px] border border-[#E2E8F0] px-4 py-2.5 text-sm text-[#1E293B] bg-white focus:border-[#3B82F6] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/20 transition-all"
+                    id="industry"
+                    value={industry}
+                    onChange={(e) => setIndustry(e.target.value)}
+                    className="block w-full rounded-lg border border-[#E2E8F0] px-4 py-2.5 text-sm text-[#1E293B] bg-white focus:border-[#3B82F6] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/20 transition-all"
                   >
-                    {LANGUAGE_REGION_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
+                    <option value="">Izaberite industriju</option>
+                    {industries.map((ind) => (
+                      <option key={ind.value} value={ind.value}>
+                        {ind.label}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              <div className="pt-4">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-[10px] bg-[#3B82F6] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#2563EB] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              <div>
+                <label htmlFor="language_region" className="block text-sm font-medium text-[#1E293B] mb-1.5">
+                  Država poslovanja
+                </label>
+                <select
+                  id="language_region"
+                  value={languageRegion}
+                  onChange={(e) => setLanguageRegion(e.target.value as LanguageRegion)}
+                  className="block w-full rounded-lg border border-[#E2E8F0] px-4 py-2.5 text-sm text-[#1E293B] bg-white focus:border-[#3B82F6] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/20 transition-all"
                 >
-                  {saving ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Čuvanje...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      Sačuvaj izmene
-                    </>
-                  )}
-                </button>
+                  {LANGUAGE_REGION_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-xs text-[#64748B]">
+                  Utiče na jezik AI pri uvozu dokumenata
+                </p>
               </div>
-            </form>
-          </div>
 
-          {/* Team Members */}
-          <div className="rounded-[14px] bg-white border border-[#E2E8F0] shadow-sm">
-            <div className="flex items-center justify-between p-5 border-b border-[#E2E8F0]">
+              <button
+                type="submit"
+                disabled={saving}
+                className="inline-flex items-center gap-2 rounded-lg bg-[#3B82F6] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Čuvanje...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    Sačuvaj
+                  </>
+                )}
+              </button>
+            </form>
+          </section>
+
+          {/* 2. Team Section */}
+          <section className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm">
+            <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5F3FF]">
                   <Users className="h-5 w-5 text-[#8B5CF6]" />
@@ -260,217 +339,348 @@ export default function SettingsPage() {
                   <p className="text-sm text-[#64748B]">{teamMembers.length} članova</p>
                 </div>
               </div>
+              <button
+                onClick={() => setShowInviteModal(true)}
+                className="inline-flex items-center gap-2 text-sm text-[#3B82F6] font-medium hover:text-[#2563EB] transition-colors"
+              >
+                <UserPlus className="h-4 w-4" />
+                Pozovi člana
+              </button>
             </div>
 
-            <div className="p-5">
-              {teamMembers.length === 0 ? (
-                <div className="text-center py-8">
-                  <Users className="h-12 w-12 text-[#94A3B8] mx-auto mb-4" />
-                  <p className="text-sm text-[#64748B]">Nema članova tima.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {teamMembers.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center justify-between p-3 rounded-[10px] border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] text-sm font-semibold text-white">
-                          {(member.full_name || member.email).substring(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-[#1E293B]">
-                            {member.full_name || member.email.split('@')[0]}
-                          </p>
-                          <p className="text-xs text-[#64748B]">{member.email}</p>
-                        </div>
-                      </div>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium border ${getRoleBadgeStyle(member.role)}`}>
-                        {getRoleLabel(member.role)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="mt-4 pt-4 border-t border-[#E2E8F0]">
-                <button
-                  disabled
-                  className="flex items-center gap-2 text-sm text-[#94A3B8] cursor-not-allowed"
-                  title="Uskoro dostupno"
+            <div className="divide-y divide-[#E2E8F0]">
+              {teamMembers.map((member) => (
+                <div
+                  key={member.id}
+                  className="px-6 py-4 flex items-center justify-between"
                 >
-                  <UserPlus className="h-4 w-4" />
-                  Pozovi člana tima (uskoro)
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Integracije Card */}
-          <div className="rounded-[14px] bg-white border border-[#E2E8F0] shadow-sm p-6">
-            <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FEF3C7]">
-                <Plug className="h-5 w-5 text-[#F59E0B]" />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold text-[#1E293B]">Integracije</h2>
-                <p className="text-sm text-[#64748B] mt-1">
-                  Povežite email, SMS i druge servise
-                </p>
-                <Link href="/dashboard/settings/integracije">
-                  <button className="mt-4 inline-flex items-center gap-2 rounded-[10px] border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all">
-                    <Mail className="h-4 w-4" />
-                    Upravljaj integracijama
-                  </button>
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Šabloni odgovora Card */}
-          <div className="rounded-[14px] bg-white border border-[#E2E8F0] shadow-sm p-6">
-            <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F0FDF4]">
-                <MessageSquare className="h-5 w-5 text-[#22C55E]" />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold text-[#1E293B]">Šabloni odgovora</h2>
-                <p className="text-sm text-[#64748B] mt-1">
-                  Prilagodite email šablone za odgovore na upite
-                </p>
-                <Link href="/dashboard/settings/sabloni-odgovora">
-                  <button className="mt-4 inline-flex items-center gap-2 rounded-[10px] border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all">
-                    <Settings className="h-4 w-4" />
-                    Uredi šablone
-                  </button>
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Notification Settings Card */}
-          <div className="rounded-[14px] bg-white border border-[#E2E8F0] shadow-sm p-6">
-            <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFF6FF]">
-                <Bell className="h-5 w-5 text-[#3B82F6]" />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold text-[#1E293B]">Obaveštenja</h2>
-                <p className="text-sm text-[#64748B] mt-1">
-                  Podešavanja za obaveštenja o novim porukama
-                </p>
-                <div className="mt-4 space-y-3">
-                  <div className="flex items-center justify-between p-3 rounded-[10px] border border-[#E2E8F0] bg-[#F8FAFC]">
-                    <div className="flex items-center gap-3">
-                      {notificationSoundEnabled ? (
-                        <Volume2 className="h-5 w-5 text-[#3B82F6]" />
-                      ) : (
-                        <VolumeX className="h-5 w-5 text-[#94A3B8]" />
-                      )}
-                      <div>
-                        <p className="text-sm font-medium text-[#1E293B]">Zvuk obaveštenja</p>
-                        <p className="text-xs text-[#64748B]">Reprodukuj zvuk kad stigne nova poruka</p>
-                      </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] text-sm font-semibold text-white">
+                      {(member.full_name || member.email).substring(0, 2).toUpperCase()}
                     </div>
+                    <div>
+                      <p className="text-sm font-medium text-[#1E293B]">
+                        {member.full_name || member.email.split('@')[0]}
+                      </p>
+                      <p className="text-xs text-[#64748B]">{member.email}</p>
+                    </div>
+                  </div>
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium border ${getRoleBadgeStyle(member.role)}`}>
+                    {getRoleLabel(member.role)}
+                  </span>
+                </div>
+              ))}
+
+              {/* Pending Invitations */}
+              {pendingInvitations.map((invitation) => (
+                <div
+                  key={invitation.id}
+                  className="px-6 py-4 flex items-center justify-between bg-[#FEF3C7]/20"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FEF3C7]">
+                      <Clock className="h-5 w-5 text-[#F59E0B]" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-[#1E293B]">{invitation.email}</p>
+                      <p className="text-xs text-[#64748B]">
+                        Čeka prihvatanje • Ističe {new Date(invitation.expires_at).toLocaleDateString('sr-RS')}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleRevokeInvitation(invitation.id)}
+                    className="p-2 rounded-lg text-[#64748B] hover:text-[#EF4444] hover:bg-[#FEF2F2] transition-colors"
+                    title="Poništi pozivnicu"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* 3. Quick Settings Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Integrations */}
+            <Link
+              href="/dashboard/integrations"
+              className="group bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-5 hover:border-[#3B82F6]/50 hover:shadow-md transition-all"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#FEF3C7] flex-shrink-0">
+                  <Plug className="h-5 w-5 text-[#F59E0B]" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[#1E293B] group-hover:text-[#3B82F6] transition-colors">Integracije</h3>
+                  <p className="text-xs text-[#64748B] mt-0.5">Gmail, Meta, SMS</p>
+                  <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-xs font-medium bg-[#ECFDF5] text-[#10B981]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]"></span>
+                    1 aktivna
+                  </span>
+                </div>
+              </div>
+            </Link>
+
+            {/* Response Templates */}
+            <Link
+              href="/dashboard/settings/sabloni-odgovora"
+              className="group bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-5 hover:border-[#3B82F6]/50 hover:shadow-md transition-all"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#F0FDF4] flex-shrink-0">
+                  <MessageSquare className="h-5 w-5 text-[#22C55E]" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[#1E293B] group-hover:text-[#3B82F6] transition-colors">Šabloni odgovora</h3>
+                  <p className="text-xs text-[#64748B] mt-0.5">Email šabloni za upite</p>
+                </div>
+              </div>
+            </Link>
+
+            {/* Public Page */}
+            <Link
+              href="/dashboard/settings/public-page"
+              className="group bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-5 hover:border-[#3B82F6]/50 hover:shadow-md transition-all"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#F0FDFA] flex-shrink-0">
+                  <Globe className="h-5 w-5 text-[#0D9488]" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[#1E293B] group-hover:text-[#3B82F6] transition-colors">Javna stranica</h3>
+                  <p className="text-xs text-[#64748B] mt-0.5">Landing page i upiti</p>
+                </div>
+              </div>
+            </Link>
+
+            {/* Notifications - Inline toggle */}
+            <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#EFF6FF] flex-shrink-0">
+                  <Bell className="h-5 w-5 text-[#3B82F6]" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[#1E293B]">Obaveštenja</h3>
+                  <p className="text-xs text-[#64748B] mt-0.5">Zvučna upozorenja</p>
+                  <div className="flex items-center gap-2 mt-2">
                     <button
                       onClick={toggleNotificationSound}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                         notificationSoundEnabled ? 'bg-[#3B82F6]' : 'bg-[#E2E8F0]'
                       }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          notificationSoundEnabled ? 'translate-x-6' : 'translate-x-1'
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                          notificationSoundEnabled ? 'translate-x-5' : 'translate-x-1'
                         }`}
                       />
                     </button>
+                    <span className="text-xs text-[#64748B] flex items-center gap-1">
+                      {notificationSoundEnabled ? (
+                        <>
+                          <Volume2 className="h-3 w-3" />
+                          Uključeno
+                        </>
+                      ) : (
+                        <>
+                          <VolumeX className="h-3 w-3" />
+                          Isključeno
+                        </>
+                      )}
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Public Page Settings Card */}
-          <div className="lg:col-span-2 rounded-[14px] bg-white border border-[#E2E8F0] shadow-sm p-6">
-            <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F0FDFA]">
-                <Globe className="h-5 w-5 text-[#0D9488]" />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold text-[#1E293B]">Javna stranica</h2>
-                <p className="text-sm text-[#64748B] mt-1">
-                  Prilagodite izgled vaše landing stranice i podešavanja upita
-                </p>
-                <Link href="/dashboard/settings/public-page">
-                  <button className="mt-4 inline-flex items-center gap-2 rounded-[10px] border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all">
-                    <Settings className="h-4 w-4" />
-                    Uredi javnu stranicu
-                  </button>
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Shareable links */}
-          <div className="lg:col-span-2 rounded-[14px] bg-white border border-[#E2E8F0] shadow-sm p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFF6FF]">
-                <Link2 className="h-5 w-5 text-[#3B82F6]" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-[#1E293B]">Linkovi za dijeljenje</h2>
-                <p className="text-sm text-[#64748B]">
-                  Koristite ove linkove u oglasima, na društvenim mrežama i u komunikaciji s klijentima.
-                </p>
+          {/* 4. Shareable Links */}
+          <section className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm">
+            <div className="px-6 py-4 border-b border-[#E2E8F0]">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F1F5F9]">
+                  <Link2 className="h-5 w-5 text-[#64748B]" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-[#1E293B]">Linkovi za dijeljenje</h2>
+                  <p className="text-sm text-[#64748B]">Za oglase i društvene mreže</p>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[#1E293B] mb-1.5">
-                  Landinčna stranica (glavni link za oglase)
+                <label className="block text-xs font-medium text-[#64748B] mb-1.5 uppercase tracking-wider">
+                  Landing stranica
                 </label>
                 <div className="flex gap-2">
                   <input
                     readOnly
                     value={landingUrl}
-                    className="flex-1 rounded-[10px] border border-[#E2E8F0] px-4 py-2.5 text-sm text-[#1E293B] bg-[#F8FAFC]"
+                    className="flex-1 rounded-lg border border-[#E2E8F0] px-3 py-2 text-sm text-[#1E293B] bg-[#F8FAFC]"
                   />
                   <button
                     type="button"
                     onClick={() => copyToClipboard(landingUrl)}
-                    className="inline-flex items-center gap-2 rounded-[10px] border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC] transition-all"
+                    className="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F8FAFC] transition-colors"
                   >
-                    {copiedUrl === landingUrl ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-                    {copiedUrl === landingUrl ? 'Kopirano' : 'Kopiraj'}
+                    {copiedUrl === landingUrl ? (
+                      <Check className="h-4 w-4 text-[#10B981]" />
+                    ) : (
+                      <Copy className="h-4 w-4 text-[#64748B]" />
+                    )}
                   </button>
                 </div>
-                <p className="text-xs text-[#64748B] mt-1">/a/{organization?.slug || '…'}</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[#1E293B] mb-1.5">
-                  Sve ponude (katalog)
+                <label className="block text-xs font-medium text-[#64748B] mb-1.5 uppercase tracking-wider">
+                  Katalog ponuda
                 </label>
                 <div className="flex gap-2">
                   <input
                     readOnly
                     value={ponudeUrl}
-                    className="flex-1 rounded-[10px] border border-[#E2E8F0] px-4 py-2.5 text-sm text-[#1E293B] bg-[#F8FAFC]"
+                    className="flex-1 rounded-lg border border-[#E2E8F0] px-3 py-2 text-sm text-[#1E293B] bg-[#F8FAFC]"
                   />
                   <button
                     type="button"
                     onClick={() => copyToClipboard(ponudeUrl)}
-                    className="inline-flex items-center gap-2 rounded-[10px] border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-medium text-[#1E293B] hover:bg-[#F8FAFC] transition-all"
+                    className="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F8FAFC] transition-colors"
                   >
-                    {copiedUrl === ponudeUrl ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-                    {copiedUrl === ponudeUrl ? 'Kopirano' : 'Kopiraj'}
+                    {copiedUrl === ponudeUrl ? (
+                      <Check className="h-4 w-4 text-[#10B981]" />
+                    ) : (
+                      <Copy className="h-4 w-4 text-[#64748B]" />
+                    )}
                   </button>
                 </div>
-                <p className="text-xs text-[#64748B] mt-1">/a/{organization?.slug || '…'}/ponude</p>
               </div>
             </div>
+          </section>
+        </div>
+      )}
+
+      {/* Invite Team Member Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50" onClick={() => {
+            setShowInviteModal(false)
+            setInviteError(null)
+            setInviteSuccess(null)
+          }} />
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <button
+              onClick={() => {
+                setShowInviteModal(false)
+                setInviteError(null)
+                setInviteSuccess(null)
+              }}
+              className="absolute top-4 right-4 p-1 text-[#64748B] hover:text-[#1E293B] transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFF6FF]">
+                <UserPlus className="h-5 w-5 text-[#3B82F6]" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-[#1E293B]">Pozovi člana tima</h3>
+                <p className="text-sm text-[#64748B]">Pošaljite pozivnicu putem email linka</p>
+              </div>
+            </div>
+
+            {inviteSuccess ? (
+              <div className="space-y-4">
+                <div className="rounded-xl bg-[#ECFDF5] p-4 border border-[#10B981]/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Check className="h-5 w-5 text-[#10B981]" />
+                    <p className="text-sm font-medium text-[#10B981]">Pozivnica je kreirana!</p>
+                  </div>
+                  <p className="text-xs text-[#64748B]">Podelite ovaj link sa osobom koju želite da pozovete:</p>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    value={inviteSuccess.url}
+                    className="flex-1 rounded-lg border border-[#E2E8F0] px-3 py-2 text-sm text-[#1E293B] bg-[#F8FAFC]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(inviteSuccess.url)}
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#3B82F6] px-4 py-2 text-sm font-medium text-white hover:bg-[#2563EB] transition-all"
+                  >
+                    {copiedUrl === inviteSuccess.url ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                </div>
+                <button
+                  onClick={() => {
+                    setInviteSuccess(null)
+                  }}
+                  className="w-full mt-2 text-sm text-[#3B82F6] font-medium hover:underline"
+                >
+                  Pozovi još nekoga
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleInvite} className="space-y-4">
+                {inviteError && (
+                  <div className="rounded-lg bg-[#FEF2F2] p-3 border border-[#EF4444]/20">
+                    <p className="text-sm text-[#EF4444]">{inviteError}</p>
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="invite-email" className="block text-sm font-medium text-[#1E293B] mb-1.5">
+                    Email adresa
+                  </label>
+                  <input
+                    type="email"
+                    id="invite-email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="kolega@firma.com"
+                    className="block w-full rounded-lg border border-[#E2E8F0] px-4 py-2.5 text-sm text-[#1E293B] bg-white focus:border-[#3B82F6] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/20 transition-all"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="invite-role" className="block text-sm font-medium text-[#1E293B] mb-1.5">
+                    Uloga
+                  </label>
+                  <select
+                    id="invite-role"
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as 'admin' | 'agent')}
+                    className="block w-full rounded-lg border border-[#E2E8F0] px-4 py-2.5 text-sm text-[#1E293B] bg-white focus:border-[#3B82F6] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/20 transition-all"
+                  >
+                    <option value="agent">Agent - može raditi sa klijentima</option>
+                    <option value="admin">Admin - pun pristup podešavanjima</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={inviting || !inviteEmail}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-[#3B82F6] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {inviting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Šaljem...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      Pošalji pozivnicu
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}

@@ -482,6 +482,37 @@ export function usePackages() {
     [supabase, user]
   )
 
+  /**
+   * Toggle is_featured flag on a package
+   */
+  const toggleFeatured = useCallback(
+    async (id: string, isFeatured: boolean): Promise<boolean> => {
+      if (!user?.organization_id) {
+        setError('Organizacija nije pronađena')
+        return false
+      }
+
+      try {
+        const response = await fetch(`/api/packages/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_featured: isFeatured }),
+        })
+
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || 'Greška pri ažuriranju paketa')
+        }
+
+        return true
+      } catch (err: any) {
+        setError(err.message || 'Greška pri ažuriranju paketa')
+        return false
+      }
+    },
+    [user]
+  )
+
   return {
     loading,
     error,
@@ -491,6 +522,7 @@ export function usePackages() {
     createPackage,
     updatePackage,
     archivePackage,
+    toggleFeatured,
     // Departure operations
     getDepartures,
     addDeparture,

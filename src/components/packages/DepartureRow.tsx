@@ -3,15 +3,15 @@
 import { Trash2 } from 'lucide-react'
 import type { DepartureRowProps } from '@/types/packages'
 
-export function DepartureRow({ 
-  departure, 
-  index, 
+export function DepartureRow({
+  departure,
+  index,
   packageType,
-  onUpdate, 
-  onRemove 
+  onUpdate,
+  onRemove
 }: DepartureRowProps) {
   const showCapacity = packageType === 'fiksni'
-  
+
   return (
     <div className="grid grid-cols-12 gap-2 items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
       {/* Departure Date */}
@@ -23,7 +23,7 @@ export function DepartureRow({
           className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
         />
       </div>
-      
+
       {/* Return Date */}
       <div className="col-span-3">
         <input
@@ -33,7 +33,7 @@ export function DepartureRow({
           className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
         />
       </div>
-      
+
       {/* Capacity (only for fiksni) */}
       {showCapacity && (
         <div className="col-span-2">
@@ -47,7 +47,7 @@ export function DepartureRow({
           />
         </div>
       )}
-      
+
       {/* Price */}
       <div className={showCapacity ? "col-span-2" : "col-span-4"}>
         <div className="relative">
@@ -62,7 +62,7 @@ export function DepartureRow({
           />
         </div>
       </div>
-      
+
       {/* Remove button */}
       <div className="col-span-2 flex justify-end">
         <button

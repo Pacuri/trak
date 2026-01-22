@@ -446,7 +446,7 @@ export default function PackageDetailPage() {
                   })}
                 </tbody>
               </table>
-              <p className="text-xs text-gray-500 mt-2">* Cene su po osobi po noćenju (najčešći pansion)</p>
+              <p className="text-xs text-gray-500 mt-2">* Cene su po osobi za ceo boravak (najčešći pansion)</p>
             </div>
           )}
         </div>

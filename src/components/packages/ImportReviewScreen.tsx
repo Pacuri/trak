@@ -76,6 +76,12 @@ export function ImportReviewScreen({
   }
 
   const handleContinue = () => {
+    // Debug transport mapping
+    console.log('=== TRANSPORT DEBUG ===')
+    console.log('parseResult.transport:', parseResult.transport)
+    console.log('parseResult.transport?.routes:', parseResult.transport?.routes)
+    console.log('parseResult.transport?.prices:', parseResult.transport?.prices)
+
     const formPackages: ImportPackageFormData[] = packages.map((pkg, index) => ({
       selected: selectedPackages.has(index),
       confidence: pkg.confidence,
@@ -153,6 +159,10 @@ export function ImportReviewScreen({
       included_services: parseResult.included_services,
       important_notes: parseResult.important_notes,
     }
+
+    console.log('=== MAPPED TRANSPORT ===')
+    console.log('formData.transport:', formData.transport)
+    console.log('formData.transport?.prices:', formData.transport?.prices)
 
     onContinue(formData)
   }

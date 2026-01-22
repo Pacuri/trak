@@ -11,12 +11,19 @@ interface InquiriesWaitingProps {
 }
 
 // Format wait time in Serbian
-function formatWaitTime(hours: number): string {
-  if (hours < 1) return 'sada'
-  if (hours < 24) return `pre ${hours}h`
-  const days = Math.floor(hours / 24)
-  if (days === 1) return 'pre 1d'
-  return `pre ${days}d`
+function formatWaitTime(createdAt: string): string {
+  const created = new Date(createdAt)
+  const now = new Date()
+  const diffMs = now.getTime() - created.getTime()
+  const diffMins = Math.floor(diffMs / (1000 * 60))
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffMins < 1) return 'sada'
+  if (diffMins < 60) return `pre ${diffMins}m`
+  if (diffHours < 24) return `pre ${diffHours}h`
+  if (diffDays === 1) return 'pre 1d'
+  return `pre ${diffDays}d`
 }
 
 function InquiryRow({ 
@@ -67,7 +74,7 @@ function InquiryRow({
         inquiry.priority === 'urgent' ? 'text-red-600' : 
         inquiry.priority === 'high' ? 'text-amber-600' : 'text-slate-400'
       }`}>
-        {formatWaitTime(inquiry.wait_hours)}
+        {formatWaitTime(inquiry.created_at)}
       </span>
 
       {/* Respond button */}

@@ -596,15 +596,34 @@ export interface DailyReconciliation {
   id: string
   organization_id: string
   user_id: string
-  
+
   reconciliation_date: string
-  
+
   leads_created: number
   bookings_closed: number
   revenue_total: number
-  
+
   confirmed_complete: boolean
   confirmed_at: string | null
-  
+
+  created_at: string
+}
+
+// Message types
+export interface Message {
+  id: string
+  organization_id: string
+  lead_id: string
+  direction: 'inbound' | 'outbound'
+  channel: 'email' | 'sms' | 'whatsapp' | 'chat'
+  subject: string | null
+  content: string | null
+  sender_email: string | null
+  sender_name: string | null
+  recipient_email: string | null
+  gmail_message_id: string | null
+  gmail_thread_id: string | null
+  sent_at: string
+  read_at: string | null
   created_at: string
 }

@@ -121,6 +121,38 @@ export default function OnboardingPage() {
         return
       }
 
+      // Create agency_booking_settings with slug for landing page links
+      const { error: bookingSettingsError } = await supabase
+        .from('agency_booking_settings')
+        .insert({
+          organization_id: organizationId,
+          slug: slug,
+          allow_custom_inquiries: true,
+          show_inquiry_with_results: true,
+          inquiry_response_text: 'Javićemo vam se u roku od 24 sata',
+        })
+
+      if (bookingSettingsError) {
+        console.error('Error creating booking settings:', bookingSettingsError)
+        // Don't fail onboarding for this, just log it
+      }
+
+      // Create default agency_landing_settings
+      const { error: landingSettingsError } = await supabase
+        .from('agency_landing_settings')
+        .insert({
+          organization_id: organizationId,
+          headline: 'Pronađite savršeno putovanje',
+          subtitle: 'Recite nam šta tražite, a mi ćemo vam pronaći idealne ponude za vas.',
+          cta_text: 'Započni pretragu',
+          primary_color: '#0F766E',
+        })
+
+      if (landingSettingsError) {
+        console.error('Error creating landing settings:', landingSettingsError)
+        // Don't fail onboarding for this, just log it
+      }
+
       // Redirect to dashboard
       router.push('/dashboard')
       router.refresh()

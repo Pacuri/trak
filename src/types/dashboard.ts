@@ -55,6 +55,7 @@ export interface PendingInquiry {
   priority: InquiryPriority // calculated: urgent >4h, high 2-4h, normal <2h
   wait_hours: number
   source: string | null
+  lead_id: string | null // linked lead in pipeline
 }
 
 export interface InquiryResponse {

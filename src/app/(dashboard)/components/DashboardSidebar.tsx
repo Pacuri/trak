@@ -66,7 +66,11 @@ export default function DashboardSidebar({ leadsCount = 0 }: DashboardSidebarPro
   const pathname = usePathname()
 
   const NavItemComponent = ({ item, prominent = false }: { item: NavItem; prominent?: boolean }) => {
-    const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+    // Special case: /dashboard/leads should only be active on exact match
+    // Lead detail pages (/dashboard/leads/[id]) should not highlight "Aktivni"
+    const isActive = item.href === '/dashboard/leads'
+      ? pathname === item.href
+      : pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
     const Icon = item.icon
 
     // Prominent style (Početna) - larger, white text, blue outline when active

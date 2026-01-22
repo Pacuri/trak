@@ -1,8 +1,7 @@
 'use client'
 
 import type { Offer, QualificationData } from '@/types'
-import InstantOfferCard from './InstantOfferCard'
-import InquiryOfferCard from './InquiryOfferCard'
+import PremiumOfferCard from './PremiumOfferCard'
 import ResponseTimeDisplay from './ResponseTimeDisplay'
 
 interface ResultsSectionProps {
@@ -50,29 +49,16 @@ export default function ResultsSection({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {offers.map((offer, index) =>
-          cardType === 'instant' ? (
-            <InstantOfferCard
-              key={offer.id}
-              offer={offer}
-              qualification={qualification}
-              slug={slug}
-              index={index}
-              isFirstRecommended={index === firstRecommendedIndex}
-            />
-          ) : (
-            <InquiryOfferCard
-              key={offer.id}
-              offer={offer}
-              qualification={qualification}
-              slug={slug}
-              responseTimeMinutes={responseTimeMinutes}
-              isWithinWorkingHours={isWithinWorkingHours}
-              index={index}
-              isFirstRecommended={index === firstRecommendedIndex}
-            />
-          )
-        )}
+        {offers.map((offer, index) => (
+          <PremiumOfferCard
+            key={offer.id}
+            offer={offer}
+            qualification={qualification}
+            slug={slug}
+            index={index}
+            isFirstRecommended={index === firstRecommendedIndex}
+          />
+        ))}
       </div>
     </section>
   )

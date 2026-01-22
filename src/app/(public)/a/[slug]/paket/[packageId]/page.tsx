@@ -6,7 +6,6 @@ import Image from 'next/image'
 import Link from 'next/link'
 import {
   ArrowLeft,
-  Calendar,
   MapPin,
   Hotel,
   Utensils,
@@ -28,6 +27,7 @@ import {
   Minus,
   Plus,
   Edit2,
+  Calendar,
 } from 'lucide-react'
 import type { QualificationData } from '@/types'
 
@@ -179,7 +179,10 @@ export default function PaketPage() {
   // Track which room's price breakdown is expanded
   const [expandedBreakdowns, setExpandedBreakdowns] = useState<Set<string>>(new Set())
 
-  // Load qualification from sessionStorage
+  // Contact info from promo flow
+  const [promoContact, setPromoContact] = useState<{ name?: string; email?: string; phone?: string } | null>(null)
+
+  // Load qualification and contact info from sessionStorage
   useEffect(() => {
     const storedQualification = sessionStorage.getItem('qualification')
     if (storedQualification) {
@@ -188,6 +191,16 @@ export default function PaketPage() {
       // Initialize editable guest state from qualification
       setEditableAdults(qualData.guests?.adults || 2)
       setEditableChildAges(qualData.guests?.childAges || [])
+    }
+
+    // Load contact info from promo flow (to pass to inquiry page)
+    const storedContact = sessionStorage.getItem('promo_contact')
+    if (storedContact) {
+      try {
+        setPromoContact(JSON.parse(storedContact))
+      } catch (e) {
+        // Ignore parse errors
+      }
     }
   }, [])
 
@@ -349,7 +362,7 @@ export default function PaketPage() {
             package_id: packageId,
             adults: String(editableAdults),
             date: selectedDate,
-            duration_nights: String(pkg.default_duration || 7),
+            duration_nights: String(qualification?.dates?.duration || pkg.default_duration || 7),
             room_type_id: room.id,
             meal_plan: roomMealPlan,
           })
@@ -410,6 +423,26 @@ export default function PaketPage() {
     setEditableChildAges(newAges)
   }
 
+  // Build inquiry URL with all params (including contact info from promo)
+  const buildInquiryUrl = useCallback((roomId: string, mealPlan: string) => {
+    const params = new URLSearchParams({
+      date: selectedDate,
+      room_type_id: roomId,
+      meal_plan: mealPlan,
+      adults: String(editableAdults),
+      children: String(editableChildAges.length),
+    })
+    if (editableChildAges.length > 0) {
+      params.set('childAges', editableChildAges.join(','))
+    }
+    // Add contact info from promo flow (for pre-filling)
+    if (promoContact?.name) params.set('name', promoContact.name)
+    if (promoContact?.email) params.set('email', promoContact.email)
+    if (promoContact?.phone) params.set('phone', promoContact.phone)
+
+    return `/a/${slug}/inquiry/${packageId}?${params.toString()}`
+  }, [selectedDate, editableAdults, editableChildAges, promoContact, slug, packageId])
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -427,8 +460,8 @@ export default function PaketPage() {
         <div className="text-center max-w-md px-4">
           <div className="text-6xl mb-4">😕</div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">{error || 'Paket nije pronađen'}</h2>
-          <Link href={`/a/${slug}/results`} className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-xl font-medium">
-            <ArrowLeft className="w-4 h-4" /> Nazad na rezultate
+          <Link href={`/a/${slug}/ponude`} className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-xl font-medium">
+            <ArrowLeft className="w-4 h-4" /> Nazad na ponude
           </Link>
         </div>
       </div>
@@ -458,8 +491,8 @@ export default function PaketPage() {
       {/* Back navigation */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href={`/a/${slug}/results`} className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm">
-            <ArrowLeft className="w-4 h-4" /> Nazad na rezultate
+          <Link href={`/a/${slug}/ponude`} className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm">
+            <ArrowLeft className="w-4 h-4" /> Nazad na ponude
           </Link>
 
           {/* Guest summary badge - clickable to edit */}
@@ -659,10 +692,10 @@ export default function PaketPage() {
                   <span>{pkg.meal_plans.map(mp => MEAL_LABELS[mp] || mp).join(', ')}</span>
                 </div>
               )}
-              {pkg.default_duration && (
+              {(qualification?.dates?.duration || pkg.default_duration) && (
                 <div className="flex items-center gap-1.5 text-sm text-white bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
                   <Clock className="w-4 h-4" />
-                  <span>{pkg.default_duration} noći</span>
+                  <span>{qualification?.dates?.duration || pkg.default_duration} noći</span>
                 </div>
               )}
             </div>
@@ -740,7 +773,7 @@ export default function PaketPage() {
               const currentMealPlan = roomMealPlans.get(room.id) || pkg.meal_plans?.[0] || 'AI'
               const availableMealPlans = getAvailableMealPlansForRoom(room.id)
               const pricePerNight = getPriceForRoom(room.id, currentMealPlan)
-              const nights = pkg.default_duration || 7
+              const nights = qualification?.dates?.duration || pkg.default_duration || 7
               // Get API-calculated price for this room
               const roomPriceResult = priceResults.get(room.id)
               const hasCalculatedPrice = roomPriceResult?.success
@@ -898,7 +931,7 @@ export default function PaketPage() {
                             <>
                               <div className="text-sm text-gray-500">od</div>
                               <div className="text-2xl font-bold text-gray-900">€{pricePerNight}</div>
-                              <div className="text-xs text-gray-500">po osobi / noć</div>
+                              <div className="text-xs text-gray-500">po osobi</div>
 
                               {/* Show loading state */}
                               {priceLoading && !hasCalculatedPrice && (
@@ -985,7 +1018,7 @@ export default function PaketPage() {
                       <div className="flex flex-col gap-2 w-full lg:w-auto">
                         {selectedDate && pricePerNight ? (
                           <Link
-                            href={`/a/${slug}/inquiry/${packageId}?date=${selectedDate}&room_type_id=${room.id}&meal_plan=${currentMealPlan}&adults=${adults}&children=${children}${childAges.length > 0 ? `&childAges=${childAges.join(',')}` : ''}`}
+                            href={buildInquiryUrl(room.id, currentMealPlan)}
                             className="w-full lg:w-auto inline-flex items-center justify-center px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors"
                           >
                             Pošalji upit
@@ -1216,7 +1249,7 @@ export default function PaketPage() {
         {/* Bottom CTA for mobile */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 lg:hidden z-20">
           <Link
-            href={`/a/${slug}/inquiry/${packageId}${selectedDate ? `?date=${selectedDate}&meal_plan=${pkg.meal_plans?.[0] || 'AI'}&adults=${adults}&children=${children}${childAges.length > 0 ? `&childAges=${childAges.join(',')}` : ''}` : ''}`}
+            href={selectedDate ? buildInquiryUrl(pkg.room_types?.[0]?.id || '', pkg.meal_plans?.[0] || 'AI') : `/a/${slug}/inquiry/${packageId}`}
             className="block w-full text-center px-6 py-3.5 rounded-xl font-semibold text-white bg-teal-600 hover:bg-teal-700 transition-colors"
           >
             Pošalji upit →

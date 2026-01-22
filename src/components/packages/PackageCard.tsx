@@ -1,12 +1,14 @@
 'use client'
 
+import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
-import { Calendar, MapPin, Star, Eye, Pencil, Package as PackageIcon, Users, Archive } from 'lucide-react'
+import { Calendar, MapPin, Star, Eye, Pencil, Package as PackageIcon, Users, Archive, HelpCircle, Link2, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Package } from '@/types/packages'
-import { 
-  PACKAGE_TYPE_SHORT_LABELS, 
-  formatPrice, 
+import {
+  PACKAGE_TYPE_SHORT_LABELS,
+  formatPrice,
   formatDate,
   getLocationString,
 } from '@/lib/package-labels'
@@ -14,11 +16,53 @@ import {
 interface PackageCardProps {
   package: Package
   onArchive?: (id: string) => void
+  onToggleFeatured?: (id: string, isFeatured: boolean) => Promise<boolean>
+  organizationSlug?: string | null
 }
 
-export function PackageCard({ package: pkg, onArchive }: PackageCardProps) {
+export function PackageCard({ package: pkg, onArchive, onToggleFeatured, organizationSlug }: PackageCardProps) {
+  const [isFeatured, setIsFeatured] = useState(pkg.is_featured)
+  const [isToggling, setIsToggling] = useState(false)
+  const [showTooltip, setShowTooltip] = useState(false)
+  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
+  const [linkCopied, setLinkCopied] = useState(false)
+  const helpIconRef = useRef<HTMLDivElement>(null)
   const primaryImage = pkg.images?.find(i => i.is_primary) || pkg.images?.[0]
   const location = getLocationString(pkg.destination_city, pkg.destination_country)
+
+  const handleCopyPromoLink = async () => {
+    if (!organizationSlug) return
+    const promoUrl = `${window.location.origin}/a/${organizationSlug}/promo/${pkg.id}`
+    try {
+      await navigator.clipboard.writeText(promoUrl)
+      setLinkCopied(true)
+      setTimeout(() => setLinkCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy link:', err)
+    }
+  }
+
+  const handleToggleFeatured = async () => {
+    if (!onToggleFeatured || isToggling) return
+    setIsToggling(true)
+    const newValue = !isFeatured
+    const success = await onToggleFeatured(pkg.id, newValue)
+    if (success) {
+      setIsFeatured(newValue)
+    }
+    setIsToggling(false)
+  }
+
+  const handleShowTooltip = () => {
+    if (helpIconRef.current) {
+      const rect = helpIconRef.current.getBoundingClientRect()
+      setTooltipPos({
+        top: rect.bottom + 8,
+        left: rect.right - 288,
+      })
+    }
+    setShowTooltip(true)
+  }
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
@@ -36,8 +80,8 @@ export function PackageCard({ package: pkg, onArchive }: PackageCardProps) {
               <PackageIcon className="h-12 w-12" />
             </div>
           )}
-          {pkg.is_featured && (
-            <span className="absolute top-2 left-2 bg-purple-500 text-white text-[10px] font-medium px-2 py-0.5 rounded">
+          {isFeatured && (
+            <span className="absolute top-2 left-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-medium px-2 py-0.5 rounded shadow">
               ⭐ Preporučeno
             </span>
           )}
@@ -130,7 +174,143 @@ export function PackageCard({ package: pkg, onArchive }: PackageCardProps) {
               Izmeni
             </button>
           </Link>
-          <button 
+          {organizationSlug && (
+            <button
+              onClick={handleCopyPromoLink}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all',
+                linkCopied
+                  ? 'bg-green-100 text-green-700'
+                  : 'text-gray-600 hover:text-teal-600 hover:bg-teal-50'
+              )}
+            >
+              {linkCopied ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  Kopirano!
+                </>
+              ) : (
+                <>
+                  <Link2 className="h-4 w-4" />
+                  Promo link
+                </>
+              )}
+            </button>
+          )}
+          <div className="relative flex items-center gap-1">
+            <button
+              onClick={handleToggleFeatured}
+              disabled={isToggling}
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-all',
+                isFeatured
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm hover:from-amber-600 hover:to-orange-600'
+                  : 'text-gray-600 hover:text-amber-600 hover:bg-amber-50 border border-dashed border-gray-300 hover:border-amber-400',
+                isToggling && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              <div className={cn(
+                'w-4 h-4 rounded border-2 flex items-center justify-center transition-all',
+                isFeatured
+                  ? 'bg-white border-white'
+                  : 'border-gray-400'
+              )}>
+                {isFeatured && (
+                  <svg className="w-3 h-3 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </div>
+              <span className="whitespace-nowrap">
+                {isFeatured ? 'Preporučeno ⭐' : 'Označi kao preporučeno'}
+              </span>
+            </button>
+
+            {/* Help icon with tooltip */}
+            <div
+              ref={helpIconRef}
+              onMouseEnter={handleShowTooltip}
+              onMouseLeave={() => setShowTooltip(false)}
+            >
+              <HelpCircle className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" />
+            </div>
+
+            {/* Tooltip rendered via portal */}
+            {showTooltip && typeof document !== 'undefined' && createPortal(
+              <div
+                className="fixed z-[9999] w-72"
+                style={{ top: tooltipPos.top, left: tooltipPos.left }}
+                onMouseEnter={() => setShowTooltip(true)}
+                onMouseLeave={() => setShowTooltip(false)}
+              >
+                {/* Arrow pointing up */}
+                <div className="absolute right-3 -top-1.5 w-3 h-3 bg-white border-l border-t border-gray-200 rotate-45" />
+                <div className="bg-white rounded-xl shadow-2xl p-3 border border-gray-200">
+                  <p className="text-xs text-gray-600 mb-2">
+                    Preporučeni paketi se ističu premium tamnom karticom:
+                  </p>
+                  {/* Mini Premium Dark Card Preview */}
+                  <div className="bg-gradient-to-br from-slate-800 via-slate-800 to-slate-900 rounded-xl overflow-hidden shadow-lg">
+                    {/* Image header */}
+                    <div className="relative h-20 bg-gradient-to-br from-blue-500 to-indigo-600">
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent" />
+                      {/* Star badge */}
+                      <div className="absolute top-2 right-2 bg-white/95 px-1.5 py-0.5 rounded text-[8px] font-semibold text-amber-600">
+                        ⭐⭐⭐⭐ Superior
+                      </div>
+                      {/* Recommended badge */}
+                      <div className="absolute top-2 left-2">
+                        <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded text-[8px] font-semibold">
+                          ⭐ Preporučeno
+                        </span>
+                      </div>
+                      {/* Hotel name */}
+                      <div className="absolute bottom-2 left-2 right-2">
+                        <h4 className="text-white font-bold text-xs">Hotel Horizont</h4>
+                        <p className="text-white/80 text-[9px] flex items-center gap-0.5">
+                          <MapPin className="w-2 h-2" />
+                          Drač, Albanija
+                        </p>
+                      </div>
+                    </div>
+                    {/* Content */}
+                    <div className="p-2 text-white">
+                      {/* Details grid */}
+                      <div className="grid grid-cols-2 gap-1 mb-2">
+                        <div className="bg-white/10 rounded-lg px-2 py-1">
+                          <p className="text-[7px] text-white/60 uppercase">Polazak</p>
+                          <p className="text-[9px] font-semibold">13. jun 2026</p>
+                        </div>
+                        <div className="bg-white/10 rounded-lg px-2 py-1">
+                          <p className="text-[7px] text-white/60 uppercase">Trajanje</p>
+                          <p className="text-[9px] font-semibold">7 noći</p>
+                        </div>
+                      </div>
+                      {/* Price section */}
+                      <div className="bg-white/10 rounded-lg p-2">
+                        <div className="flex justify-between items-end">
+                          <div>
+                            <p className="text-[7px] text-white/60 uppercase">Ukupna cena</p>
+                            <p className="text-sm font-bold text-amber-400">€1,240</p>
+                            <p className="text-[8px] text-white/50">€620 po osobi</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[8px] text-white/50">ili od</p>
+                            <p className="text-xs font-semibold">€89/noć</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[10px] text-gray-500 text-center">
+                    ✨ Privlači više pažnje od običnih kartica
+                  </p>
+                </div>
+              </div>,
+              document.body
+            )}
+          </div>
+          <button
             onClick={() => onArchive?.(pkg.id)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
           >

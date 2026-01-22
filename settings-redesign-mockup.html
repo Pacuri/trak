@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings Redesign - Trak (Simplified)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <div class="max-w-3xl mx-auto py-8 px-4">
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-2xl font-bold text-slate-800">Podešavanja</h1>
+      <p class="mt-1 text-sm text-slate-500">Upravljajte podešavanjima vaše organizacije</p>
+    </div>
+
+    <!-- Main Content - Single Column, Logical Order -->
+    <div class="space-y-6">
+
+      <!-- 1. ORGANIZATION - Most important, first -->
+      <section class="bg-white rounded-xl border border-slate-200 shadow-sm">
+        <div class="px-6 py-4 border-b border-slate-200">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-lg font-semibold text-slate-800">Organizacija</h2>
+              <p class="text-sm text-slate-500">Osnovni podaci o vašoj agenciji</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-6 space-y-5">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Naziv</label>
+              <input type="text" value="SUDEX" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Industrija</label>
+              <select class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-sm bg-white">
+                <option selected>Turistička agencija</option>
+                <option>Nekretnine</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Država poslovanja</label>
+            <select class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-sm bg-white">
+              <option>Srbija</option>
+              <option selected>Bosna i Hercegovina</option>
+              <option>Hrvatska</option>
+            </select>
+            <p class="mt-1.5 text-xs text-slate-500">Utiče na jezik AI pri uvozu dokumenata</p>
+          </div>
+
+          <button class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            Sačuvaj
+          </button>
+        </div>
+      </section>
+
+      <!-- 2. TEAM - Second most important -->
+      <section class="bg-white rounded-xl border border-slate-200 shadow-sm">
+        <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center">
+              <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-lg font-semibold text-slate-800">Tim</h2>
+              <p class="text-sm text-slate-500">1 član</p>
+            </div>
+          </div>
+          <button class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+            </svg>
+            Pozovi člana
+          </button>
+        </div>
+
+        <div class="px-6 py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold text-sm">MI</div>
+              <div>
+                <p class="text-sm font-medium text-slate-800">Mirsad Mešić</p>
+                <p class="text-xs text-slate-500">sudex@test.com</p>
+              </div>
+            </div>
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">Vlasnik</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. QUICK SETTINGS - Grid of smaller cards -->
+      <div class="grid grid-cols-2 gap-4">
+
+        <!-- Integrations -->
+        <a href="/dashboard/integrations" class="group bg-white rounded-xl border border-slate-200 shadow-sm p-5 hover:border-blue-300 hover:shadow-md transition-all">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+              </svg>
+            </div>
+            <div>
+              <h3 class="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">Integracije</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Gmail, Meta, SMS</p>
+              <span class="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
+                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                1 aktivna
+              </span>
+            </div>
+          </div>
+        </a>
+
+        <!-- Response Templates -->
+        <a href="/dashboard/settings/sabloni-odgovora" class="group bg-white rounded-xl border border-slate-200 shadow-sm p-5 hover:border-blue-300 hover:shadow-md transition-all">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+              </svg>
+            </div>
+            <div>
+              <h3 class="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">Šabloni odgovora</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Email šabloni za upite</p>
+            </div>
+          </div>
+        </a>
+
+        <!-- Public Page -->
+        <a href="/dashboard/settings/public-page" class="group bg-white rounded-xl border border-slate-200 shadow-sm p-5 hover:border-blue-300 hover:shadow-md transition-all">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+              </svg>
+            </div>
+            <div>
+              <h3 class="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">Javna stranica</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Landing page i upiti</p>
+            </div>
+          </div>
+        </a>
+
+        <!-- Notifications - Inline toggle, no link needed -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <h3 class="font-semibold text-slate-800">Obaveštenja</h3>
+              <div class="flex items-center justify-between mt-2">
+                <span class="text-xs text-slate-500">Zvuk poruka</span>
+                <button class="relative inline-flex h-5 w-9 items-center rounded-full bg-blue-600 transition-colors">
+                  <span class="inline-block h-3.5 w-3.5 transform rounded-full bg-white translate-x-5 transition-transform"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 4. SHAREABLE LINKS - Bottom, less frequently used -->
+      <section class="bg-white rounded-xl border border-slate-200 shadow-sm">
+        <div class="px-6 py-4 border-b border-slate-200">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+              <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-lg font-semibold text-slate-800">Linkovi za dijeljenje</h2>
+              <p class="text-sm text-slate-500">Za oglase i društvene mreže</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-6 space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wider">Landing stranica</label>
+            <div class="flex gap-2">
+              <input type="text" readonly value="http://localhost:3000/a/sudex" class="flex-1 px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-600">
+              <button class="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-sm font-medium text-slate-700 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wider">Katalog ponuda</label>
+            <div class="flex gap-2">
+              <input type="text" readonly value="http://localhost:3000/a/sudex/ponude" class="flex-1 px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-600">
+              <button class="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-sm font-medium text-slate-700 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!--
+  ===========================================
+  DESIGN NOTES - SIMPLIFIED VERSION
+  ===========================================
+
+  NO EXTRA NAV - You're right, another sidebar is overkill.
+
+  Changes from current design:
+
+  1. SINGLE COLUMN LAYOUT
+     - Max width 3xl (768px) for focused reading
+     - Clear visual hierarchy top to bottom
+
+  2. LOGICAL ORDERING
+     - Organization (most important, editable)
+     - Team (second most important)
+     - Quick links grid (Integrations, Templates, Public Page, Notifications)
+     - Shareable links (least used, at bottom)
+
+  3. COMPACT GRID FOR SECONDARY ITEMS
+     - 2x2 grid instead of scattered full-width cards
+     - Clickable cards (no nested buttons)
+     - Status indicators inline
+     - Notifications toggle inline (no separate page needed)
+
+  4. VISUAL CLEANUP
+     - Consistent icon containers
+     - Less vertical spacing wasted
+     - Clearer section headers
+     - Compact copy buttons (icon only)
+
+  5. WHAT'S REMOVED
+     - No sidebar navigation
+     - No redundant "Upravljaj" buttons inside cards
+     - No excessive descriptions
+
+  ===========================================
+  -->
+
+</body>
+</html>

@@ -15,7 +15,7 @@ interface PipelineColumnProps {
   allUserIds?: string[]
 }
 
-// Get stage color for top border
+// Get stage color for top border - Updated for new stages
 function getStageColor(stageName: string): string {
   switch (stageName.toLowerCase()) {
     case 'novi':
@@ -23,16 +23,23 @@ function getStageColor(stageName: string): string {
       return '#3B82F6' // blue
     case 'kontaktiran':
     case 'contacted':
-      return '#8B5CF6' // purple
+      return '#06B6D4' // cyan
+    case 'poslata ponuda':
+    case 'ponuda poslata':
     case 'ponuda':
     case 'proposal':
-      return '#F97316' // orange
+      return '#8B5CF6' // purple
+    case 'poslat ugovor':
+    case 'ugovor poslat':
     case 'pregovaranje':
     case 'negotiation':
-      return '#EC4899' // pink
+      return '#F59E0B' // amber
     case 'zatvoreno':
     case 'won':
     case 'closed':
+    case 'rezervisano':
+    case 'plaćeno':
+    case 'placeno':
       return '#10B981' // green
     case 'izgubljeno':
     case 'lost':
@@ -102,6 +109,7 @@ export default function PipelineColumn({ stage, leads, onLeadClick, onReply, tea
                     >
                         <PipelineCardV2
                           lead={lead}
+                          stageName={stage.name}
                           onClick={() => onLeadClick(lead.id)}
                           onReply={onReply}
                           teamMembers={teamMembers}

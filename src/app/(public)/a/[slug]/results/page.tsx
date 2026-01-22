@@ -6,8 +6,7 @@ import { ArrowLeft, Loader2, RefreshCw, Search, MessageCircle, ArrowRight, Chevr
 import Link from 'next/link'
 import type { Offer, QualificationData } from '@/types'
 import { useAgencySettings } from '@/hooks/use-agency-settings'
-import InstantOfferCard from '@/components/public/InstantOfferCard'
-import InquiryOfferCard from '@/components/public/InquiryOfferCard'
+import PremiumOfferCard from '@/components/public/PremiumOfferCard'
 import type { AgencyInquirySettings } from '@/types/inquiry'
 import type { Departure } from '@/types/packages'
 
@@ -660,29 +659,16 @@ export default function ResultsPage() {
             {offers.length > 0 && (
               <section className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {offers.map((offer, index) =>
-                    offer.inventory_type === 'owned' ? (
-                      <InstantOfferCard
-                        key={offer.id}
-                        offer={offer}
-                        qualification={qualification}
-                        slug={slug}
-                        index={index}
-                        isFirstRecommended={index === firstRecommendedIndex}
-                      />
-                    ) : (
-                      <InquiryOfferCard
-                        key={offer.id}
-                        offer={offer}
-                        qualification={qualification}
-                        slug={slug}
-                        responseTimeMinutes={currentResponseTime}
-                        isWithinWorkingHours={isWithinWorkingHours}
-                        index={index}
-                        isFirstRecommended={index === firstRecommendedIndex}
-                      />
-                    )
-                  )}
+                  {offers.map((offer, index) => (
+                    <PremiumOfferCard
+                      key={offer.id}
+                      offer={offer}
+                      qualification={qualification}
+                      slug={slug}
+                      index={index}
+                      isFirstRecommended={index === firstRecommendedIndex}
+                    />
+                  ))}
                 </div>
               </section>
             )}

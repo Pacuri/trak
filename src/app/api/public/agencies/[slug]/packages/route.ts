@@ -374,7 +374,7 @@ export async function GET(
           return_date: returnDate,
           valid_from: pkg.valid_from,
           valid_to: pkg.valid_to,
-          duration_nights: duration,
+          duration_nights: pkg.package_type === 'na_upit' ? null : duration, // Don't set fixed duration for inquiry packages
           status: 'active',
           is_visible: true,
           available_spots: null, // On-request packages don't have fixed capacity

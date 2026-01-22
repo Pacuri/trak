@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { nanoid } from 'nanoid'
 
+interface SupplementData {
+  id: string
+  name: string
+  amount?: number
+  percent?: number
+  per?: string
+  currency?: string
+}
+
 interface SendOfferRequest {
   package_id: string
   package_name: string
@@ -13,10 +22,12 @@ interface SendOfferRequest {
   duration_nights?: number
   guests_adults?: number
   guests_children?: number
-  guest_child_ages?: number[]
+  children_ages?: number[]
   price_total?: number
   currency?: string
   link_url: string
+  departure_city?: string
+  supplements?: SupplementData[]
 }
 
 export async function POST(
@@ -89,13 +100,15 @@ export async function POST(
         duration_nights: body.duration_nights || null,
         guests_adults: body.guests_adults || null,
         guests_children: body.guests_children || null,
-        guest_child_ages: body.guest_child_ages || null,
+        guest_child_ages: body.children_ages || null,
         price_total: body.price_total || null,
         currency: body.currency || 'EUR',
         tracking_id: trackingId,
         link_url: body.link_url,
         sent_by: user.id,
         sent_at: new Date().toISOString(),
+        departure_city: body.departure_city || null,
+        supplements: body.supplements || null,
       })
       .select()
       .single()

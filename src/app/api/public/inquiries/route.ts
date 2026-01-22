@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import type { QualificationData } from '@/types'
 
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createClient()
+    const supabase = createServiceClient()
 
     // Get agency settings
     const { data: settings, error: settingsError } = await supabase
@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Also create a lead in the pipeline so it shows in Upiti
+      // Also create a lead in the pipeline so it shows in "Čeka odgovor"
       const destination = pkg.destination_city
         ? `${pkg.destination_city}, ${pkg.destination_country}`
         : pkg.destination_country
@@ -188,13 +188,15 @@ export async function POST(request: NextRequest) {
         name: customer_name.trim(),
         phone: customer_phone.trim(),
         email: customer_email?.trim() || null,
-        source_type: 'website', // From trak website
+        source_type: 'trak', // From trak website
         stage_id: firstStage?.id || null,
         destination: destination || null,
         guests: (adults || 2) + (children || 0),
         notes: message || customer_message || null,
         original_message: message || customer_message || null,
         source_inquiry_id: inquiry.id, // Link to the custom inquiry
+        awaiting_response: true, // Show in inbox widget
+        last_customer_message_at: new Date().toISOString(), // For sorting in inbox
       }
 
       const { data: lead, error: leadError } = await supabase

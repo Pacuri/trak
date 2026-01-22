@@ -47,6 +47,10 @@ export default function InquiryPage() {
   const urlChildAges = searchParams.get('childAges')
   // Tracking ID from sent offer link
   const trackingId = searchParams.get('tid') || ''
+  // Contact info from URL params (passed from promo flow via package page)
+  const urlName = searchParams.get('name') || ''
+  const urlEmail = searchParams.get('email') || ''
+  const urlPhone = searchParams.get('phone') || ''
 
   const [offer, setOffer] = useState<Offer | null>(null)
   const [pkg, setPkg] = useState<PackageData | null>(null)
@@ -57,11 +61,11 @@ export default function InquiryPage() {
 
   const { currentResponseTime, isWithinWorkingHours } = useAgencySettings(slug)
 
-  // Form state
+  // Form state - pre-fill from URL params if available (from promo flow)
   const [formData, setFormData] = useState({
-    customerName: '',
-    customerEmail: '',
-    customerPhone: '',
+    customerName: urlName,
+    customerEmail: urlEmail,
+    customerPhone: urlPhone,
     adults: urlAdults ? parseInt(urlAdults) : 2,
     children: urlChildren ? parseInt(urlChildren) : 0,
     childAges: urlChildAges ? urlChildAges.split(',').map(a => parseInt(a)) : [] as number[],
@@ -85,6 +89,25 @@ export default function InquiryPage() {
           children: qual.guests.children,
           childAges: qual.guests.childAges || [],
         }))
+      }
+    }
+
+    // Get contact info from promo flow (pre-fill to avoid duplicate entry)
+    // Only use sessionStorage if not already set from URL params
+    if (!urlName && !urlEmail && !urlPhone) {
+      const storedContact = sessionStorage.getItem('promo_contact')
+      if (storedContact) {
+        try {
+          const contact = JSON.parse(storedContact) as { name?: string; email?: string; phone?: string }
+          setFormData(prev => ({
+            ...prev,
+            customerName: contact.name || prev.customerName,
+            customerEmail: contact.email || prev.customerEmail,
+            customerPhone: contact.phone || prev.customerPhone,
+          }))
+        } catch (e) {
+          // Ignore parse errors
+        }
       }
     }
 
@@ -182,8 +205,8 @@ export default function InquiryPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 mb-4">{error || 'Ponuda nije pronađena'}</p>
-          <Link href={`/a/${slug}/results`} className="text-blue-600 underline">
-            Nazad na rezultate
+          <Link href={`/a/${slug}/ponude`} className="text-blue-600 underline">
+            Nazad na ponude
           </Link>
         </div>
       </div>
@@ -210,7 +233,7 @@ export default function InquiryPage() {
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <Link
-            href={pkg ? `/a/${slug}/paket/${pkg.id}` : `/a/${slug}/results`}
+            href={pkg ? `/a/${slug}/paket/${pkg.id}` : `/a/${slug}/ponude`}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
           >
             <ArrowLeft className="w-4 h-4" />

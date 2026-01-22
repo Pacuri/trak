@@ -105,8 +105,8 @@ export default function ReservePage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 mb-4">{error || 'Ponuda nije pronađena'}</p>
-          <Link href={`/a/${slug}/results`} className="text-blue-600 underline">
-            Nazad na rezultate
+          <Link href={`/a/${slug}/ponude`} className="text-blue-600 underline">
+            Nazad na ponude
           </Link>
         </div>
       </div>
@@ -124,7 +124,7 @@ export default function ReservePage() {
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <Link
-            href={`/a/${slug}/results`}
+            href={`/a/${slug}/ponude`}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
           >
             <ArrowLeft className="w-4 h-4" />

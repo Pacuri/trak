@@ -7,7 +7,7 @@ import { CheckCircle, Clock, ArrowRight } from 'lucide-react'
 import { useAgencySettings } from '@/hooks/use-agency-settings'
 import { formatResponseTime } from '@/lib/formatting'
 import type { Offer, QualificationData } from '@/types'
-import InstantOfferCard from '@/components/public/InstantOfferCard'
+import PremiumOfferCard from '@/components/public/PremiumOfferCard'
 
 export default function InquirySentPage() {
   const params = useParams()
@@ -78,7 +78,7 @@ export default function InquirySentPage() {
               Obavestićemo vas putem emaila i SMS-a čim proverimo dostupnost.
             </p>
             <Link
-              href={`/a/${slug}/results`}
+              href={`/a/${slug}/ponude`}
               className="text-blue-600 hover:text-blue-700 font-medium"
             >
               ← Nazad na sve ponude
@@ -99,7 +99,7 @@ export default function InquirySentPage() {
                 </p>
               </div>
               <Link
-                href={`/a/${slug}/results`}
+                href={`/a/${slug}/ponude`}
                 className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
               >
                 Sve ponude
@@ -108,12 +108,14 @@ export default function InquirySentPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {alternatives.map((offer) => (
-                <InstantOfferCard
+              {alternatives.map((offer, index) => (
+                <PremiumOfferCard
                   key={offer.id}
                   offer={offer}
                   qualification={qualification}
                   slug={slug}
+                  index={index}
+                  isFirstRecommended={false}
                 />
               ))}
             </div>

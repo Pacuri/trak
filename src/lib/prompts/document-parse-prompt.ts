@@ -411,6 +411,8 @@ Create 3 packages: Main building, SPIC, and HILLS.
     }
   ],
 
+  "tax_disclaimer": "Boravišna taksa i osiguranje se plaćaju u agenciji (in target language) - Extract any text about where/how taxes are paid",
+
   "parsing_confidence": {
     "overall": 0.85,
     "issues": [

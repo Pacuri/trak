@@ -468,6 +468,52 @@ export function useDashboardData() {
     return () => clearInterval(interval)
   }, [fetchDashboardData])
 
+  // Realtime subscriptions for live updates
+  useEffect(() => {
+    if (!organizationId) return
+
+    // Subscribe to new custom inquiries
+    const inquiriesChannel = supabase
+      .channel('dashboard-inquiries')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'custom_inquiries',
+          filter: `organization_id=eq.${organizationId}`,
+        },
+        () => {
+          // Refresh dashboard data when inquiries change
+          fetchDashboardData()
+        }
+      )
+      .subscribe()
+
+    // Subscribe to new leads
+    const leadsChannel = supabase
+      .channel('dashboard-leads')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'leads',
+          filter: `organization_id=eq.${organizationId}`,
+        },
+        () => {
+          // Refresh dashboard data when leads change
+          fetchDashboardData()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(inquiriesChannel)
+      supabase.removeChannel(leadsChannel)
+    }
+  }, [supabase, organizationId, fetchDashboardData])
+
   return {
     ...data,
     refresh: fetchDashboardData,
