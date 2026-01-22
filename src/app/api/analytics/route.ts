@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
     // FETCH PREVIOUS PERIOD DATA FOR COMPARISON
     // =========================================
 
-    let previousPeriodLeads: typeof leads = []
+    let previousPeriodLeads: { id: string; stage_id: string | null; value: number | null; created_at: string; closed_at: string | null }[] = []
     if (startDate) {
       // Calculate previous period range (same duration, just before current period)
       const periodDays = differenceInDays(now, startDate)
