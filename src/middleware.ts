@@ -67,6 +67,9 @@ export async function middleware(request: NextRequest) {
   // Public agency pages (e.g., /a/qwetix, /a/qwetix/qualify, etc.)
   const isPublicAgencyRoute = pathname.startsWith('/a/')
 
+  // Public offer pages (e.g., /ponuda/[id]) - customer confirmation pages
+  const isPublicOfferRoute = pathname.startsWith('/ponuda/')
+
   // Public API routes (e.g., /api/public/*)
   const isPublicApiRoute = pathname.startsWith('/api/public/')
 
@@ -78,7 +81,7 @@ export async function middleware(request: NextRequest) {
 
   // If user is not logged in
   if (!user) {
-    if (!isPublicRoute && !isOnboardingRoute && !isPublicAgencyRoute && !isPublicApiRoute && !isWebhookRoute) {
+    if (!isPublicRoute && !isOnboardingRoute && !isPublicAgencyRoute && !isPublicOfferRoute && !isPublicApiRoute && !isWebhookRoute) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
     return response
