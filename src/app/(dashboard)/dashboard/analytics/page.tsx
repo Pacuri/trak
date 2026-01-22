@@ -435,7 +435,7 @@ export default function AnalyticsPage() {
                 tickFormatter={(v) => `€${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`}
               />
               <Tooltip
-                formatter={(value: number) => [formatCurrency(value), 'Prihod']}
+                formatter={(value) => [formatCurrency(value as number), 'Prihod']}
                 contentStyle={{
                   backgroundColor: '#FFFFFF',
                   border: '1px solid #E2E8F0',
@@ -562,7 +562,7 @@ export default function AnalyticsPage() {
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie
-                data={sourceAnalytics.filter(s => s.total > 0)}
+                data={sourceAnalytics.filter(s => s.total > 0) as unknown as Array<{[key: string]: unknown}>}
                 cx="50%"
                 cy="50%"
                 innerRadius={50}
@@ -576,7 +576,7 @@ export default function AnalyticsPage() {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number, name: string) => [value, name]}
+                formatter={(value, name) => [value as number, name as string]}
                 contentStyle={{
                   backgroundColor: '#FFFFFF',
                   border: '1px solid #E2E8F0',
