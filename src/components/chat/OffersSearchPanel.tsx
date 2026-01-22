@@ -329,77 +329,63 @@ export function OffersSearchPanel({
     return data?.slug
   }, [supabase, organizationId])
 
-  // Send configured offer
+  // Send configured offer - creates an offer quote with confirmation link
   const handleSendOffer = async () => {
     if (!selectedPackage || !leadId) return
 
     setSending(true)
     try {
-      const slug = await getAgencySlug()
-      if (!slug) throw new Error('Agency slug not found')
-
-      // Build the offer link
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://trak.rs'
-      let linkUrl = `${baseUrl}/a/${slug}/paket/${selectedPackage.id}`
-
-      // Add query params for configured options
-      const params = new URLSearchParams()
-      if (selectedDate) params.set('date', selectedDate)
-      if (selectedRoomType) params.set('room_type_id', selectedRoomType)
-      if (selectedMealPlan) params.set('meal_plan', selectedMealPlan)
-      if (adultsCount) params.set('adults', String(adultsCount))
-      if (childrenAges.length > 0) {
-        params.set('children', String(childrenAges.length))
-        params.set('children_ages', childrenAges.join(','))
-      }
-      if (duration) params.set('duration', String(duration))
-      if (selectedDepartureCity) params.set('departure_city', selectedDepartureCity)
-
-      if (params.toString()) {
-        linkUrl += `?${params.toString()}`
-      }
-
       // Get room type name
       const selectedRoom = roomTypes.find(r => r.id === selectedRoomType)
 
       // Get selected supplements data
       const selectedSupplementsData = supplements.filter(s => selectedSupplements.includes(s.id))
 
-      // Record the sent offer and get tracking URL
-      const response = await fetch(`/api/leads/${leadId}/send-offer`, {
+      // Create offer quote via API - this generates /ponuda/[id] link
+      const response = await fetch('/api/offer-quotes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          lead_id: leadId,
           package_id: selectedPackage.id,
-          package_name: selectedPackage.name,
-          destination: selectedPackage.destination_country,
-          room_type_id: selectedRoomType || null,
-          room_type_name: selectedRoom?.name || null,
-          meal_plan: selectedMealPlan || null,
-          selected_date: selectedDate || null,
-          duration_nights: duration || null,
-          guests_adults: adultsCount,
-          guests_children: childrenAges.length,
-          children_ages: childrenAges.length > 0 ? childrenAges : null,
-          departure_city: selectedDepartureCity || null,
-          link_url: linkUrl,
-          // Include selected supplements/add-ons
-          supplements: selectedSupplementsData.length > 0 ? selectedSupplementsData.map(s => ({
-            id: s.id,
-            name: s.name,
-            amount: s.amount,
-            percent: s.percent,
-            per: s.per,
-            currency: s.currency,
-          })) : null,
+          package_snapshot: {
+            name: selectedPackage.hotel_name || selectedPackage.name,
+            description: selectedPackage.name,
+            images: selectedPackage.package_images?.map(img => img.url) || [],
+            destination_city: selectedPackage.destination_city,
+            destination_country: selectedPackage.destination_country,
+            room_type: selectedRoom?.name,
+            board_type: selectedMealPlan,
+            transport_type: selectedPackage.transport_type,
+            departure_location: selectedDepartureCity || selectedPackage.departure_location,
+            duration_nights: duration,
+          },
+          travel_dates: selectedDate ? {
+            start: selectedDate,
+            end: new Date(new Date(selectedDate).getTime() + (duration || 7) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          } : null,
+          guests: {
+            adults: adultsCount,
+            children: childrenAges.length,
+            children_ages: childrenAges,
+          },
+          destination: `${selectedPackage.destination_city ? selectedPackage.destination_city + ', ' : ''}${selectedPackage.destination_country}`,
+          price_breakdown: {
+            extras: selectedSupplementsData.map(s => ({
+              name: s.name,
+              price: s.amount || 0,
+            })),
+          },
+          total_amount: 0, // Agent will set price in the slide-over
+          agent_message: null,
         }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to record sent offer')
+        throw new Error('Failed to create offer quote')
       }
 
-      const { tracking_url } = await response.json()
+      const { offer, offer_url } = await response.json()
 
       // Format message for chat
       const formatted = formatOfferForMessage(selectedPackage, {
@@ -410,11 +396,11 @@ export function OffersSearchPanel({
         childrenAges: childrenAges,
         duration: duration,
         departureCity: selectedDepartureCity,
-        trackingUrl: tracking_url,
+        trackingUrl: offer_url,
         supplements: selectedSupplementsData,
       })
 
-      onSelectOffer(selectedPackage, formatted, tracking_url)
+      onSelectOffer(selectedPackage, formatted, offer_url)
       handleBackToSearch()
       onClose()
     } catch (err) {

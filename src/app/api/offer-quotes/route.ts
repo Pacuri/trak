@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
       lead_id,
       inquiry_id,
       package_id,
+      package_snapshot: providedSnapshot,
       customer_name,
       customer_email,
       travel_dates,
@@ -38,9 +39,9 @@ export async function POST(request: NextRequest) {
       valid_days = 7 // Default 7 days validity
     } = body
 
-    // Build package snapshot if package_id provided
-    let package_snapshot: Record<string, unknown> = {}
-    if (package_id) {
+    // Use provided snapshot or build from package_id
+    let package_snapshot: Record<string, unknown> = providedSnapshot || {}
+    if (package_id && !providedSnapshot) {
       const { data: pkg } = await supabase
         .from('packages')
         .select(`
@@ -72,6 +73,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // If lead_id provided but no customer info, get from lead
+    let finalCustomerName = customer_name
+    let finalCustomerEmail = customer_email
+    if (lead_id && (!customer_name || !customer_email)) {
+      const { data: lead } = await supabase
+        .from('leads')
+        .select('name, email')
+        .eq('id', lead_id)
+        .single()
+
+      if (lead) {
+        finalCustomerName = customer_name || lead.name
+        finalCustomerEmail = customer_email || lead.email
+      }
+    }
+
     // Create offer quote
     const { data: offer, error: createError } = await supabase
       .from('offer_quotes')
@@ -81,8 +98,8 @@ export async function POST(request: NextRequest) {
         inquiry_id,
         package_id,
         package_snapshot,
-        customer_name,
-        customer_email,
+        customer_name: finalCustomerName,
+        customer_email: finalCustomerEmail,
         travel_dates,
         guests,
         destination,
@@ -141,10 +158,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate offer URL
-    const offerUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/ponuda/${offer.id}`
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://trak.rs'
+    const offerUrl = `${baseUrl}/ponuda/${offer.id}`
 
     return NextResponse.json({
-      ...offer,
+      offer,
       offer_url: offerUrl
     })
 
