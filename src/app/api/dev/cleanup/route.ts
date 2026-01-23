@@ -14,9 +14,10 @@ export async function DELETE(request: Request) {
 async function handleCleanup(request: Request) {
   const { searchParams } = new URL(request.url)
   const email = searchParams.get('email')
+  const name = searchParams.get('name')
 
-  if (!email) {
-    return NextResponse.json({ error: 'Email required' }, { status: 400 })
+  if (!email && !name) {
+    return NextResponse.json({ error: 'Email or name required' }, { status: 400 })
   }
 
   const supabase = createClient(
@@ -24,11 +25,16 @@ async function handleCleanup(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Find leads with the specified email
-  const { data: leads, error } = await supabase
-    .from('leads')
-    .select('id, name, email')
-    .eq('email', email)
+  // Find leads with the specified email or name
+  let query = supabase.from('leads').select('id, name, email')
+
+  if (email) {
+    query = query.eq('email', email)
+  } else if (name) {
+    query = query.ilike('name', `%${name}%`)
+  }
+
+  const { data: leads, error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
