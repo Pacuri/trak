@@ -325,7 +325,7 @@ export function useOffers() {
 
         if (!data) return []
 
-        const countries = [...new Set(data.map(o => o.country))]
+        const countries = [...new Set(data.map((o: { country: string }) => o.country))]
         return countries.sort()
       } catch {
         return []

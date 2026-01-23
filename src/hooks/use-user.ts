@@ -85,7 +85,7 @@ export function useUser(): UseUserReturn {
         if (!isMounted.current) return
 
         try {
-          const { data } = supabase.auth.onAuthStateChange((_event, _session) => {
+          const { data } = supabase.auth.onAuthStateChange((_event: string, _session: unknown) => {
             if (isMounted.current) {
               fetchUser()
             }

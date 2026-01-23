@@ -223,9 +223,10 @@ export function useDashboardData() {
       )
 
       // Process pending inquiries
+      type InquiryData = { id: string; customer_name: string; customer_phone: string | null; customer_email: string | null; customer_note: string | null; qualification_data: any; created_at: string; source: string | null; lead_id: string | null }
       const pendingInquiries: PendingInquiry[] = (inquiriesResult.data || [])
         .slice(0, 5)
-        .map(inquiry => ({
+        .map((inquiry: InquiryData) => ({
           id: inquiry.id,
           customer_name: inquiry.customer_name,
           customer_phone: inquiry.customer_phone,
@@ -408,8 +409,9 @@ export function useDashboardData() {
         .slice(0, 4)
 
       // Calculate monthly revenue
+      type PaymentData = { amount: number | null }
       const revenueThisMonth = (paymentsResult.data || []).reduce(
-        (sum, p) => sum + (p.amount || 0),
+        (sum: number, p: PaymentData) => sum + (p.amount || 0),
         0
       )
 

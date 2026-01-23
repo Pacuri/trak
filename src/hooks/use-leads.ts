@@ -55,7 +55,7 @@ export function useLeads() {
             .select('id')
             .eq('organization_id', organizationId)
             .eq('is_won', true)
-          wonStageIds = wonStages?.map(s => s.id) || []
+          wonStageIds = wonStages?.map((s: { id: string }) => s.id) || []
 
           // If no won stages found, return empty (no customers yet)
           if (wonStageIds.length === 0) {

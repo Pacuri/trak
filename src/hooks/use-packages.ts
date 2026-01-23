@@ -473,7 +473,7 @@ export function usePackages() {
 
         if (!data) return []
 
-        const countries = [...new Set(data.map(p => p.destination_country).filter(Boolean))]
+        const countries = [...new Set(data.map((p: { destination_country: string | null }) => p.destination_country).filter(Boolean))]
         return countries.sort()
       } catch {
         return []

@@ -91,12 +91,13 @@ export function usePipeline(): UsePipelineReturn {
         return
       }
 
-      const leadIds = leadsData.map(l => l.id)
+      type LeadRow = { id: string; source_inquiry_id: string | null; stage_id: string }
+      const leadIds = leadsData.map((l: LeadRow) => l.id)
 
       // Get source_inquiry_ids for package name lookup
       const sourceInquiryIds = leadsData
-        .filter(l => l.source_inquiry_id)
-        .map(l => l.source_inquiry_id)
+        .filter((l: LeadRow) => l.source_inquiry_id)
+        .map((l: LeadRow) => l.source_inquiry_id)
 
       // Fetch meta conversations for channel source
       const { data: metaConversations } = await supabase
@@ -112,7 +113,7 @@ export function usePipeline(): UsePipelineReturn {
           .select('id, package:packages(name)')
           .in('id', sourceInquiryIds)
 
-        inquiriesWithPackages?.forEach(inq => {
+        inquiriesWithPackages?.forEach((inq: { id: string; package?: { name: string } | null }) => {
           const pkgName = (inq as any).package?.name
           if (pkgName) {
             packageNameByInquiryId.set(inq.id, pkgName)
@@ -137,7 +138,8 @@ export function usePipeline(): UsePipelineReturn {
 
       // Create lookup maps
       const metaByLeadId = new Map<string, string>()
-      metaConversations?.forEach(mc => {
+      type MetaConv = { lead_id: string; platform: string }
+      metaConversations?.forEach((mc: MetaConv) => {
         if (!metaByLeadId.has(mc.lead_id)) {
           metaByLeadId.set(mc.lead_id, mc.platform)
         }
@@ -145,7 +147,8 @@ export function usePipeline(): UsePipelineReturn {
 
       const lastMessageByLeadId = new Map<string, { content: string, channel: string, sent_at: string, is_read: boolean }>()
       const unreadByLeadId = new Map<string, boolean>()
-      messages?.forEach(msg => {
+      type MsgRow = { lead_id: string; content: string; channel: string; sent_at: string; is_read: boolean }
+      messages?.forEach((msg: MsgRow) => {
         if (!lastMessageByLeadId.has(msg.lead_id)) {
           lastMessageByLeadId.set(msg.lead_id, {
             content: msg.content,
@@ -161,7 +164,8 @@ export function usePipeline(): UsePipelineReturn {
       })
 
       const sentOfferByLeadId = new Map<string, PipelineSentOffer>()
-      sentOffers?.forEach(so => {
+      type SentOfferRow = { id: string; lead_id: string; destination: string; package_name: string; price_total: number; duration_nights: number; meal_plan: string; guests_adults: number; guests_children: number; sent_at: string }
+      sentOffers?.forEach((so: SentOfferRow) => {
         if (!sentOfferByLeadId.has(so.lead_id)) {
           sentOfferByLeadId.set(so.lead_id, {
             id: so.id,
@@ -215,7 +219,7 @@ export function usePipeline(): UsePipelineReturn {
       })
       grouped['null'] = [] // For unassigned leads
 
-      leadsData.forEach((lead) => {
+      leadsData.forEach((lead: any) => {
         const stageId = lead.stage_id || 'null'
         if (!grouped[stageId]) {
           grouped[stageId] = []
