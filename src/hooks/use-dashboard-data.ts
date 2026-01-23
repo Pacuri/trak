@@ -260,7 +260,7 @@ export function useDashboardData() {
           title: r.customer_name,
           subtitle: `Rezervacija ${r.code}`,
           urgency: 'critical' as const,
-          meta: `€${(r.total_price - (r.amount_paid || 0)).toLocaleString()}`,
+          meta: `€${((r.total_price || 0) - (r.amount_paid || 0)).toLocaleString()}`,
           link: `/dashboard/reservations/${r.id}?tab=payment`,
         }))
 
