@@ -1,7 +1,17 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+// GET /api/dev/cleanup?email=xxx - Delete leads by email (for easy browser access)
+export async function GET(request: Request) {
+  return handleCleanup(request)
+}
+
+// DELETE /api/dev/cleanup?email=xxx - Delete leads by email
 export async function DELETE(request: Request) {
+  return handleCleanup(request)
+}
+
+async function handleCleanup(request: Request) {
   const { searchParams } = new URL(request.url)
   const email = searchParams.get('email')
 
