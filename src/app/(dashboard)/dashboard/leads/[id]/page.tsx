@@ -313,7 +313,7 @@ export default function LeadDetailPage() {
 
   if (loading && !lead) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full" />
       </div>
     )
@@ -321,7 +321,7 @@ export default function LeadDetailPage() {
 
   if (!lead) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <div className="text-center">
           <p className="text-gray-500 mb-4">Lead nije pronađen</p>
           <button
@@ -336,7 +336,7 @@ export default function LeadDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="-m-4 md:-m-8 p-4 md:p-8 bg-gray-50">
       {/* Top Navigation Bar - integrated into content flow */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6">
         <div className="px-6 py-4">

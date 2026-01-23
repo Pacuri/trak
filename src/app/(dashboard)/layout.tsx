@@ -38,12 +38,12 @@ export default async function DashboardLayout({
   return (
     <SupabaseErrorHandler>
       <DashboardProviders>
-        <div className="flex h-screen bg-[#FAFAFA]">
+        <div className="flex h-screen h-[100dvh] bg-[#FAFAFA]">
           <DashboardSidebar leadsCount={leadsCount} />
-          <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
             <DashboardHeader user={user} />
-            <main className="flex-1 overflow-y-auto overflow-x-hidden bg-[#FAFAFA] p-4 md:p-8">
-              <div className="max-w-[1600px] mx-auto">
+            <main className="flex-1 overflow-y-auto overflow-x-hidden bg-[#FAFAFA] p-4 pt-16 lg:pt-4 md:p-8 md:pt-8">
+              <div className="max-w-[1600px] mx-auto pb-8">
                 {children}
               </div>
             </main>

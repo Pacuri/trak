@@ -232,95 +232,88 @@ export default function OfferPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Mobile & Desktop Container */}
-      <div className="max-w-lg lg:max-w-5xl mx-auto bg-white min-h-screen lg:min-h-0 lg:my-8 lg:rounded-3xl lg:shadow-2xl lg:overflow-hidden">
+      {/* Container - single column, image on top */}
+      <div className="max-w-2xl mx-auto bg-white min-h-screen md:min-h-0 md:my-8 md:rounded-3xl md:shadow-2xl md:overflow-hidden">
 
-        {/* Desktop: Two Column Layout */}
-        <div className="lg:flex">
-
-          {/* Left Column: Image & Basic Info (Desktop) / Hero Section (Mobile) */}
-          <div className="lg:w-1/2 lg:relative">
-            {/* Hero Image */}
-            <div className="relative h-56 sm:h-72 lg:h-full lg:min-h-[600px]">
-              {images.length > 0 ? (
-                <Image
-                  src={images[currentImageIndex]}
-                  alt={hotelName}
-                  fill
-                  className="object-cover"
-                  priority
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                  <Home className="w-20 h-20 text-white/50" />
-                </div>
-              )}
-
-              {/* Gradient Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-
-              {/* Agency Logo Badge */}
-              <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg">
-                {offer.organization?.logo_url ? (
-                  <Image
-                    src={offer.organization.logo_url}
-                    alt={offer.organization.name || 'Agency'}
-                    width={80}
-                    height={32}
-                    className="h-6 w-auto object-contain"
-                  />
-                ) : (
-                  <span className="text-blue-600 font-bold text-sm">
-                    {offer.organization?.name || 'Travel Agency'}
-                  </span>
-                )}
-              </div>
-
-              {/* Image Navigation */}
-              {images.length > 1 && (
-                <>
-                  <button
-                    onClick={prevImage}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition"
-                  >
-                    <ChevronLeft className="h-5 w-5 text-gray-700" />
-                  </button>
-                  <button
-                    onClick={nextImage}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition"
-                  >
-                    <ChevronRight className="h-5 w-5 text-gray-700" />
-                  </button>
-                  <div className="absolute bottom-20 lg:bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
-                    {images.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setCurrentImageIndex(i)}
-                        className={`w-2 h-2 rounded-full transition ${
-                          i === currentImageIndex ? 'bg-white' : 'bg-white/50'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* Hotel Name Overlay */}
-              <div className="absolute bottom-4 left-4 right-4 text-white">
-                <h1 className="text-2xl lg:text-3xl font-bold drop-shadow-lg">{hotelName}</h1>
-                {location && (
-                  <div className="flex items-center gap-1.5 text-white/90 text-sm mt-1">
-                    <MapPin className="w-4 h-4" />
-                    <span>{location}</span>
-                  </div>
-                )}
-              </div>
+        {/* Hero Image - Full Width */}
+        <div className="relative h-64 sm:h-80 md:h-96">
+          {images.length > 0 ? (
+            <Image
+              src={images[currentImageIndex]}
+              alt={hotelName}
+              fill
+              className="object-cover"
+              priority
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+              <Home className="w-20 h-20 text-white/50" />
             </div>
+          )}
+
+          {/* Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+          {/* Agency Logo Badge */}
+          <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg">
+            {offer.organization?.logo_url ? (
+              <Image
+                src={offer.organization.logo_url}
+                alt={offer.organization.name || 'Agency'}
+                width={80}
+                height={32}
+                className="h-6 w-auto object-contain"
+              />
+            ) : (
+              <span className="text-blue-600 font-bold text-sm">
+                {offer.organization?.name || 'Travel Agency'}
+              </span>
+            )}
           </div>
 
-          {/* Right Column: Content */}
-          <div className="lg:w-1/2 lg:overflow-y-auto lg:max-h-[700px]">
-            <div className="p-5 lg:p-8 space-y-5">
+          {/* Image Navigation */}
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={prevImage}
+                className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition"
+              >
+                <ChevronLeft className="h-5 w-5 text-gray-700" />
+              </button>
+              <button
+                onClick={nextImage}
+                className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition"
+              >
+                <ChevronRight className="h-5 w-5 text-gray-700" />
+              </button>
+              <div className="absolute bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
+                {images.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentImageIndex(i)}
+                    className={`w-2 h-2 rounded-full transition ${
+                      i === currentImageIndex ? 'bg-white' : 'bg-white/50'
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Hotel Name Overlay */}
+          <div className="absolute bottom-4 left-4 right-4 text-white">
+            <h1 className="text-2xl md:text-3xl font-bold drop-shadow-lg">{hotelName}</h1>
+            {location && (
+              <div className="flex items-center gap-1.5 text-white/90 text-sm mt-1">
+                <MapPin className="w-4 h-4" />
+                <span>{location}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-5 md:p-8 space-y-5">
 
               {/* Offer ID & Status Badge */}
               <div className="flex items-center justify-between">
@@ -561,9 +554,6 @@ export default function OfferPage() {
               </div>
 
             </div>
-          </div>
-
-        </div>
       </div>
     </div>
   )
