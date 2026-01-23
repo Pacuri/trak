@@ -102,6 +102,38 @@ export default function LeadDetailPage() {
         setBooking(bookingData)
       }
 
+      // Load offer quotes (sent offers)
+      const { data: offerQuotesData } = await supabase
+        .from('offer_quotes')
+        .select('id, status, package_snapshot, destination, total_amount, currency, sent_at, viewed_at, confirmed_at, rejected_at')
+        .eq('lead_id', leadId)
+        .order('sent_at', { ascending: false })
+
+      if (offerQuotesData) {
+        const mappedOffers: SentOffer[] = offerQuotesData.map((oq: any) => {
+          // Map offer_quotes status to SentOffer status
+          let status: SentOffer['status'] = 'pending'
+          if (oq.status === 'confirmed') status = 'accepted'
+          else if (oq.status === 'rejected') status = 'declined'
+          else if (oq.status === 'viewed') status = 'pending' // Still pending, just viewed
+
+          const snapshot = oq.package_snapshot as any
+          const name = snapshot?.hotel_name || snapshot?.name || oq.destination || 'Ponuda'
+
+          return {
+            id: oq.id,
+            name,
+            description: oq.destination,
+            price: oq.total_amount || 0,
+            currency: oq.currency || 'EUR',
+            status,
+            sentAt: oq.sent_at,
+            respondedAt: oq.confirmed_at || oq.rejected_at,
+          }
+        })
+        setSentOffers(mappedOffers)
+      }
+
       // Determine checklist state based on activities and lead state
       updateChecklistFromData(leadData, activitiesData || [])
     }
@@ -377,7 +409,7 @@ export default function LeadDetailPage() {
             {/* Sent Offers */}
             <SentOffersCard
               offers={sentOffers}
-              onNewOffer={() => {/* TODO: Open offer modal */}}
+              onNewOffer={handleOpenChat}
             />
 
             {/* Communication */}

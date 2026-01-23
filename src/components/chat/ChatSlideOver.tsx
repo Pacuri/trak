@@ -23,6 +23,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/use-user'
 import Link from 'next/link'
 import { OffersSearchPanel } from './OffersSearchPanel'
+import { OfferStatusCard } from './OfferStatusCard'
 
 interface Message {
   id: string
@@ -69,6 +70,24 @@ interface PipelineStage {
   position: number
 }
 
+interface OfferQuote {
+  id: string
+  status: 'sent' | 'viewed' | 'confirmed' | 'rejected'
+  package_snapshot?: {
+    name?: string
+    hotel_name?: string
+    country?: string
+    city?: string
+  }
+  destination?: string
+  total_amount?: number
+  currency?: string
+  sent_at?: string
+  viewed_at?: string
+  confirmed_at?: string
+  rejected_at?: string
+}
+
 interface ChatSlideOverProps {
   leadId: string | null
   isOpen: boolean
@@ -86,6 +105,7 @@ export default function ChatSlideOver({
   const [messages, setMessages] = useState<Message[]>([])
   const [stages, setStages] = useState<PipelineStage[]>([])
   const [metaConversation, setMetaConversation] = useState<MetaConversation | null>(null)
+  const [offerQuotes, setOfferQuotes] = useState<OfferQuote[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -187,18 +207,37 @@ export default function ChatSlideOver({
     }
   }, [leadId, supabase])
 
+  // Fetch offer quotes for this lead
+  const fetchOfferQuotes = useCallback(async () => {
+    if (!leadId) return
+
+    try {
+      const { data } = await supabase
+        .from('offer_quotes')
+        .select('id, status, package_snapshot, destination, total_amount, currency, sent_at, viewed_at, confirmed_at, rejected_at')
+        .eq('lead_id', leadId)
+        .order('sent_at', { ascending: false })
+
+      setOfferQuotes((data || []) as OfferQuote[])
+    } catch (err) {
+      console.error('Error fetching offer quotes:', err)
+    }
+  }, [leadId, supabase])
+
   // Initial fetch
   useEffect(() => {
     if (isOpen && leadId) {
       setLoading(true)
       setError(null)
       setMetaConversation(null)
+      setOfferQuotes([])
       fetchLead()
       fetchMessages()
       fetchStages()
       fetchMetaConversation()
+      fetchOfferQuotes()
     }
-  }, [isOpen, leadId, fetchLead, fetchMessages, fetchStages, fetchMetaConversation])
+  }, [isOpen, leadId, fetchLead, fetchMessages, fetchStages, fetchMetaConversation, fetchOfferQuotes])
 
   // Realtime subscription for new messages
   useEffect(() => {
@@ -229,6 +268,42 @@ export default function ChatSlideOver({
       supabase.removeChannel(channel)
     }
   }, [isOpen, leadId, organizationId, supabase])
+
+  // Realtime subscription for offer quote updates
+  useEffect(() => {
+    if (!isOpen || !leadId) return
+
+    const channel = supabase
+      .channel(`offers-${leadId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'offer_quotes',
+          filter: `lead_id=eq.${leadId}`,
+        },
+        (payload: { eventType: string; new: OfferQuote; old: { id: string } }) => {
+          if (payload.eventType === 'INSERT') {
+            const newOffer = payload.new as OfferQuote
+            setOfferQuotes((prev) => {
+              if (prev.some((o) => o.id === newOffer.id)) return prev
+              return [newOffer, ...prev]
+            })
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedOffer = payload.new as OfferQuote
+            setOfferQuotes((prev) =>
+              prev.map((o) => (o.id === updatedOffer.id ? updatedOffer : o))
+            )
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [isOpen, leadId, supabase])
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -343,15 +418,91 @@ export default function ChatSlideOver({
     }
   }
 
-  // Handle offer selection from search panel
-  const handleSelectOffer = (offer: any, formatted: string, trackingUrl?: string) => {
-    setNewMessage((prev) => {
-      if (prev.trim()) {
-        return prev + '\n\n' + formatted
-      }
-      return formatted
-    })
+  // Handle offer selection from search panel - auto-send the offer
+  const handleSelectOffer = async (offer: any, formatted: string, trackingUrl?: string) => {
     setOffersSearchOpen(false)
+
+    // Auto-send the offer message
+    if (!leadId) return
+
+    const canSendEmail = !!lead?.email
+    const canSendMeta = !!metaConversation
+
+    if (!canSendEmail && !canSendMeta) {
+      setError('Nema dostupnog kanala za slanje poruke')
+      setNewMessage(formatted)
+      return
+    }
+
+    setSending(true)
+    setError(null)
+
+    try {
+      let response: Response
+      let data: any
+
+      if (canSendMeta) {
+        // Send via Meta (Messenger/Instagram/WhatsApp)
+        response = await fetch('/api/integrations/meta/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversation_id: metaConversation.id,
+            message: formatted,
+            lead_id: leadId,
+          }),
+        })
+        data = await response.json()
+
+        if (response.ok && data.saved_message) {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === data.saved_message.id)) return prev
+            return [...prev, data.saved_message]
+          })
+        }
+      } else {
+        // Send via email
+        response = await fetch(`/api/leads/${leadId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: formatted }),
+        })
+        data = await response.json()
+
+        if (response.ok) {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === data.message.id)) return prev
+            return [...prev, data.message]
+          })
+        }
+      }
+
+      if (response.ok) {
+        // Update lead's local state
+        setLead((prev) => {
+          if (!prev) return null
+          const newStageId = data.stage_id ?? prev.stage_id
+          const newStage = stages.find((s) => s.id === newStageId)
+          return {
+            ...prev,
+            awaiting_response: false,
+            stage_id: newStageId,
+            stage: newStage ? { id: newStage.id, name: newStage.name, color: newStage.color } : prev.stage,
+          }
+        })
+        onLeadUpdated?.()
+        // Refresh offer quotes to include the new one
+        fetchOfferQuotes()
+      } else {
+        setError(data.error || 'Greška pri slanju ponude')
+        setNewMessage(formatted) // Put in textarea so user can retry
+      }
+    } catch (err) {
+      setError('Greška pri slanju ponude')
+      setNewMessage(formatted) // Put in textarea so user can retry
+    } finally {
+      setSending(false)
+    }
   }
 
   // Update lead stage
@@ -441,6 +592,27 @@ export default function ChatSlideOver({
 
     // Final cleanup: remove empty lines at the end
     return cleanContent.trim()
+  }
+
+  // Extract offer ID from message content (looks for /ponuda/UUID pattern)
+  const extractOfferIdFromMessage = (content: string): string | null => {
+    // Match patterns like /ponuda/UUID or ponuda/UUID in URLs
+    const patterns = [
+      /\/ponuda\/([a-f0-9-]{36})/i,
+      /ponuda\/([a-f0-9-]{36})/i,
+    ]
+    for (const pattern of patterns) {
+      const match = content.match(pattern)
+      if (match && match[1]) {
+        return match[1]
+      }
+    }
+    return null
+  }
+
+  // Get offer quote by ID
+  const getOfferById = (offerId: string): OfferQuote | undefined => {
+    return offerQuotes.find((o) => o.id === offerId)
   }
 
   // Calculate waiting time
@@ -614,42 +786,54 @@ export default function ChatSlideOver({
               <p>Nema poruka</p>
             </div>
           ) : (
-            messages.filter((m) => m && m.id).map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                    message.direction === 'outbound'
-                      ? 'bg-blue-600 text-white rounded-br-md'
-                      : 'bg-white text-slate-900 border border-slate-200 rounded-bl-md shadow-sm'
-                  }`}
-                >
-                  {message.subject && message.direction === 'inbound' && (
-                    <p className="text-xs font-medium mb-1 text-slate-500">
-                      {message.subject}
-                    </p>
+            messages.filter((m) => m && m.id).map((message) => {
+              // Check if message contains an offer link
+              const offerId = extractOfferIdFromMessage(message.content)
+              const offer = offerId ? getOfferById(offerId) : null
+
+              return (
+                <div key={message.id}>
+                  {/* Show offer status card if this message contains an offer */}
+                  {offer && message.direction === 'outbound' && (
+                    <OfferStatusCard offer={offer} />
                   )}
-                  <p className="text-sm whitespace-pre-wrap break-words">
-                    {(() => {
-                      // Strip email quotes from both inbound and outbound messages
-                      const content = stripEmailQuote(message.content)
-                      return content.length > 500
-                        ? content.substring(0, 500) + '...'
-                        : content
-                    })()}
-                  </p>
-                  <p
-                    className={`text-[10px] mt-1 ${
-                      message.direction === 'outbound' ? 'text-blue-200' : 'text-slate-400'
-                    }`}
+
+                  <div
+                    className={`flex ${message.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
                   >
-                    {formatTime(message.sent_at)}
-                  </p>
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                        message.direction === 'outbound'
+                          ? 'bg-blue-600 text-white rounded-br-md'
+                          : 'bg-white text-slate-900 border border-slate-200 rounded-bl-md shadow-sm'
+                      }`}
+                    >
+                      {message.subject && message.direction === 'inbound' && (
+                        <p className="text-xs font-medium mb-1 text-slate-500">
+                          {message.subject}
+                        </p>
+                      )}
+                      <p className="text-sm whitespace-pre-wrap break-words">
+                        {(() => {
+                          // Strip email quotes from both inbound and outbound messages
+                          const content = stripEmailQuote(message.content)
+                          return content.length > 500
+                            ? content.substring(0, 500) + '...'
+                            : content
+                        })()}
+                      </p>
+                      <p
+                        className={`text-[10px] mt-1 ${
+                          message.direction === 'outbound' ? 'text-blue-200' : 'text-slate-400'
+                        }`}
+                      >
+                        {formatTime(message.sent_at)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
           <div ref={messagesEndRef} />
         </div>
