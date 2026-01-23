@@ -15,9 +15,10 @@ async function handleCleanup(request: Request) {
   const { searchParams } = new URL(request.url)
   const email = searchParams.get('email')
   const name = searchParams.get('name')
+  const all = searchParams.get('all')
 
-  if (!email && !name) {
-    return NextResponse.json({ error: 'Email or name required' }, { status: 400 })
+  if (!email && !name && !all) {
+    return NextResponse.json({ error: 'Email, name, or all=true required' }, { status: 400 })
   }
 
   const supabase = createClient(
@@ -25,7 +26,7 @@ async function handleCleanup(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Find leads with the specified email or name
+  // Find leads with the specified email, name, or all
   let query = supabase.from('leads').select('id, name, email')
 
   if (email) {
@@ -33,6 +34,7 @@ async function handleCleanup(request: Request) {
   } else if (name) {
     query = query.ilike('name', `%${name}%`)
   }
+  // If all=true, no filter - get all leads
 
   const { data: leads, error } = await query
 
