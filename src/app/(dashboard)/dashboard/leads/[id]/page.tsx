@@ -75,13 +75,13 @@ export default function LeadDetailPage() {
         setActivities(activitiesData as LeadActivity[])
 
         // Extract notes from activities
-        const noteActivities = activitiesData
-          .filter(a => a.type === 'note' && a.description)
-          .map(a => ({
+        const noteActivities = (activitiesData as LeadActivity[])
+          .filter((a: LeadActivity) => a.type === 'note' && a.description)
+          .map((a: LeadActivity) => ({
             id: a.id,
             content: a.description!,
             createdAt: a.created_at,
-            authorName: a.user?.full_name || a.user?.email
+            authorName: (a as any).user?.full_name || (a as any).user?.email
           }))
         setNotes(noteActivities)
       }
