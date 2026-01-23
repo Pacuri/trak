@@ -64,7 +64,7 @@ export function NewEmails({ onEmailAccepted }: NewEmailsProps) {
           table: 'email_candidates',
           filter: `organization_id=eq.${organizationId}`,
         },
-        (payload) => {
+        (payload: { new: EmailCandidate }) => {
           console.log('New email candidate received:', payload.new)
           const newEmail = payload.new as EmailCandidate
           // Only add if it's pending status
@@ -88,7 +88,7 @@ export function NewEmails({ onEmailAccepted }: NewEmailsProps) {
           table: 'email_candidates',
           filter: `organization_id=eq.${organizationId}`,
         },
-        (payload) => {
+        (payload: { new: EmailCandidate }) => {
           const updatedEmail = payload.new as EmailCandidate
           // Remove from list if no longer pending
           if (updatedEmail.status !== 'pending') {
@@ -104,12 +104,12 @@ export function NewEmails({ onEmailAccepted }: NewEmailsProps) {
           table: 'email_candidates',
           filter: `organization_id=eq.${organizationId}`,
         },
-        (payload) => {
+        (payload: { old: { id: string } }) => {
           const deletedId = payload.old.id
           setEmails((prev) => prev.filter((e) => e.id !== deletedId))
         }
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         console.log('Email candidates subscription status:', status)
       })
 

@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
         .eq('is_lost', false)
         .order('position', { ascending: true })
 
-      const ponudaStage = stages?.find(s =>
+      const ponudaStage = stages?.find((s: { id: string; name: string }) =>
         s.name.toLowerCase().includes('ponuda') ||
         s.name.toLowerCase().includes('poslat')
       ) || stages?.[2]

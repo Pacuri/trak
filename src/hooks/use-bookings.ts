@@ -326,11 +326,12 @@ export function useBookings() {
 
         if (!data) return { confirmed: 0, cancelled: 0, totalRevenue: 0 }
 
-        const confirmed = data.filter(b => b.status === 'confirmed')
+        type BookingStats = { status: string; total_amount: number }
+        const confirmed = data.filter((b: BookingStats) => b.status === 'confirmed')
         return {
           confirmed: confirmed.length,
-          cancelled: data.filter(b => b.status === 'cancelled').length,
-          totalRevenue: confirmed.reduce((sum, b) => sum + b.total_amount, 0),
+          cancelled: data.filter((b: BookingStats) => b.status === 'cancelled').length,
+          totalRevenue: confirmed.reduce((sum: number, b: BookingStats) => sum + b.total_amount, 0),
         }
       } catch {
         return { confirmed: 0, cancelled: 0, totalRevenue: 0 }

@@ -244,14 +244,15 @@ export function useDashboardData() {
       const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000)
 
       // Late payments (reservations with payment due)
+      type ReservationData = { id: string; amount_paid: number | null; total_price: number | null; expires_at: string; customer_name: string; code: string }
       const latePayments: AttentionItem[] = (reservationsResult.data || [])
-        .filter(r => {
+        .filter((r: ReservationData) => {
           const paid = r.amount_paid || 0
           const total = r.total_price || 0
           return paid < total && new Date(r.expires_at) < now
         })
         .slice(0, 3)
-        .map(r => ({
+        .map((r: ReservationData) => ({
           id: r.id,
           category: 'late_payments' as const,
           title: r.customer_name,
@@ -273,12 +274,12 @@ export function useDashboardData() {
 
       // Expiring reservations (within 24h)
       const expiringReservations: AttentionItem[] = (reservationsResult.data || [])
-        .filter(r => {
+        .filter((r: ReservationData) => {
           const expires = new Date(r.expires_at)
           return expires > now && expires <= in24h
         })
         .slice(0, 3)
-        .map(r => {
+        .map((r: ReservationData) => {
           const hoursLeft = Math.ceil((new Date(r.expires_at).getTime() - now.getTime()) / (1000 * 60 * 60))
           return {
             id: r.id,

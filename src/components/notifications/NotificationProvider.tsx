@@ -93,7 +93,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           table: 'messages',
           filter: `organization_id=eq.${organizationId}`,
         },
-        async (payload) => {
+        async (payload: { new: Record<string, unknown> }) => {
           const message = payload.new as any
 
           // Only notify for inbound messages
@@ -138,7 +138,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           table: 'email_candidates',
           filter: `organization_id=eq.${organizationId}`,
         },
-        (payload) => {
+        (payload: { new: Record<string, unknown> }) => {
           const email = payload.new as any
 
           // Only notify for pending emails
@@ -172,7 +172,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           table: 'custom_inquiries',
           filter: `organization_id=eq.${organizationId}`,
         },
-        (payload) => {
+        (payload: { new: Record<string, unknown> }) => {
           const inquiry = payload.new as any
 
           // Build description from qualification data
@@ -210,7 +210,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           table: 'offer_quotes',
           filter: `organization_id=eq.${organizationId}`,
         },
-        (payload) => {
+        (payload: { new: Record<string, unknown>; old: Record<string, unknown> }) => {
           const offer = payload.new as any
           const oldOffer = payload.old as any
 

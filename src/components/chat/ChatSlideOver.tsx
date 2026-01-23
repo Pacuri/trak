@@ -214,7 +214,7 @@ export default function ChatSlideOver({
           table: 'messages',
           filter: `lead_id=eq.${leadId}`,
         },
-        (payload) => {
+        (payload: { new: Message }) => {
           const newMsg = payload.new as Message
           setMessages((prev) => {
             // Avoid duplicates

@@ -51,7 +51,7 @@ export async function POST(
         .order('position', { ascending: true })
 
       // Find "Pregovori" stage or use 4th stage
-      const pregovoriStage = stages?.find(s =>
+      const pregovoriStage = stages?.find((s: { id: string; name: string }) =>
         s.name.toLowerCase().includes('pregovor') ||
         s.name.toLowerCase().includes('negotiat')
       ) || stages?.[3] || stages?.[2]

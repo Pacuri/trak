@@ -35,15 +35,16 @@ export async function GET() {
       .eq('organization_id', organizationId)
       .order('position', { ascending: true })
 
+    type StageData = { id: string; is_won: boolean; is_lost: boolean }
     const closedStageIds = (stagesData || [])
-      .filter(s => s.is_won || s.is_lost)
-      .map(s => s.id)
-    
+      .filter((s: StageData) => s.is_won || s.is_lost)
+      .map((s: StageData) => s.id)
+
     // Early stages are first 3 non-closed stages
     const earlyStageIds = (stagesData || [])
-      .filter(s => !s.is_won && !s.is_lost)
+      .filter((s: StageData) => !s.is_won && !s.is_lost)
       .slice(0, 3)
-      .map(s => s.id)
+      .map((s: StageData) => s.id)
 
     // Fetch all data in parallel
     const [
@@ -155,31 +156,34 @@ export async function GET() {
     }, 0)
 
     // Calculate revenue
+    type PaymentData = { amount: number | null }
     const revenueThisMonth = (paymentsResult.data || []).reduce(
-      (sum, p) => sum + (p.amount || 0),
+      (sum: number, p: PaymentData) => sum + (p.amount || 0),
       0
     )
 
     // Calculate urgent items
+    type ReservationData = { amount_paid: number | null; total_price: number | null; expires_at: string }
     const pendingReservations = reservationsResult.data || []
     const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-    
-    const latePayments = pendingReservations.filter(r => {
+
+    const latePayments = pendingReservations.filter((r: ReservationData) => {
       const paid = r.amount_paid || 0
       const total = r.total_price || 0
       return paid < total && new Date(r.expires_at) < now
     })
 
-    const expiringReservations = pendingReservations.filter(r => {
+    const expiringReservations = pendingReservations.filter((r: ReservationData) => {
       const expires = new Date(r.expires_at)
       return expires > now && expires <= in24h
     })
 
-    const lastSeats = departuresToday.filter((d: any) => 
+    const lastSeats = departuresToday.filter((d: any) =>
       d.available_spots <= 3 && d.available_spots > 0
     )
 
-    const unansweredInquiries = (inquiriesResult.data || []).filter(i => {
+    type InquiryData = { created_at: string }
+    const unansweredInquiries = (inquiriesResult.data || []).filter((i: InquiryData) => {
       const hours = (now.getTime() - new Date(i.created_at).getTime()) / (1000 * 60 * 60)
       return hours >= 2
     })

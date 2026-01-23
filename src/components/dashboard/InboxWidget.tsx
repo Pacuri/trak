@@ -169,7 +169,7 @@ export function InboxWidget({ onOpenChat, onOpenInquiry }: InboxWidgetProps) {
           table: 'leads',
           filter: `organization_id=eq.${organizationId}`,
         },
-        (payload) => {
+        (payload: unknown) => {
           console.log('[InboxWidget] Realtime: leads table changed', payload)
           fetchInbox()
         }
@@ -182,12 +182,12 @@ export function InboxWidget({ onOpenChat, onOpenInquiry }: InboxWidgetProps) {
           table: 'messages',
           filter: `organization_id=eq.${organizationId}`,
         },
-        (payload) => {
+        (payload: unknown) => {
           console.log('[InboxWidget] Realtime: new message inserted', payload)
           fetchInbox()
         }
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         console.log('[InboxWidget] Realtime subscription status:', status)
       })
 

@@ -522,26 +522,27 @@ export function OffersSearchPanel({
     let supplementsTotal = 0
     const selectedSupplementsData = supplements.filter(s => selectedSupplements.includes(s.id))
     for (const supp of selectedSupplementsData) {
-      if (supp.amount) {
+      const amount = supp.amount
+      if (amount) {
         if (supp.per === 'night') {
           // Per room/night - no per-person calculation
-          supplementsTotal += supp.amount * duration
+          supplementsTotal += amount * duration
         } else if (supp.per === 'person_night') {
           // Adults pay full price
-          supplementsTotal += supp.amount * adultsCount * duration
+          supplementsTotal += amount * adultsCount * duration
           // Children pay based on their discount multiplier
           childDiscountMultipliers.forEach(multiplier => {
-            supplementsTotal += supp.amount * multiplier * duration
+            supplementsTotal += amount * multiplier * duration
           })
         } else if (supp.per === 'person_stay') {
           // Adults pay full price
-          supplementsTotal += supp.amount * adultsCount
+          supplementsTotal += amount * adultsCount
           // Children pay based on their discount multiplier
           childDiscountMultipliers.forEach(multiplier => {
-            supplementsTotal += supp.amount * multiplier
+            supplementsTotal += amount * multiplier
           })
         } else {
-          supplementsTotal += supp.amount // per stay - flat fee
+          supplementsTotal += amount // per stay - flat fee
         }
       }
     }

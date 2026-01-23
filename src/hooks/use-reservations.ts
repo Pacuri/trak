@@ -220,10 +220,11 @@ export function useReservations() {
 
         if (!data) return { pending: 0, paid: 0, expired: 0, total: 0 }
 
+        type ReservationStatus = { status: string }
         return {
-          pending: data.filter(r => r.status === 'pending').length,
-          paid: data.filter(r => r.status === 'paid').length,
-          expired: data.filter(r => r.status === 'expired').length,
+          pending: data.filter((r: ReservationStatus) => r.status === 'pending').length,
+          paid: data.filter((r: ReservationStatus) => r.status === 'paid').length,
+          expired: data.filter((r: ReservationStatus) => r.status === 'expired').length,
           total: data.length,
         }
       } catch {

@@ -233,10 +233,11 @@ export function useInquiries() {
 
         if (!data) return { pending: 0, checking: 0, responded: 0, total: 0 }
 
+        type InquiryStatus = { status: string }
         return {
-          pending: data.filter(i => i.status === 'pending').length,
-          checking: data.filter(i => i.status === 'checking').length,
-          responded: data.filter(i => ['available', 'unavailable', 'alternative'].includes(i.status)).length,
+          pending: data.filter((i: InquiryStatus) => i.status === 'pending').length,
+          checking: data.filter((i: InquiryStatus) => i.status === 'checking').length,
+          responded: data.filter((i: InquiryStatus) => ['available', 'unavailable', 'alternative'].includes(i.status)).length,
           total: data.length,
         }
       } catch {
