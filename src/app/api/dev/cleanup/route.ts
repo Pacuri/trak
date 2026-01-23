@@ -16,9 +16,10 @@ async function handleCleanup(request: Request) {
   const email = searchParams.get('email')
   const name = searchParams.get('name')
   const all = searchParams.get('all')
+  const userEmail = searchParams.get('user') // Delete all data for a user's organization
 
-  if (!email && !name && !all) {
-    return NextResponse.json({ error: 'Email, name, or all=true required' }, { status: 400 })
+  if (!email && !name && !all && !userEmail) {
+    return NextResponse.json({ error: 'Email, name, all=true, or user=email required' }, { status: 400 })
   }
 
   const supabase = createClient(
@@ -26,10 +27,28 @@ async function handleCleanup(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  // If user email provided, find their organization and delete all leads for it
+  let organizationId: string | null = null
+  if (userEmail) {
+    const { data: userData } = await supabase
+      .from('users')
+      .select('organization_id')
+      .eq('email', userEmail)
+      .single()
+
+    if (userData?.organization_id) {
+      organizationId = userData.organization_id
+    } else {
+      return NextResponse.json({ error: 'User not found or has no organization' }, { status: 404 })
+    }
+  }
+
   // Find leads with the specified email, name, or all
   let query = supabase.from('leads').select('id, name, email')
 
-  if (email) {
+  if (organizationId) {
+    query = query.eq('organization_id', organizationId)
+  } else if (email) {
     query = query.eq('email', email)
   } else if (name) {
     query = query.ilike('name', `%${name}%`)
