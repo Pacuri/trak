@@ -195,13 +195,14 @@ export function useDashboardData() {
       const earlyStageIdList = earlyStageIds
       
       // Process leads to call (not contacted in 24h+)
+      type LeadData = { id: string; name: string | null; phone: string | null; email: string | null; destination: string | null; guests: number | null; value: number | null; created_at: string; last_contact_at: string | null; stage_id: string }
       const leadsToCall: LeadToCall[] = (leadsResult.data || [])
-        .filter(lead => {
+        .filter((lead: LeadData) => {
           const hours = hoursSince(lead.last_contact_at || lead.created_at)
           return hours >= 24 || !lead.last_contact_at
         })
         .slice(0, 5)
-        .map(lead => ({
+        .map((lead: LeadData) => ({
           id: lead.id,
           name: lead.name || 'Nepoznato',
           phone: lead.phone,
@@ -217,7 +218,7 @@ export function useDashboardData() {
 
       // Count leads in early stages (new, contacted) - these need attention
       const allOpenLeads = allLeadsResult.data || []
-      const leadsInEarlyStages = allOpenLeads.filter(lead => 
+      const leadsInEarlyStages = allOpenLeads.filter((lead: LeadData) =>
         earlyStageIdList.includes(lead.stage_id)
       )
 
