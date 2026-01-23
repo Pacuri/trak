@@ -169,6 +169,25 @@ export function ImportReviewScreen({
 
   return (
     <div className="space-y-6">
+      {/* IMPORTANT DISCLAIMER - AI Generated Content Warning */}
+      <div className="bg-red-50 rounded-xl p-5 border-2 border-red-300">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="h-7 w-7 text-red-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-red-700 uppercase tracking-wide">
+              ⚠️ VAŽNO
+            </h3>
+            <p className="text-red-800 mt-2 text-sm leading-relaxed">
+              Ovo su <span className="font-semibold">automatski generisane informacije</span> pomoću veštačke inteligencije.
+              Molimo vas da <span className="font-semibold">sve podatke pažljivo proverite i uporedite sa originalnim dokumentom</span> pre nego što nastavite.
+              Ne garantujemo da su sve informacije prenete tačno i u potpunosti.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div>
         <h2 className="text-xl font-semibold text-gray-900">Pregled importa</h2>

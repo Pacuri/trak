@@ -61,7 +61,8 @@ export function useAgencySettings(slug: string): UseAgencySettingsReturn {
     } finally {
       setLoading(false)
     }
-  }, [supabase, slug])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug])
 
   useEffect(() => {
     fetchSettings()

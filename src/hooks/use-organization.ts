@@ -84,7 +84,8 @@ export function useOrganization(): UseOrganizationReturn {
     } finally {
       setLoading(false)
     }
-  }, [supabase, organizationId])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId])
 
   useEffect(() => {
     fetchOrganization()

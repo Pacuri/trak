@@ -250,7 +250,8 @@ export function usePipeline(): UsePipelineReturn {
     } finally {
       setLoading(false)
     }
-  }, [supabase, organizationId, stages])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId, stages])
 
   useEffect(() => {
     fetchLeads()
@@ -358,7 +359,7 @@ export function usePipeline(): UsePipelineReturn {
         return false
       }
     },
-    [supabase, organizationId, fetchLeads, leadsByStage]
+    [organizationId, fetchLeads, leadsByStage] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   return {

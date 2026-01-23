@@ -513,7 +513,8 @@ export function useDashboardData() {
       supabase.removeChannel(inquiriesChannel)
       supabase.removeChannel(leadsChannel)
     }
-  }, [supabase, organizationId, fetchDashboardData])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId, fetchDashboardData])
 
   return {
     ...data,

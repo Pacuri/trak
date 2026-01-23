@@ -110,7 +110,7 @@ export function useLeads() {
         setLoading(false)
       }
     },
-    [supabase, organizationId]
+    [organizationId] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const getLead = useCallback(
@@ -149,7 +149,7 @@ export function useLeads() {
         setLoading(false)
       }
     },
-    [supabase, organizationId]
+    [organizationId] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const createLead = useCallback(
@@ -215,7 +215,7 @@ export function useLeads() {
         setLoading(false)
       }
     },
-    [supabase, organizationId]
+    [organizationId] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const updateLead = useCallback(
@@ -300,7 +300,7 @@ export function useLeads() {
         setLoading(false)
       }
     },
-    [supabase, organizationId]
+    [organizationId] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const deleteLead = useCallback(
@@ -333,7 +333,7 @@ export function useLeads() {
         setLoading(false)
       }
     },
-    [supabase, organizationId]
+    [organizationId] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const archiveLead = useCallback(
@@ -395,7 +395,7 @@ export function useLeads() {
         setLoading(false)
       }
     },
-    [supabase, organizationId]
+    [organizationId] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const addActivity = useCallback(
@@ -466,7 +466,7 @@ export function useLeads() {
         setLoading(false)
       }
     },
-    [supabase, organizationId]
+    [organizationId] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   return {

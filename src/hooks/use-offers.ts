@@ -102,7 +102,7 @@ export function useOffers() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const getOffer = useCallback(
@@ -148,7 +148,7 @@ export function useOffers() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const createOffer = useCallback(
@@ -202,7 +202,7 @@ export function useOffers() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const updateOffer = useCallback(
@@ -240,7 +240,7 @@ export function useOffers() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const updateCapacity = useCallback(
@@ -276,7 +276,7 @@ export function useOffers() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const archiveOffer = useCallback(
@@ -309,7 +309,7 @@ export function useOffers() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const getCountries = useCallback(
@@ -331,7 +331,7 @@ export function useOffers() {
         return []
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   return {

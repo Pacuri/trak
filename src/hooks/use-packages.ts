@@ -479,7 +479,7 @@ export function usePackages() {
         return []
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   /**

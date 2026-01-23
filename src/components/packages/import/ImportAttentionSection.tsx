@@ -29,20 +29,20 @@ export function ImportAttentionSection({
   importantNotes = [],
   roomDetails = [],
 }: ImportAttentionSectionProps) {
-  // Collect all attention-worthy items
-  const items: { text: string; type: 'warning' | 'info' | 'highlight' }[] = []
+  // Collect all attention-worthy items (using Set to avoid duplicates)
+  const itemsMap = new Map<string, { text: string; type: 'warning' | 'info' | 'highlight' }>()
 
   // Price type warning
   if (priceType === 'per_person_per_night') {
-    items.push({
-      text: 'Cijene su po osobi po NOĆENJU (ne po boravku)',
-      type: 'highlight'
-    })
+    const text = 'Cijene su po osobi po NOĆENJU (ne po boravku)'
+    itemsMap.set(text, { text, type: 'highlight' })
   }
 
   // Included services
   includedServices.forEach(s => {
-    items.push({ text: s, type: 'info' })
+    if (!itemsMap.has(s)) {
+      itemsMap.set(s, { text: s, type: 'info' })
+    }
   })
 
   // Supplements
@@ -56,43 +56,52 @@ export function ImportAttentionSection({
                       s.per === 'stay' ? 'po boravku' : ''
       text = `${s.amount} ${s.currency || 'EUR'} ${perText} - ${s.name.toLowerCase()}`
     }
-    if (text) items.push({ text, type: 'info' })
+    if (text && !itemsMap.has(text)) {
+      itemsMap.set(text, { text, type: 'info' })
+    }
   })
 
-  // Room warnings (critical!)
+  // Room warnings (critical!) - deduplicated
   roomDetails.forEach(r => {
     r.warnings?.forEach(w => {
-      items.push({ text: w, type: 'warning' })
+      if (!itemsMap.has(w)) {
+        itemsMap.set(w, { text: w, type: 'warning' })
+      }
     })
   })
 
   // Important notes
   importantNotes.forEach(n => {
-    items.push({
-      text: n.text,
-      type: n.type === 'warning' ? 'warning' : 'info'
-    })
+    if (!itemsMap.has(n.text)) {
+      itemsMap.set(n.text, {
+        text: n.text,
+        type: n.type === 'warning' ? 'warning' : 'info'
+      })
+    }
   })
 
   // Restrictions
   if (policies?.restrictions?.min_stay) {
-    items.push({
-      text: `Minimalno ${policies.restrictions.min_stay} noćenja`,
-      type: 'info'
-    })
+    const text = `Minimalno ${policies.restrictions.min_stay} noćenja`
+    if (!itemsMap.has(text)) {
+      itemsMap.set(text, { text, type: 'info' })
+    }
   }
   if (policies?.restrictions?.documents_required?.length) {
-    items.push({
-      text: `Potrebni dokumenti: ${policies.restrictions.documents_required.join(', ')}`,
-      type: 'info'
-    })
+    const text = `Potrebni dokumenti: ${policies.restrictions.documents_required.join(', ')}`
+    if (!itemsMap.has(text)) {
+      itemsMap.set(text, { text, type: 'info' })
+    }
   }
   if (policies?.restrictions?.check_in_days?.length) {
-    items.push({
-      text: `Check-in samo: ${policies.restrictions.check_in_days.join(', ')}`,
-      type: 'info'
-    })
+    const text = `Check-in samo: ${policies.restrictions.check_in_days.join(', ')}`
+    if (!itemsMap.has(text)) {
+      itemsMap.set(text, { text, type: 'info' })
+    }
   }
+
+  // Convert to array
+  const items = Array.from(itemsMap.values())
 
   // Don't render if no items
   if (items.length === 0) return null

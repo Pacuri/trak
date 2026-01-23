@@ -64,7 +64,7 @@ export function useInquiries() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const getInquiry = useCallback(
@@ -103,7 +103,7 @@ export function useInquiries() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const markAsAvailable = useCallback(
@@ -141,7 +141,7 @@ export function useInquiries() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const markAsUnavailable = useCallback(
@@ -179,7 +179,7 @@ export function useInquiries() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const markAsAlternative = useCallback(
@@ -218,7 +218,7 @@ export function useInquiries() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const getStats = useCallback(
@@ -243,7 +243,7 @@ export function useInquiries() {
         return { pending: 0, checking: 0, responded: 0, total: 0 }
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   return {

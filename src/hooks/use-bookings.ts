@@ -99,7 +99,7 @@ export function useBookings() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const getBooking = useCallback(
@@ -139,7 +139,7 @@ export function useBookings() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const createBooking = useCallback(
@@ -219,7 +219,7 @@ export function useBookings() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const cancelBooking = useCallback(
@@ -274,7 +274,7 @@ export function useBookings() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const getBookingsByTravelDate = useCallback(
@@ -311,7 +311,7 @@ export function useBookings() {
         return {}
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const getStats = useCallback(
@@ -336,7 +336,7 @@ export function useBookings() {
         return { confirmed: 0, cancelled: 0, totalRevenue: 0 }
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   return {

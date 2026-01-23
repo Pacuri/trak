@@ -88,6 +88,32 @@ interface Supplement {
   mandatory: boolean
 }
 
+interface HotelPrice {
+  id: string
+  room_type_id: string
+  interval_id: string
+  price_nd?: number
+  price_bb?: number
+  price_hb?: number
+  price_fb?: number
+  price_ai?: number
+}
+
+interface ChildrenPolicy {
+  id: string
+  rule_name?: string
+  min_adults?: number
+  max_adults?: number
+  child_position?: number
+  room_type_codes?: string[]
+  bed_type?: string
+  age_from: number
+  age_to: number
+  discount_type: 'FREE' | 'PERCENT' | 'FIXED'
+  discount_value?: number
+  priority?: number
+}
+
 interface OffersSearchPanelProps {
   isOpen: boolean
   onClose: () => void
@@ -144,6 +170,9 @@ export function OffersSearchPanel({
   const [sending, setSending] = useState(false)
   const [supplements, setSupplements] = useState<Supplement[]>([])
   const [selectedSupplements, setSelectedSupplements] = useState<string[]>([])
+  const [hotelPrices, setHotelPrices] = useState<HotelPrice[]>([])
+  const [childrenPolicies, setChildrenPolicies] = useState<ChildrenPolicy[]>([])
+  const [calculatedPrice, setCalculatedPrice] = useState<number>(0)
 
 
   // Search packages
@@ -241,6 +270,23 @@ export function OffersSearchPanel({
 
       setSupplements(supps || [])
 
+      // Fetch hotel prices for price calculation
+      const { data: prices } = await supabase
+        .from('hotel_prices')
+        .select('id, room_type_id, interval_id, price_nd, price_bb, price_hb, price_fb, price_ai')
+        .eq('package_id', pkg.id)
+
+      setHotelPrices(prices || [])
+
+      // Fetch children policies for discount calculation
+      const { data: policies } = await supabase
+        .from('children_policy_rules')
+        .select('id, rule_name, min_adults, max_adults, child_position, room_type_codes, bed_type, age_from, age_to, discount_type, discount_value, priority')
+        .eq('package_id', pkg.id)
+        .order('priority', { ascending: false })
+
+      setChildrenPolicies(policies || [])
+
       // Set defaults
       if (pkg.meal_plans?.length) {
         setSelectedMealPlan(pkg.meal_plans[0])
@@ -281,6 +327,9 @@ export function OffersSearchPanel({
     setPriceIntervals([])
     setDepartures([])
     setSupplements([])
+    setHotelPrices([])
+    setChildrenPolicies([])
+    setCalculatedPrice(0)
     setSelectedRoomType('')
     setSelectedMealPlan('')
     setSelectedDepartureId('')
@@ -317,6 +366,188 @@ export function OffersSearchPanel({
         : [...prev, supplementId]
     )
   }
+
+  // Helper to get price from hotel_prices based on meal plan
+  const getPriceForMealPlan = (price: HotelPrice, mealPlan: string): number => {
+    const mealPlanMap: Record<string, keyof HotelPrice> = {
+      'ND': 'price_nd',
+      'BB': 'price_bb',
+      'HB': 'price_hb',
+      'FB': 'price_fb',
+      'AI': 'price_ai',
+    }
+    const key = mealPlanMap[mealPlan]
+    return key ? (price[key] as number) || 0 : 0
+  }
+
+  // Helper to find matching children policy for a specific child
+  const findChildPolicy = (childAge: number, childPosition: number, roomTypeCode?: string): ChildrenPolicy | null => {
+    // Filter matching policies
+    const matchingPolicies = childrenPolicies.filter(policy => {
+      // Check age range
+      if (childAge < policy.age_from || childAge > policy.age_to) return false
+
+      // Check number of adults if specified
+      if (policy.min_adults && adultsCount < policy.min_adults) return false
+      if (policy.max_adults && adultsCount > policy.max_adults) return false
+
+      // Check child position (1st child, 2nd child, etc.) if specified
+      if (policy.child_position && policy.child_position !== childPosition) return false
+
+      // Check room type if specified
+      if (policy.room_type_codes && policy.room_type_codes.length > 0 && roomTypeCode) {
+        if (!policy.room_type_codes.includes(roomTypeCode)) return false
+      }
+
+      return true
+    })
+
+    if (matchingPolicies.length === 0) return null
+
+    // Sort by biggest discount first (FREE > higher PERCENT > lower FIXED)
+    matchingPolicies.sort((a, b) => {
+      // FREE is always the best discount
+      if (a.discount_type === 'FREE' && b.discount_type !== 'FREE') return -1
+      if (b.discount_type === 'FREE' && a.discount_type !== 'FREE') return 1
+
+      // For PERCENT, higher value = bigger discount
+      if (a.discount_type === 'PERCENT' && b.discount_type === 'PERCENT') {
+        return (b.discount_value || 0) - (a.discount_value || 0)
+      }
+
+      // PERCENT is generally better than FIXED (depends on base price, but assume so)
+      if (a.discount_type === 'PERCENT' && b.discount_type === 'FIXED') return -1
+      if (b.discount_type === 'PERCENT' && a.discount_type === 'FIXED') return 1
+
+      // For FIXED, lower value = bigger discount (paying less)
+      if (a.discount_type === 'FIXED' && b.discount_type === 'FIXED') {
+        return (a.discount_value || 0) - (b.discount_value || 0)
+      }
+
+      return 0
+    })
+
+    // Return the policy with the biggest discount
+    return matchingPolicies[0]
+  }
+
+  // Calculate child price based on policy
+  const calculateChildPrice = (basePrice: number, policy: ChildrenPolicy | null): number => {
+    if (!policy) return basePrice // No policy = full price
+
+    switch (policy.discount_type) {
+      case 'FREE':
+        return 0
+      case 'PERCENT':
+        const discountPercent = policy.discount_value || 0
+        return basePrice * (1 - discountPercent / 100)
+      case 'FIXED':
+        const fixedPrice = policy.discount_value || 0
+        return fixedPrice
+      default:
+        return basePrice
+    }
+  }
+
+  // Calculate price when selections change
+  useEffect(() => {
+    if (!selectedPackage || !selectedRoomType || !selectedMealPlan || !selectedDate) {
+      setCalculatedPrice(0)
+      return
+    }
+
+    // Find the price interval that covers the selected date
+    const selectedInterval = priceIntervals.find(interval => {
+      const start = new Date(interval.start_date)
+      const end = new Date(interval.end_date)
+      const date = new Date(selectedDate)
+      return date >= start && date <= end
+    })
+
+    if (!selectedInterval) {
+      setCalculatedPrice(0)
+      return
+    }
+
+    // Find the price in hotel_prices
+    const priceEntry = hotelPrices.find(
+      p => p.room_type_id === selectedRoomType &&
+           p.interval_id === selectedInterval.id
+    )
+
+    if (!priceEntry) {
+      setCalculatedPrice(0)
+      return
+    }
+
+    // Get price per person for the selected meal plan
+    const pricePerPerson = getPriceForMealPlan(priceEntry, selectedMealPlan)
+
+    if (!pricePerPerson) {
+      setCalculatedPrice(0)
+      return
+    }
+
+    // Get selected room type code for policy matching
+    const selectedRoom = roomTypes.find(r => r.id === selectedRoomType)
+    const roomCode = selectedRoom?.code
+
+    // Calculate adults price
+    const adultsPrice = pricePerPerson * adultsCount * duration
+
+    // Calculate children price with discounts and store discount multipliers for supplement calculation
+    let childrenPrice = 0
+    const childDiscountMultipliers: number[] = [] // Store how much each child pays (0 = FREE, 0.5 = 50% off, 1 = full price)
+    childrenAges.forEach((age, index) => {
+      const childPosition = index + 1 // 1-based position
+      const policy = findChildPolicy(age, childPosition, roomCode)
+      const childPricePerNight = calculateChildPrice(pricePerPerson, policy)
+      childrenPrice += childPricePerNight * duration
+
+      // Calculate the discount multiplier for this child (for supplement calculation)
+      if (!policy) {
+        childDiscountMultipliers.push(1) // No policy = full price
+      } else if (policy.discount_type === 'FREE') {
+        childDiscountMultipliers.push(0) // FREE = no supplement cost
+      } else if (policy.discount_type === 'PERCENT') {
+        childDiscountMultipliers.push(1 - (policy.discount_value || 0) / 100) // e.g., 50% discount = 0.5 multiplier
+      } else {
+        childDiscountMultipliers.push(1) // FIXED price = full supplement (or could be 0, but let's keep it simple)
+      }
+    })
+
+    const basePrice = adultsPrice + childrenPrice
+
+    // Add supplements (with child discounts applied to per-person supplements)
+    let supplementsTotal = 0
+    const selectedSupplementsData = supplements.filter(s => selectedSupplements.includes(s.id))
+    for (const supp of selectedSupplementsData) {
+      if (supp.amount) {
+        if (supp.per === 'night') {
+          // Per room/night - no per-person calculation
+          supplementsTotal += supp.amount * duration
+        } else if (supp.per === 'person_night') {
+          // Adults pay full price
+          supplementsTotal += supp.amount * adultsCount * duration
+          // Children pay based on their discount multiplier
+          childDiscountMultipliers.forEach(multiplier => {
+            supplementsTotal += supp.amount * multiplier * duration
+          })
+        } else if (supp.per === 'person_stay') {
+          // Adults pay full price
+          supplementsTotal += supp.amount * adultsCount
+          // Children pay based on their discount multiplier
+          childDiscountMultipliers.forEach(multiplier => {
+            supplementsTotal += supp.amount * multiplier
+          })
+        } else {
+          supplementsTotal += supp.amount // per stay - flat fee
+        }
+      }
+    }
+
+    setCalculatedPrice(basePrice + supplementsTotal)
+  }, [selectedPackage, selectedRoomType, selectedMealPlan, selectedDate, duration, adultsCount, childrenAges, priceIntervals, hotelPrices, supplements, selectedSupplements, childrenPolicies, roomTypes])
 
   // Get agency slug for link
   const getAgencySlug = useCallback(async () => {
@@ -371,12 +602,60 @@ export function OffersSearchPanel({
           },
           destination: `${selectedPackage.destination_city ? selectedPackage.destination_city + ', ' : ''}${selectedPackage.destination_country}`,
           price_breakdown: {
-            extras: selectedSupplementsData.map(s => ({
-              name: s.name,
-              price: s.amount || 0,
-            })),
+            base_price: (() => {
+              // Calculate base price without supplements (with children discounts)
+              const selectedInterval = priceIntervals.find(interval => {
+                const start = new Date(interval.start_date)
+                const end = new Date(interval.end_date)
+                const date = new Date(selectedDate)
+                return date >= start && date <= end
+              })
+              if (!selectedInterval) return 0
+              const priceEntry = hotelPrices.find(
+                p => p.room_type_id === selectedRoomType &&
+                     p.interval_id === selectedInterval.id
+              )
+              if (!priceEntry) return 0
+              const pricePerPerson = getPriceForMealPlan(priceEntry, selectedMealPlan)
+              if (!pricePerPerson) return 0
+
+              // Calculate adults price
+              const adultsPrice = pricePerPerson * adultsCount * duration
+
+              // Calculate children price with discounts
+              let childrenPrice = 0
+              childrenAges.forEach((age, index) => {
+                const childPosition = index + 1
+                const policy = findChildPolicy(age, childPosition, selectedRoom?.code)
+                const childPricePerNight = calculateChildPrice(pricePerPerson, policy)
+                childrenPrice += childPricePerNight * duration
+              })
+
+              return adultsPrice + childrenPrice
+            })(),
+            extras: selectedSupplementsData.map(s => {
+              // Calculate actual supplement cost
+              const totalGuests = adultsCount + childrenAges.length
+              let price = 0
+              if (s.amount) {
+                if (s.per === 'night') {
+                  price = s.amount * duration
+                } else if (s.per === 'person_night') {
+                  price = s.amount * totalGuests * duration
+                } else if (s.per === 'person_stay') {
+                  price = s.amount * totalGuests
+                } else {
+                  price = s.amount // per stay
+                }
+              }
+              return {
+                name: s.name,
+                price,
+              }
+            }),
+            total: calculatedPrice,
           },
-          total_amount: 0, // Agent will set price in the slide-over
+          total_amount: calculatedPrice,
           agent_message: null,
         }),
       })
@@ -910,6 +1189,20 @@ export function OffersSearchPanel({
                         <Info className="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" />
                         <p className="text-sm text-slate-600">{selectedPackage.tax_disclaimer}</p>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Calculated Price Display */}
+                  {calculatedPrice > 0 && (
+                    <div className="bg-emerald-50 rounded-xl p-4 mt-4 border border-emerald-200">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-emerald-800">Ukupna cena:</span>
+                        <span className="text-xl font-bold text-emerald-700">€{calculatedPrice.toLocaleString()}</span>
+                      </div>
+                      <p className="text-xs text-emerald-600 mt-1">
+                        {adultsCount + childrenAges.length} osoba × {duration} noći
+                        {selectedSupplements.length > 0 && ` + ${selectedSupplements.length} dodatak`}
+                      </p>
                     </div>
                   )}
 

@@ -71,7 +71,7 @@ export function useReservations() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const getReservation = useCallback(
@@ -109,7 +109,7 @@ export function useReservations() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const updateReservationStatus = useCallback(
@@ -152,7 +152,7 @@ export function useReservations() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const recordPayment = useCallback(
@@ -205,7 +205,7 @@ export function useReservations() {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const getStats = useCallback(
@@ -230,7 +230,7 @@ export function useReservations() {
         return { pending: 0, paid: 0, expired: 0, total: 0 }
       }
     },
-    [supabase, user]
+    [user] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   return {
