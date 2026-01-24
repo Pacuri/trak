@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculator Lip Draft</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+
+    /* Panel starts hidden above viewport */
+    .calculator-panel {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100%);
+      transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+      opacity: 0;
+    }
+    .calculator-panel.open {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    .calculator-panel.hidden {
+      display: none;
+    }
+    .calculator-panel.visible {
+      display: block;
+    }
+
+    /* Lip tab animation */
+    .calculator-lip {
+      transition: all 0.3s ease;
+    }
+    .calculator-lip:hover {
+      padding-bottom: 14px;
+    }
+    .calculator-lip .arrow {
+      transition: transform 0.3s ease;
+    }
+    .calculator-lip.open .arrow {
+      transform: rotate(180deg);
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+  <!-- Simulated Dashboard Header -->
+  <div class="bg-white border-b border-gray-200 h-16 flex items-center px-6">
+    <div class="flex-1">
+      <span class="text-xl font-bold text-gray-800">trak</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <div class="w-10 h-10 rounded-full bg-blue-500"></div>
+    </div>
+  </div>
+
+  <!-- Calculator Container (Fixed at top, below header) -->
+  <div class="fixed top-16 left-0 right-0 z-40 flex flex-col items-center pointer-events-none">
+
+    <!-- Calculator Panel (slides down from above) -->
+    <div id="calculatorPanel" class="calculator-panel w-full max-w-2xl bg-white rounded-b-2xl shadow-2xl pointer-events-auto hidden">
+
+      <!-- Panel Content -->
+      <div class="p-6 max-h-[70vh] overflow-y-auto">
+
+        <!-- Search Header -->
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900">Brzi kalkulator</h2>
+            <p class="text-sm text-gray-500">Izračunaj cenu aranžmana</p>
+          </div>
+        </div>
+
+        <!-- Package Search -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Paket / Hotel</label>
+          <div class="relative">
+            <input
+              type="text"
+              placeholder="Pretraži pakete..."
+              class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Selected Package Preview -->
+        <div class="bg-blue-50 rounded-xl p-4 mb-4 border border-blue-100">
+          <div class="flex items-center gap-3">
+            <div class="w-16 h-16 rounded-lg bg-blue-200 flex-shrink-0"></div>
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-gray-900 truncate">Pearl Beach Resort</p>
+              <p class="text-sm text-gray-500">Čanj, Crna Gora</p>
+            </div>
+            <button class="text-gray-400 hover:text-gray-600">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Configuration Grid -->
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <!-- Date -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Datum</label>
+            <input
+              type="date"
+              class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <!-- Duration -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Trajanje</label>
+            <select class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 bg-white">
+              <option>7 noći</option>
+              <option>10 noći</option>
+              <option>14 noći</option>
+            </select>
+          </div>
+
+          <!-- Adults -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Odrasli</label>
+            <div class="flex items-center border border-gray-200 rounded-xl">
+              <button class="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-l-xl">−</button>
+              <span class="flex-1 text-center font-medium">2</span>
+              <button class="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-r-xl">+</button>
+            </div>
+          </div>
+
+          <!-- Children -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Deca</label>
+            <div class="flex items-center border border-gray-200 rounded-xl">
+              <button class="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-l-xl">−</button>
+              <span class="flex-1 text-center font-medium">1</span>
+              <button class="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-r-xl">+</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Children Ages (if children > 0) -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Uzrast dece</label>
+          <div class="flex gap-2">
+            <select class="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white">
+              <option>5 godina</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Room Type -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Tip sobe</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button class="px-4 py-3 border-2 border-blue-500 bg-blue-50 rounded-xl text-sm font-medium text-blue-700">
+              Superior 1/4
+            </button>
+            <button class="px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-gray-300">
+              Standard 1/2
+            </button>
+          </div>
+        </div>
+
+        <!-- Meal Plan -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Ishrana</label>
+          <select class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 bg-white">
+            <option>All Inclusive</option>
+            <option>Polupansion</option>
+            <option>Noćenje sa doručkom</option>
+          </select>
+        </div>
+
+        <!-- Supplements -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Dodaci</label>
+          <div class="space-y-2">
+            <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50">
+              <input type="checkbox" checked class="w-4 h-4 text-blue-600 rounded">
+              <span class="flex-1 text-sm">Pogled na more</span>
+              <span class="text-sm text-gray-500">+€7/os./noć</span>
+            </label>
+            <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50">
+              <input type="checkbox" class="w-4 h-4 text-blue-600 rounded">
+              <span class="flex-1 text-sm">Transfer</span>
+              <span class="text-sm text-gray-500">+€30/os.</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Price Result -->
+        <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-5 border border-green-200">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-sm text-gray-600">Osnovna cena</span>
+            <span class="font-medium">€1,540</span>
+          </div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-sm text-gray-600">Pogled na more</span>
+            <span class="font-medium text-blue-600">+€245</span>
+          </div>
+          <div class="border-t border-green-200 pt-3 mt-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-gray-600">Ukupno za 5 osoba</p>
+                <p class="text-xs text-gray-400">€357 po osobi</p>
+              </div>
+              <p class="text-3xl font-bold text-green-600">€1,785</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- The Lip/Tab (always visible) -->
+    <button
+      id="calculatorLip"
+      onclick="toggleCalculator()"
+      class="calculator-lip flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-b-xl shadow-lg pointer-events-auto transition-all"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+      </svg>
+      <span class="text-sm font-medium">Kalkulator</span>
+      <svg class="arrow w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </button>
+
+  </div>
+
+  <!-- Backdrop (when open) -->
+  <div id="backdrop" onclick="toggleCalculator()" class="fixed inset-0 bg-black/20 z-30 hidden"></div>
+
+  <!-- Simulated Page Content -->
+  <div class="p-8 mt-4">
+    <div class="max-w-4xl mx-auto">
+      <h1 class="text-2xl font-bold text-gray-900 mb-4">Dashboard Content</h1>
+      <p class="text-gray-600 mb-4">Click the "Kalkulator" tab at the top to open the calculator panel.</p>
+
+      <div class="grid grid-cols-3 gap-4">
+        <div class="bg-white rounded-xl p-6 border border-gray-200">
+          <p class="text-2xl font-bold">23</p>
+          <p class="text-sm text-gray-500">Aktivni upiti</p>
+        </div>
+        <div class="bg-white rounded-xl p-6 border border-gray-200">
+          <p class="text-2xl font-bold text-green-600">€12,450</p>
+          <p class="text-sm text-gray-500">Ovog meseca</p>
+        </div>
+        <div class="bg-white rounded-xl p-6 border border-gray-200">
+          <p class="text-2xl font-bold">8</p>
+          <p class="text-sm text-gray-500">Potvrđene ponude</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleCalculator() {
+      const panel = document.getElementById('calculatorPanel');
+      const lip = document.getElementById('calculatorLip');
+      const backdrop = document.getElementById('backdrop');
+
+      const isOpen = panel.classList.contains('open');
+
+      if (isOpen) {
+        // Close
+        panel.classList.remove('open');
+        lip.classList.remove('open');
+        backdrop.classList.add('hidden');
+        // Hide after animation
+        setTimeout(() => {
+          panel.classList.add('hidden');
+          panel.classList.remove('visible');
+        }, 300);
+      } else {
+        // Open
+        panel.classList.remove('hidden');
+        panel.classList.add('visible');
+        // Trigger reflow for animation
+        panel.offsetHeight;
+        panel.classList.add('open');
+        lip.classList.add('open');
+        backdrop.classList.remove('hidden');
+      }
+    }
+  </script>
+
+</body>
+</html>
