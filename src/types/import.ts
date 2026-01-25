@@ -269,7 +269,8 @@ export interface ImportFormData {
   business_model: BusinessModel
   currency: Currency
   margin_percent?: number
-  
+  package_type?: 'fiksni' | 'na_upit'
+
   // Packages to import (with selected flag)
   packages: ImportPackageFormData[]
   
@@ -387,6 +388,7 @@ export interface SaveImportedPackagesRequest {
   business_model: BusinessModel
   margin_percent?: number
   currency?: Currency // User-specified document currency
+  package_type?: 'fiksni' | 'na_upit'
 
   // Enhanced fields
   supplements?: ParsedSupplement[]

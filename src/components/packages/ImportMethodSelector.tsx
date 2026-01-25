@@ -2,18 +2,21 @@
 
 import { useState, useRef } from 'react'
 import { cn } from '@/lib/utils'
-import { 
-  Upload, 
-  FileText, 
-  Loader2, 
-  CheckCircle2, 
+import {
+  Upload,
+  FileText,
+  Loader2,
+  CheckCircle2,
   AlertCircle,
   X,
   Image as ImageIcon,
   FileSpreadsheet,
   Euro,
+  Building2,
 } from 'lucide-react'
 import type { Currency } from '@/types/import'
+import type { PackageType } from '@/types/packages'
+import { PACKAGE_TYPE_LABELS, PACKAGE_TYPE_DESCRIPTIONS } from '@/lib/package-labels'
 
 interface ImportMethodSelectorProps {
   onManualEntry: () => void
@@ -40,6 +43,7 @@ export function ImportMethodSelector({
   const [error, setError] = useState<string | null>(null)
   const [marginPercent, setMarginPercent] = useState<string>('')
   const [currency, setCurrency] = useState<Currency>('EUR')
+  const [packageType, setPackageType] = useState<PackageType>('na_upit')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -106,6 +110,7 @@ export function ImportMethodSelector({
       const formData = new FormData()
       formData.append('file', selectedFile)
       formData.append('currency', currency)
+      formData.append('package_type', packageType)
       if (marginPercent) {
         formData.append('margin_percent', marginPercent)
       }
@@ -126,7 +131,7 @@ export function ImportMethodSelector({
       
       // Pass result to parent after a short delay for UI feedback
       setTimeout(() => {
-        onImportComplete({ ...data, currency })
+        onImportComplete({ ...data, currency, package_type: packageType })
       }, 1000)
 
     } catch (err) {
@@ -243,6 +248,38 @@ export function ImportMethodSelector({
         {importState === 'success' && (
           <CheckCircle2 className="h-6 w-6 text-green-500" />
         )}
+      </div>
+
+      {/* Package type selection */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          <Building2 className="h-4 w-4 inline mr-1.5" />
+          Tip paketa *
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          {(['fiksni', 'na_upit'] as PackageType[]).map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setPackageType(type)}
+              disabled={importState !== 'idle' && importState !== 'error'}
+              className={cn(
+                'px-4 py-3 rounded-lg border-2 transition-all text-center',
+                packageType === type
+                  ? 'border-teal-500 bg-teal-50 text-teal-700'
+                  : 'border-gray-200 hover:border-gray-300',
+                (importState !== 'idle' && importState !== 'error') && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              <span className="block font-semibold text-sm">
+                {PACKAGE_TYPE_LABELS[type].split('(')[0].trim()}
+              </span>
+              <span className="block text-xs text-gray-500 mt-0.5">
+                {PACKAGE_TYPE_DESCRIPTIONS[type]}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Currency selection */}

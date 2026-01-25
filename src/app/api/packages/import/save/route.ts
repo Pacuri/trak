@@ -43,13 +43,14 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body: SaveImportedPackagesRequest = await request.json()
-    const { 
-      import_id, 
-      packages, 
-      transport, 
-      business_model, 
-      margin_percent, 
+    const {
+      import_id,
+      packages,
+      transport,
+      business_model,
+      margin_percent,
       currency,
+      package_type,
       // Enhanced fields
       supplements,
       mandatory_fees,
@@ -125,7 +126,8 @@ export async function POST(request: NextRequest) {
           transportPriceListId,
           documentCurrency,
           included_services,
-          tax_disclaimer
+          tax_disclaimer,
+          package_type
         )
         createdPackages.push(packageId)
         
@@ -184,7 +186,8 @@ async function createPackageFromImport(
   transportPriceListId: string | undefined,
   currency: string,
   includedServices?: string[],
-  taxDisclaimer?: string
+  taxDisclaimer?: string,
+  packageType?: 'fiksni' | 'na_upit'
 ): Promise<string> {
   // Determine available meal plans from price matrix
   const mealPlans = new Set<string>()
@@ -214,7 +217,7 @@ async function createPackageFromImport(
   // These fields are commented out until the migration is applied
   const packageData: Record<string, unknown> = {
     organization_id: organizationId,
-    package_type: 'na_upit', // Imported packages are typically hotel packages
+    package_type: packageType || 'na_upit', // Use selected package type
     name: pkg.hotel_name,
     description: packageDescription, // Use AI-generated or extracted description
     destination_country: pkg.destination_country,

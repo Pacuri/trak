@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
     const marginPercent = formData.get('margin_percent') as string | null
     const additionalContext = formData.get('context') as string | null
     const currency = formData.get('currency') as string | null // User-specified currency
+    const packageType = formData.get('package_type') as string | null // fiksni or na_upit
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -234,6 +235,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         import_id: importRecord.id,
+        package_type: packageType || 'na_upit',
         result: {
           ...parseResult,
           // Ensure all enhanced fields are included (even if empty)

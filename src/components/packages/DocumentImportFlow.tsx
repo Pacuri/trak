@@ -13,11 +13,12 @@ import {
 import { ImportMethodSelector } from './ImportMethodSelector'
 import { ImportReviewScreen } from './ImportReviewScreen'
 import { ImportedPackageForm } from './ImportedPackageForm'
-import type { 
-  DocumentParseResult, 
-  ImportFormData, 
+import type {
+  DocumentParseResult,
+  ImportFormData,
   ImportPackageFormData,
 } from '@/types/import'
+import type { PackageType } from '@/types/packages'
 
 type FlowStep = 'upload' | 'review' | 'edit' | 'saving' | 'complete'
 
@@ -43,11 +44,15 @@ export function DocumentImportFlow({
   const [savedPackageIds, setSavedPackageIds] = useState<string[]>([])
   const [errors, setErrors] = useState<string[]>([])
   const [transportListId, setTransportListId] = useState<string | undefined>()
+  const [packageType, setPackageType] = useState<PackageType>('na_upit')
 
   // Handle import complete from ImportMethodSelector
-  const handleImportComplete = (result: { import_id: string; result: DocumentParseResult }) => {
+  const handleImportComplete = (result: { import_id: string; result: DocumentParseResult; package_type?: PackageType }) => {
     setImportId(result.import_id)
     setParseResult(result.result)
+    if (result.package_type) {
+      setPackageType(result.package_type)
+    }
     setStep('review')
   }
 
@@ -102,6 +107,7 @@ export function DocumentImportFlow({
           business_model: formData.business_model,
           margin_percent: formData.margin_percent,
           currency: formData.currency,
+          package_type: packageType,
           // Enhanced fields
           supplements: formData.supplements,
           mandatory_fees: formData.mandatory_fees,
