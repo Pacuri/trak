@@ -11,6 +11,7 @@ import { TodaysDepartures } from '@/components/dashboard/TodaysDepartures'
 import { CapacityOverview } from '@/components/dashboard/CapacityOverview'
 import { InboxWidget } from '@/components/dashboard/InboxWidget'
 import { InquirySlideOver } from '@/components/dashboard/InquirySlideOver'
+import { PendingReservationsAlert } from '@/components/dashboard/PendingReservationsAlert'
 import type { PendingInquiry } from '@/types/dashboard'
 
 // Format current date in Serbian
@@ -103,6 +104,9 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+
+        {/* Pending Reservations Alert - shows when there are reservations waiting for payment */}
+        <PendingReservationsAlert />
 
         {/* Main Content Grid - 4 columns on desktop */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:min-h-[520px]">

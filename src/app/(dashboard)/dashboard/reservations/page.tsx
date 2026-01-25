@@ -59,6 +59,26 @@ export default function ReservationsPage() {
     }
   }
 
+  const handleExtendDeadline = async (id: string, hours: number) => {
+    try {
+      const response = await fetch(`/api/reservations/${id}/extend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hours }),
+      })
+
+      if (response.ok) {
+        loadData()
+      } else {
+        const data = await response.json()
+        alert(data.error || 'Greška pri produženju roka')
+      }
+    } catch (err) {
+      console.error('Error extending deadline:', err)
+      alert('Greška pri produženju roka')
+    }
+  }
+
   // Filter by search
   const filteredReservations = reservations.filter((res) => {
     if (!searchQuery) return true
@@ -187,6 +207,7 @@ export default function ReservationsPage() {
               onMarkPaid={handleMarkPaid}
               onCancel={handleCancel}
               onRecordPayment={handleRecordPayment}
+              onExtendDeadline={handleExtendDeadline}
             />
           ))}
         </div>

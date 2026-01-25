@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { MapPin, Calendar, Users, Clock, CreditCard, MoreHorizontal, Check, X, AlertTriangle } from 'lucide-react'
+import { MapPin, Calendar, Users, Clock, CreditCard, MoreHorizontal, Check, X, AlertTriangle, TimerReset } from 'lucide-react'
 import type { Reservation } from '@/types'
 import { format, differenceInHours, isPast } from 'date-fns'
 import { sr } from 'date-fns/locale'
@@ -11,6 +11,7 @@ interface ReservationCardProps {
   onMarkPaid?: (id: string) => void
   onCancel?: (id: string) => void
   onRecordPayment?: (id: string, amount: number) => void
+  onExtendDeadline?: (id: string, hours: number) => void
 }
 
 export default function ReservationCard({
@@ -18,6 +19,7 @@ export default function ReservationCard({
   onMarkPaid,
   onCancel,
   onRecordPayment,
+  onExtendDeadline,
 }: ReservationCardProps) {
   const [showMenu, setShowMenu] = useState(false)
   const [showPaymentInput, setShowPaymentInput] = useState(false)
@@ -140,6 +142,18 @@ export default function ReservationCard({
                       >
                         <Check className="h-4 w-4" />
                         Označi kao plaćeno
+                      </button>
+                    )}
+                    {onExtendDeadline && (
+                      <button
+                        onClick={() => {
+                          onExtendDeadline(reservation.id, 24)
+                          setShowMenu(false)
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-[#3B82F6] hover:bg-[#F1F5F9]"
+                      >
+                        <TimerReset className="h-4 w-4" />
+                        Produži rok (+24h)
                       </button>
                     )}
                     {onCancel && (
