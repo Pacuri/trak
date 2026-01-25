@@ -40,6 +40,7 @@ export async function POST(
     }
 
     // Update lead stage to "Pregovori" or similar if lead exists
+    // Also set awaiting_response = true so it shows in "Čeka odgovor" inbox
     if (offer.lead_id) {
       // Get pipeline stages
       const { data: stages } = await supabase
@@ -56,12 +57,16 @@ export async function POST(
         s.name.toLowerCase().includes('negotiat')
       ) || stages?.[3] || stages?.[2]
 
-      if (pregovoriStage) {
-        await supabase
-          .from('leads')
-          .update({ stage_id: pregovoriStage.id })
-          .eq('id', offer.lead_id)
-      }
+      // Update lead: move to pregovori stage AND set awaiting_response
+      // This ensures the lead appears in "Čeka odgovor" requiring agent attention
+      await supabase
+        .from('leads')
+        .update({
+          stage_id: pregovoriStage?.id,
+          awaiting_response: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', offer.lead_id)
     }
 
     return NextResponse.json({ success: true })

@@ -4,6 +4,7 @@ import DashboardSidebar from './components/DashboardSidebar'
 import DashboardHeader from './components/DashboardHeader'
 import { DashboardProviders } from '@/components/providers/DashboardProviders'
 import { SupabaseErrorHandler } from '@/components/providers/SupabaseErrorHandler'
+import { GlobalCalculator } from '@/components/calculator/GlobalCalculator'
 
 export default async function DashboardLayout({
   children,
@@ -42,6 +43,7 @@ export default async function DashboardLayout({
           <DashboardSidebar leadsCount={leadsCount} />
           <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
             <DashboardHeader user={user} />
+            <GlobalCalculator />
             <main className="flex-1 overflow-y-auto overflow-x-hidden bg-[#FAFAFA] p-4 pt-16 lg:pt-4 md:p-8 md:pt-8">
               <div className="max-w-[1600px] mx-auto pb-8">
                 {children}

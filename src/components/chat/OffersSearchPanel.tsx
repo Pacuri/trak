@@ -921,89 +921,74 @@ export function OffersSearchPanel({
                     />
                   </div>
 
-                  {/* Room Type Selection */}
-                  {roomTypes.length > 0 && (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Tip sobe
-                      </label>
-                      <select
-                        value={selectedRoomType}
-                        onChange={(e) => setSelectedRoomType(e.target.value)}
-                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Sve sobe</option>
-                        {roomTypes.map((room) => (
-                          <option key={room.id} value={room.id}>
-                            {room.name} {room.max_persons ? `(max ${room.max_persons})` : ''}
-                          </option>
-                        ))}
-                      </select>
+                  {/* Room Type Selection - filtered by guest count */}
+                  {(() => {
+                    const totalGuests = adultsCount + childrenAges.length
+                    const filteredRooms = roomTypes.filter(room => {
+                      // Check max capacity
+                      if (room.max_persons && totalGuests > room.max_persons) return false
+                      // Check min occupancy (guests must meet minimum)
+                      if (room.min_occupancy && totalGuests < room.min_occupancy) return false
+                      // Check min adults
+                      if (room.min_adults && adultsCount < room.min_adults) return false
+                      return true
+                    })
 
-                      {/* Room warnings */}
-                      {(() => {
-                        const selectedRoom = roomTypes.find(r => r.id === selectedRoomType)
-                        if (!selectedRoom?.warnings?.length) return null
-                        return (
-                          <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                            <div className="flex items-start gap-2">
-                              <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                              <div>
-                                <p className="text-sm font-medium text-amber-800">Upozorenje</p>
-                                <ul className="text-sm text-amber-700 mt-1 space-y-0.5">
-                                  {selectedRoom.warnings.map((warning, i) => (
-                                    <li key={i}>• {warning}</li>
-                                  ))}
-                                </ul>
+                    // Auto-select first valid room if current selection is invalid
+                    const currentRoomValid = filteredRooms.some(r => r.id === selectedRoomType)
+                    if (!currentRoomValid && filteredRooms.length > 0 && selectedRoomType) {
+                      setTimeout(() => setSelectedRoomType(filteredRooms[0].id), 0)
+                    }
+
+                    return filteredRooms.length > 0 ? (
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Tip sobe
+                        </label>
+                        <select
+                          value={selectedRoomType}
+                          onChange={(e) => setSelectedRoomType(e.target.value)}
+                          className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {filteredRooms.map((room) => (
+                            <option key={room.id} value={room.id}>
+                              {room.name} {room.max_persons ? `(max ${room.max_persons})` : ''}
+                            </option>
+                          ))}
+                        </select>
+
+                        {/* Room warnings */}
+                        {(() => {
+                          const selectedRoom = roomTypes.find(r => r.id === selectedRoomType)
+                          if (!selectedRoom?.warnings?.length) return null
+                          return (
+                            <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                              <div className="flex items-start gap-2">
+                                <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <p className="text-sm font-medium text-amber-800">Upozorenje</p>
+                                  <ul className="text-sm text-amber-700 mt-1 space-y-0.5">
+                                    {selectedRoom.warnings.map((warning, i) => (
+                                      <li key={i}>• {warning}</li>
+                                    ))}
+                                  </ul>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )
-                      })()}
-
-                      {/* Room constraints validation */}
-                      {(() => {
-                        const selectedRoom = roomTypes.find(r => r.id === selectedRoomType)
-                        if (!selectedRoom) return null
-
-                        const totalGuests = adultsCount + childrenAges.length
-                        const issues: string[] = []
-
-                        // Check minimum adults
-                        if (selectedRoom.min_adults && adultsCount < selectedRoom.min_adults) {
-                          issues.push(`Ova soba zahteva minimum ${selectedRoom.min_adults} odraslih osoba`)
-                        }
-
-                        // Check minimum occupancy
-                        if (selectedRoom.min_occupancy && totalGuests < selectedRoom.min_occupancy) {
-                          issues.push(`Ova soba zahteva minimum ${selectedRoom.min_occupancy} gostiju`)
-                        }
-
-                        // Check max occupancy
-                        if (selectedRoom.max_persons && totalGuests > selectedRoom.max_persons) {
-                          issues.push(`Ova soba prima maksimalno ${selectedRoom.max_persons} gostiju`)
-                        }
-
-                        if (issues.length === 0) return null
-
-                        return (
-                          <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                            <div className="flex items-start gap-2">
-                              <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
-                              <div>
-                                <p className="text-sm font-medium text-red-800">Neispravna konfiguracija</p>
-                                <ul className="text-sm text-red-700 mt-1 space-y-0.5">
-                                  {issues.map((issue, i) => (
-                                    <li key={i}>• {issue}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })()}
-                    </div>
-                  )}
+                          )
+                        })()}
+                      </div>
+                    ) : roomTypes.length > 0 ? (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                          <p className="text-sm text-amber-800">
+                            Nema dostupnih soba za {totalGuests} {totalGuests === 1 ? 'osobu' : totalGuests < 5 ? 'osobe' : 'osoba'}
+                          </p>
+                        </div>
+                      </div>
+                    ) : null
+                  })()}
 
                   {/* Meal Plan Selection */}
                   {selectedPackage.meal_plans && selectedPackage.meal_plans.length > 0 && (
