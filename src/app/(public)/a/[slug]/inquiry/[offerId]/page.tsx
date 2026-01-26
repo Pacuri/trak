@@ -6,8 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowLeft, Loader2, Clock, MessageSquare, Calendar, Utensils, Users, BedDouble } from 'lucide-react'
 import type { Offer, QualificationData } from '@/types'
-import { useAgencySettings } from '@/hooks/use-agency-settings'
-import { formatDateRange, getBoardLabel, getTransportLabel, formatStarRating, formatResponseTime } from '@/lib/formatting'
+import { formatDateRange, getBoardLabel, getTransportLabel, formatStarRating } from '@/lib/formatting'
 
 interface PackageData {
   id: string
@@ -65,8 +64,6 @@ export default function InquiryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const { currentResponseTime, isWithinWorkingHours } = useAgencySettings(slug)
 
   // Form state - pre-fill from URL params if available (from promo flow)
   const [formData, setFormData] = useState({
@@ -369,24 +366,6 @@ export default function InquiryPage() {
                   )}
                 </div>
               </div>
-            </div>
-
-            {/* Response time info */}
-            <div className="mt-4 bg-blue-50 rounded-xl p-4">
-              <div className="flex items-center gap-2 text-blue-800 mb-2">
-                <Clock className="w-5 h-5" />
-                <span className="font-semibold">Vreme odgovora</span>
-              </div>
-              <p className="text-sm text-blue-700">
-                {isWithinWorkingHours ? (
-                  <>
-                    Odgovaramo u roku od{' '}
-                    <span className="font-bold">{formatResponseTime(currentResponseTime)}</span>
-                  </>
-                ) : (
-                  'Očekujte odgovor ubrzo!'
-                )}
-              </p>
             </div>
           </div>
 
