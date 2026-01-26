@@ -22,9 +22,28 @@ interface PackageData {
 }
 
 interface PriceData {
-  price_per_person: number
-  interval_name?: string
-  price_type?: string
+  success: boolean
+  total: number
+  perPersonAvg: number
+  breakdown: {
+    adultsCount: number
+    adultsTotal: number
+    adultPricePerPerson: number
+    childrenCount: number
+    childrenTotal: number
+    childrenDetails: {
+      age: number
+      originalPrice: number
+      discountedPrice: number
+      discountType: string
+      discountValue: number | null
+      ruleName: string
+      isFree: boolean
+    }[]
+  }
+  durationNights: number
+  priceType: string
+  error?: string
 }
 
 const MEAL_LABELS: Record<string, string> = {
@@ -128,15 +147,26 @@ export default function InquiryPage() {
           const data = await response.json()
           setPkg(data)
 
-          // Also fetch price for the selected date/room/meal
+          // Fetch properly calculated price (with children policies)
           if (selectedDate && selectedRoomTypeId) {
             try {
-              const priceResponse = await fetch(
-                `/api/public/agencies/${slug}/packages/${offerId}/price-for-date?date=${selectedDate}&room_type_id=${selectedRoomTypeId}&meal_plan=${selectedMealPlan}`
-              )
+              const params = new URLSearchParams({
+                package_id: offerId,
+                adults: String(urlAdults || 2),
+                date: selectedDate,
+                duration_nights: String(urlNights || data.default_duration || 7),
+                room_type_id: selectedRoomTypeId,
+                meal_plan: selectedMealPlan,
+              })
+              if (urlChildAges) {
+                params.set('child_ages', urlChildAges)
+              }
+              const priceResponse = await fetch(`/api/public/packages/calculate-price?${params}`)
               if (priceResponse.ok) {
                 const priceData = await priceResponse.json()
-                setPkgPrice(priceData)
+                if (priceData.success) {
+                  setPkgPrice(priceData)
+                }
               }
             } catch (priceErr) {
               console.log('Could not fetch price:', priceErr)
@@ -349,15 +379,15 @@ export default function InquiryPage() {
                   ) : pkgPrice ? (
                     <div className="space-y-1">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Cena po osobi/noć</span>
-                        <span className="font-bold">€{pkgPrice.price_per_person}</span>
+                        <span className="text-gray-500">Prosečno po osobi</span>
+                        <span className="font-bold">€{Math.round(pkgPrice.perPersonAvg)}</span>
                       </div>
                       <div className="flex justify-between text-sm font-bold text-teal-600">
                         <span>Ukupno</span>
-                        <span>€{pkgPrice.price_per_person * (formData.adults + formData.children) * (displayDuration || 1)}</span>
+                        <span>€{Math.round(pkgPrice.total).toLocaleString('sr-Latn')}</span>
                       </div>
                       <div className="text-xs text-gray-500 text-right">
-                        {formData.adults + formData.children} os. × {displayDuration || 1} noći
+                        {pkgPrice.breakdown.adultsCount + pkgPrice.breakdown.childrenCount} os. × {pkgPrice.durationNights} noći
                       </div>
                     </div>
                   ) : (
@@ -505,9 +535,9 @@ export default function InquiryPage() {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-sm text-gray-500">{pkgPrice || offer ? 'Ukupna cena' : 'Cena'}</p>
-                    {pkgPrice && displayDuration && (
+                    {pkgPrice && (
                       <p className="text-xs text-gray-400">
-                        {formData.adults + formData.children} os. × {displayDuration} noći × €{pkgPrice.price_per_person}
+                        {pkgPrice.breakdown.adultsCount + pkgPrice.breakdown.childrenCount} os. × {pkgPrice.durationNights} noći
                       </p>
                     )}
                   </div>
@@ -517,7 +547,7 @@ export default function InquiryPage() {
                     </span>
                   ) : pkgPrice ? (
                     <span className="text-2xl font-bold text-teal-600">
-                      €{(pkgPrice.price_per_person * (formData.adults + formData.children) * (displayDuration || 1)).toLocaleString()}
+                      €{Math.round(pkgPrice.total).toLocaleString('sr-Latn')}
                     </span>
                   ) : (
                     <span className="text-xl font-bold text-teal-600">
