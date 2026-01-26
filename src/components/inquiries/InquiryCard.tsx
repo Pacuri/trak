@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { MapPin, Calendar, Clock, MessageSquare, Check, X, ArrowRight, Phone, Mail, Package } from 'lucide-react'
+import { MapPin, Calendar, Clock, MessageSquare, Check, X, ArrowRight, Phone, Mail, Package, Archive, ArchiveRestore } from 'lucide-react'
 import type { OfferInquiry } from '@/types'
 import { format, differenceInMinutes, differenceInHours, differenceInDays } from 'date-fns'
 import { sr } from 'date-fns/locale'
@@ -11,6 +11,8 @@ interface InquiryCardProps {
   onMarkAvailable?: (id: string) => void
   onMarkUnavailable?: (id: string) => void
   onOfferAlternative?: (id: string) => void
+  onArchive?: (id: string) => void
+  onUnarchive?: (id: string) => void
 }
 
 export default function InquiryCard({
@@ -18,6 +20,8 @@ export default function InquiryCard({
   onMarkAvailable,
   onMarkUnavailable,
   onOfferAlternative,
+  onArchive,
+  onUnarchive,
 }: InquiryCardProps) {
   const [expanded, setExpanded] = useState(false)
 
@@ -222,6 +226,33 @@ export default function InquiryCard({
               <Check className="h-4 w-4" />
               Dostupno
             </button>
+          )}
+        </div>
+      )}
+
+      {/* Archive button - show for non-pending or as additional action */}
+      {(inquiry.status !== 'pending' || inquiry.is_archived) && (
+        <div className="px-4 pb-4">
+          {inquiry.is_archived ? (
+            onUnarchive && (
+              <button
+                onClick={() => onUnarchive(inquiry.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+              >
+                <ArchiveRestore className="w-4 h-4" />
+                Vrati iz arhive
+              </button>
+            )
+          ) : (
+            onArchive && (
+              <button
+                onClick={() => onArchive(inquiry.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <Archive className="w-4 h-4" />
+                Arhiviraj
+              </button>
+            )
           )}
         </div>
       )}

@@ -8,25 +8,33 @@ export interface CustomInquiry {
   id: string
   organization_id: string
   lead_id: string | null
-  
+
   // Contact Info
   customer_name: string
   customer_phone: string
   customer_email: string | null
-  
+
   // Qualification Data
   qualification_data: QualificationData
-  
+
   // Custom Note
   customer_note: string | null
-  
+
   // Status
   status: CustomInquiryStatus
-  
+
+  // Archive
+  is_archived?: boolean
+
+  // Response
+  responded_by?: string | null
+  responded_at?: string | null
+  response_message?: string | null
+
   // Timestamps
   created_at: string
   contacted_at: string | null
-  
+
   // Source
   source: string
 }

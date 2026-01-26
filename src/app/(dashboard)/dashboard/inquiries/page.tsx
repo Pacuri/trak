@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { Search, MessageSquare, Clock, CheckCircle, Filter, ChevronDown, Package, Globe } from 'lucide-react'
+import { Search, MessageSquare, Clock, CheckCircle, Filter, ChevronDown, Package, Globe, Archive } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/use-user'
 import type { OfferInquiry, CustomInquiry } from '@/types'
@@ -20,6 +20,7 @@ interface UnifiedInquiry {
   customer_email: string | null
   created_at: string
   status: string
+  is_archived?: boolean
   // For offer inquiries
   offer?: {
     id: string
@@ -36,7 +37,7 @@ interface UnifiedInquiry {
   originalCustom?: CustomInquiry
 }
 
-type TabType = 'pending' | 'responded' | 'all'
+type TabType = 'pending' | 'responded' | 'all' | 'archived'
 type SourceFilter = 'all' | 'offer' | 'custom'
 
 export default function InquiriesPage() {
@@ -108,6 +109,7 @@ export default function InquiriesPage() {
         customer_email: inq.customer_email,
         created_at: inq.created_at,
         status: inq.status,
+        is_archived: inq.is_archived,
         offer: inq.offer as any,
         originalOffer: inq,
       })
@@ -123,6 +125,7 @@ export default function InquiriesPage() {
         customer_email: inq.customer_email,
         created_at: inq.created_at,
         status: inq.status,
+        is_archived: inq.is_archived,
         qualification_data: inq.qualification_data,
         customer_note: inq.customer_note,
         source: inq.source as string | null,
@@ -136,20 +139,27 @@ export default function InquiriesPage() {
     )
   }, [offerInquiries, customInquiries])
 
-  // Calculate stats
+  // Calculate stats (excluding archived)
   const stats = useMemo(() => {
-    const offerPending = offerInquiries.filter(i => i.status === 'pending' || i.status === 'checking').length
-    const offerResponded = offerInquiries.filter(i => ['available', 'unavailable', 'alternative'].includes(i.status)).length
+    const activeOffer = offerInquiries.filter(i => !i.is_archived)
+    const activeCustom = customInquiries.filter(i => !i.is_archived)
 
-    const customPending = customInquiries.filter(i => i.status === 'new').length
-    const customResponded = customInquiries.filter(i => ['contacted', 'converted', 'closed'].includes(i.status)).length
+    const offerPending = activeOffer.filter(i => i.status === 'pending' || i.status === 'checking').length
+    const offerResponded = activeOffer.filter(i => ['available', 'unavailable', 'alternative'].includes(i.status)).length
+
+    const customPending = activeCustom.filter(i => i.status === 'new').length
+    const customResponded = activeCustom.filter(i => ['contacted', 'converted', 'closed'].includes(i.status)).length
+
+    const archivedCount = offerInquiries.filter(i => i.is_archived).length +
+                          customInquiries.filter(i => i.is_archived).length
 
     return {
       pending: offerPending + customPending,
       responded: offerResponded + customResponded,
-      total: offerInquiries.length + customInquiries.length,
-      offerCount: offerInquiries.length,
-      customCount: customInquiries.length,
+      total: activeOffer.length + activeCustom.length,
+      offerCount: activeOffer.length,
+      customCount: activeCustom.length,
+      archived: archivedCount,
     }
   }, [offerInquiries, customInquiries])
 
@@ -160,14 +170,22 @@ export default function InquiriesPage() {
       if (sourceFilter === 'offer' && inq.type !== 'offer') return false
       if (sourceFilter === 'custom' && inq.type !== 'custom') return false
 
-      // Tab filter
-      if (activeTab === 'pending') {
-        if (inq.type === 'offer' && inq.status !== 'pending' && inq.status !== 'checking') return false
-        if (inq.type === 'custom' && inq.status !== 'new') return false
-      }
-      if (activeTab === 'responded') {
-        if (inq.type === 'offer' && !['available', 'unavailable', 'alternative'].includes(inq.status)) return false
-        if (inq.type === 'custom' && !['contacted', 'converted', 'closed'].includes(inq.status)) return false
+      // Tab filter - handle archived separately
+      if (activeTab === 'archived') {
+        // Show only archived items
+        if (!inq.is_archived) return false
+      } else {
+        // For non-archived tabs, hide archived items
+        if (inq.is_archived) return false
+
+        if (activeTab === 'pending') {
+          if (inq.type === 'offer' && inq.status !== 'pending' && inq.status !== 'checking') return false
+          if (inq.type === 'custom' && inq.status !== 'new') return false
+        }
+        if (activeTab === 'responded') {
+          if (inq.type === 'offer' && !['available', 'unavailable', 'alternative'].includes(inq.status)) return false
+          if (inq.type === 'custom' && !['contacted', 'converted', 'closed'].includes(inq.status)) return false
+        }
       }
 
       // Search filter
@@ -251,25 +269,68 @@ export default function InquiriesPage() {
     }
   }
 
+  // Handle archive/unarchive for offer inquiries
+  const handleArchiveOffer = async (id: string) => {
+    const { error } = await supabase
+      .from('offer_inquiries')
+      .update({ is_archived: true })
+      .eq('id', id)
+
+    if (!error) fetchInquiries()
+  }
+
+  const handleUnarchiveOffer = async (id: string) => {
+    const { error } = await supabase
+      .from('offer_inquiries')
+      .update({ is_archived: false })
+      .eq('id', id)
+
+    if (!error) fetchInquiries()
+  }
+
+  // Handle archive/unarchive for custom inquiries
+  const handleArchiveCustom = async (id: string) => {
+    const { error } = await supabase
+      .from('custom_inquiries')
+      .update({ is_archived: true })
+      .eq('id', id)
+
+    if (!error) fetchInquiries()
+  }
+
+  const handleUnarchiveCustom = async (id: string) => {
+    const { error } = await supabase
+      .from('custom_inquiries')
+      .update({ is_archived: false })
+      .eq('id', id)
+
+    if (!error) fetchInquiries()
+  }
+
   // Get counts for tabs based on source filter
   const getTabCounts = () => {
     let pending = 0
     let responded = 0
     let total = 0
+    let archived = 0
 
     if (sourceFilter === 'all' || sourceFilter === 'offer') {
-      pending += offerInquiries.filter(i => i.status === 'pending' || i.status === 'checking').length
-      responded += offerInquiries.filter(i => ['available', 'unavailable', 'alternative'].includes(i.status)).length
-      total += offerInquiries.length
+      const activeOffer = offerInquiries.filter(i => !i.is_archived)
+      pending += activeOffer.filter(i => i.status === 'pending' || i.status === 'checking').length
+      responded += activeOffer.filter(i => ['available', 'unavailable', 'alternative'].includes(i.status)).length
+      total += activeOffer.length
+      archived += offerInquiries.filter(i => i.is_archived).length
     }
 
     if (sourceFilter === 'all' || sourceFilter === 'custom') {
-      pending += customInquiries.filter(i => i.status === 'new').length
-      responded += customInquiries.filter(i => ['contacted', 'converted', 'closed'].includes(i.status)).length
-      total += customInquiries.length
+      const activeCustom = customInquiries.filter(i => !i.is_archived)
+      pending += activeCustom.filter(i => i.status === 'new').length
+      responded += activeCustom.filter(i => ['contacted', 'converted', 'closed'].includes(i.status)).length
+      total += activeCustom.length
+      archived += customInquiries.filter(i => i.is_archived).length
     }
 
-    return { pending, responded, total }
+    return { pending, responded, total, archived }
   }
 
   const tabCounts = getTabCounts()
@@ -342,24 +403,28 @@ export default function InquiriesPage() {
       {/* Filters Row */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         {/* Tabs */}
-        <div className="flex items-center gap-1 border-b border-slate-200 w-full sm:w-auto">
+        <div className="flex items-center gap-1 border-b border-slate-200 w-full sm:w-auto overflow-x-auto">
           {[
             { key: 'pending' as const, label: 'Čekaju odgovor', count: tabCounts.pending },
             { key: 'responded' as const, label: 'Odgovoreno', count: tabCounts.responded },
             { key: 'all' as const, label: 'Sve', count: tabCounts.total },
+            { key: 'archived' as const, label: 'Arhivirano', count: tabCounts.archived },
           ].map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === tab.key
-                  ? 'text-blue-600 border-blue-600'
+                  ? tab.key === 'archived' ? 'text-slate-600 border-slate-600' : 'text-blue-600 border-blue-600'
                   : 'text-slate-500 border-transparent hover:text-slate-700'
               }`}
             >
+              {tab.key === 'archived' && <Archive className="w-3.5 h-3.5 inline mr-1.5" />}
               {tab.label}
               <span className={`ml-2 text-xs rounded-full px-2 py-0.5 ${
-                activeTab === tab.key ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                activeTab === tab.key
+                  ? tab.key === 'archived' ? 'bg-slate-200 text-slate-700' : 'bg-blue-100 text-blue-700'
+                  : 'bg-slate-100 text-slate-600'
               }`}>
                 {tab.count}
               </span>
@@ -446,12 +511,16 @@ export default function InquiriesPage() {
                 onMarkAvailable={() => setShowAvailableDialog(inquiry.id)}
                 onMarkUnavailable={() => setShowUnavailableDialog(inquiry.id)}
                 onOfferAlternative={() => alert('Funkcionalnost u izradi')}
+                onArchive={() => handleArchiveOffer(inquiry.id)}
+                onUnarchive={() => handleUnarchiveOffer(inquiry.id)}
               />
             ) : inquiry.type === 'custom' && inquiry.originalCustom ? (
               <CustomInquiryCard
                 key={`custom-${inquiry.id}`}
                 inquiry={inquiry.originalCustom}
                 onRespond={() => setShowRespondDialog(inquiry.originalCustom!)}
+                onArchive={() => handleArchiveCustom(inquiry.id)}
+                onUnarchive={() => handleUnarchiveCustom(inquiry.id)}
               />
             ) : null
           ))}

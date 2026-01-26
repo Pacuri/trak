@@ -1,6 +1,6 @@
 'use client'
 
-import { Phone, Mail, MapPin, Users, Calendar, Clock, MessageSquare, Globe, Utensils, Bus, Home, Euro } from 'lucide-react'
+import { Phone, Mail, MapPin, Users, Calendar, Clock, MessageSquare, Globe, Utensils, Bus, Home, Euro, Archive, ArchiveRestore } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { sr } from 'date-fns/locale'
 import type { CustomInquiry } from '@/types'
@@ -8,6 +8,8 @@ import type { CustomInquiry } from '@/types'
 interface CustomInquiryCardProps {
   inquiry: CustomInquiry
   onRespond: () => void
+  onArchive?: () => void
+  onUnarchive?: () => void
 }
 
 // Labels for accommodation types
@@ -35,7 +37,7 @@ const transportLabels: Record<string, string> = {
   none: 'Bez prevoza',
 }
 
-export default function CustomInquiryCard({ inquiry, onRespond }: CustomInquiryCardProps) {
+export default function CustomInquiryCard({ inquiry, onRespond, onArchive, onUnarchive }: CustomInquiryCardProps) {
   const qualification = inquiry.qualification_data
 
   // Calculate wait time
@@ -242,14 +244,35 @@ export default function CustomInquiryCard({ inquiry, onRespond }: CustomInquiryC
         </div>
       </div>
 
-      {/* Action button */}
-      <div className="px-4 pb-3 mt-auto">
+      {/* Action buttons */}
+      <div className="px-4 pb-3 mt-auto flex items-center gap-2">
         <button
           onClick={onRespond}
           className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
         >
           {inquiry.status === 'new' ? 'Odgovori' : 'Uredi'}
         </button>
+        {inquiry.is_archived ? (
+          onUnarchive && (
+            <button
+              onClick={onUnarchive}
+              className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+              title="Vrati iz arhive"
+            >
+              <ArchiveRestore className="w-4 h-4" />
+            </button>
+          )
+        ) : (
+          onArchive && (
+            <button
+              onClick={onArchive}
+              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              title="Arhiviraj"
+            >
+              <Archive className="w-4 h-4" />
+            </button>
+          )
+        )}
       </div>
 
       {/* Responded info */}

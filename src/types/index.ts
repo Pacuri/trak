@@ -356,6 +356,9 @@ export interface OfferInquiry {
   // Status
   status: InquiryStatus
 
+  // Archive
+  is_archived?: boolean
+
   // Response
   responded_by: string | null
   responded_at: string | null
