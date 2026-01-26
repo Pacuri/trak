@@ -87,6 +87,7 @@ export interface CustomInquiry {
   package_id: string | null
   source: string | null
   status: 'new' | 'contacted' | 'converted' | 'closed' | 'responded'
+  is_archived?: boolean
   responded_at: string | null
   responded_by: string | null
   response_type: string | null
