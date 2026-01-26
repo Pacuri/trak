@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
         destination,
         guests,
         notes,
+        metadata,
         stage:pipeline_stages(id, name, color)
       `)
       .eq('organization_id', userData.organization_id)
@@ -100,17 +101,33 @@ export async function GET(request: NextRequest) {
 
         const { count: unreadCount } = await unreadQuery
 
-        // For trak leads, get package name from custom_inquiry
+        // For trak leads, get package/offer name from inquiry
         let packageName: string | null = null
         if (lead.source_type === 'trak') {
-          const { data: inquiry } = await supabase
-            .from('custom_inquiries')
-            .select('qualification_data')
-            .eq('lead_id', lead.id)
-            .single()
+          // Check if this is an offer_inquiry (from metadata)
+          const leadMetadata = lead.metadata as Record<string, unknown> | null
+          if (leadMetadata?.inquiry_type === 'offer_inquiry') {
+            // Get offer name from metadata or offer_inquiries table
+            packageName = (leadMetadata.offer_name as string) || null
+            if (!packageName) {
+              const { data: offerInquiry } = await supabase
+                .from('offer_inquiries')
+                .select('offer:offers(name)')
+                .eq('lead_id', lead.id)
+                .single()
+              packageName = (offerInquiry?.offer as { name: string } | null)?.name || null
+            }
+          } else {
+            // Regular custom_inquiry
+            const { data: inquiry } = await supabase
+              .from('custom_inquiries')
+              .select('qualification_data')
+              .eq('lead_id', lead.id)
+              .single()
 
-          if (inquiry?.qualification_data?.package_name) {
-            packageName = inquiry.qualification_data.package_name
+            if (inquiry?.qualification_data?.package_name) {
+              packageName = inquiry.qualification_data.package_name
+            }
           }
         }
 

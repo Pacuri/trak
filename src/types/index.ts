@@ -342,34 +342,36 @@ export interface OfferInquiry {
   id: string
   organization_id: string
   offer_id: string
-  
+  lead_id: string | null
+
   // Customer info
   customer_name: string
   customer_phone: string
   customer_email: string | null
   customer_message: string | null
-  
+
   // Qualification
   qualification_data: QualificationData | null
-  
+
   // Status
   status: InquiryStatus
-  
+
   // Response
   responded_by: string | null
   responded_at: string | null
   response_note: string | null
-  
+
   // Links
   reservation_id: string | null
   alternative_offer_id: string | null
-  
+
   // Timestamps
   created_at: string
   updated_at: string
-  
+
   // Joined relations
   offer?: Offer
+  lead?: Lead
   responder?: User
   alternative_offer?: Offer
   reservation?: Reservation

@@ -24,6 +24,11 @@ interface InboxLead {
   guests?: number | null
   notes?: string | null
   package_name?: string | null
+  metadata?: {
+    inquiry_type?: 'offer_inquiry' | 'custom_inquiry'
+    offer_id?: string
+    offer_name?: string
+  } | null
   stage?: {
     id: string
     name: string
@@ -78,8 +83,17 @@ export function InboxWidget({ onOpenChat, onOpenInquiry }: InboxWidgetProps) {
     }
   }, [])
 
-  // Handle click on a lead - open inquiry slideover for trak leads, chat for others
+  // Handle click on a lead - open inquiry slideover for trak custom_inquiries, chat for others
   const handleLeadClick = async (lead: InboxLead) => {
+    // For offer_inquiries (trak leads from "na upit" form), open ChatSlideOver directly
+    // This uses the same golden path as all other channels
+    if (lead.source_type === 'trak' && lead.metadata?.inquiry_type === 'offer_inquiry') {
+      console.log('[InboxWidget] Opening ChatSlideOver for offer_inquiry lead:', lead.id)
+      onOpenChat?.(lead.id)
+      return
+    }
+
+    // For custom_inquiries (trak qualification flow), open InquirySlideOver
     if (lead.source_type === 'trak' && onOpenInquiry) {
       // Fetch the custom_inquiry data for this lead
       try {
@@ -131,7 +145,7 @@ export function InboxWidget({ onOpenChat, onOpenInquiry }: InboxWidgetProps) {
         onOpenChat?.(lead.id)
       }
     } else {
-      // Open chat for non-trak leads
+      // Open chat for non-trak leads (FB, IG, WA, email, etc.)
       onOpenChat?.(lead.id)
     }
   }

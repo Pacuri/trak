@@ -262,6 +262,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get the first pipeline stage for new leads
+    const { data: firstStage } = await supabase
+      .from('pipeline_stages')
+      .select('id')
+      .eq('organization_id', settings.organization_id)
+      .eq('is_won', false)
+      .eq('is_lost', false)
+      .order('position', { ascending: true })
+      .limit(1)
+      .single()
+
     // Create offer inquiry
     const { data: inquiry, error: inquiryError } = await supabase
       .from('offer_inquiries')
@@ -287,6 +298,46 @@ export async function POST(request: NextRequest) {
         { error: 'Greška pri slanju upita' },
         { status: 500 }
       )
+    }
+
+    // Create a lead so the inquiry appears in the CRM inbox ("Čeka odgovor")
+    const leadData = {
+      organization_id: settings.organization_id,
+      name: customer_name.trim(),
+      phone: customer_phone.trim(),
+      email: customer_email?.trim() || null,
+      source_type: 'trak', // From trak website
+      stage_id: firstStage?.id || null,
+      destination: offer.name, // Use offer name as destination context
+      guests: qualification_data?.guests?.adults
+        ? (qualification_data.guests.adults + (qualification_data.guests.children || 0))
+        : 2,
+      notes: message || customer_message || null,
+      original_message: message || customer_message || null,
+      metadata: {
+        inquiry_type: 'offer_inquiry',
+        offer_id: offer_id,
+        offer_name: offer.name,
+      },
+      awaiting_response: true, // Show in inbox widget
+      last_customer_message_at: new Date().toISOString(), // For sorting in inbox
+    }
+
+    const { data: lead, error: leadError } = await supabase
+      .from('leads')
+      .insert(leadData)
+      .select('id')
+      .single()
+
+    if (leadError) {
+      console.error('Error creating lead from offer inquiry:', leadError)
+      // Don't fail the request - the inquiry was created successfully
+    } else if (lead) {
+      // Update the offer inquiry to link to the lead
+      await supabase
+        .from('offer_inquiries')
+        .update({ lead_id: lead.id })
+        .eq('id', inquiry.id)
     }
 
     // Calculate expected response time

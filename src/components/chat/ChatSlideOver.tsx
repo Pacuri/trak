@@ -49,11 +49,36 @@ interface Lead {
   notes: string | null
   awaiting_response: boolean
   last_customer_message_at: string | null
+  source_type?: string | null
+  metadata?: {
+    inquiry_type?: 'offer_inquiry' | 'custom_inquiry'
+    offer_id?: string
+    offer_name?: string
+  } | null
   stage?: {
     id: string
     name: string
     color: string
   }
+}
+
+interface OfferInquiryData {
+  id: string
+  offer_id: string
+  adults: number
+  children: number
+  customer_message: string | null
+  qualification_data?: {
+    travel_dates?: {
+      start?: string
+      end?: string
+    }
+    package_name?: string
+  } | null
+  offer?: {
+    id: string
+    name: string
+  } | null
 }
 
 interface MetaConversation {
@@ -106,6 +131,7 @@ export default function ChatSlideOver({
   const [stages, setStages] = useState<PipelineStage[]>([])
   const [metaConversation, setMetaConversation] = useState<MetaConversation | null>(null)
   const [offerQuotes, setOfferQuotes] = useState<OfferQuote[]>([])
+  const [offerInquiry, setOfferInquiry] = useState<OfferInquiryData | null>(null)
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -136,6 +162,8 @@ export default function ChatSlideOver({
           notes,
           awaiting_response,
           last_customer_message_at,
+          source_type,
+          metadata,
           stage:pipeline_stages(id, name, color)
         `)
         .eq('id', leadId)
@@ -224,6 +252,39 @@ export default function ChatSlideOver({
     }
   }, [leadId, supabase])
 
+  // Fetch offer inquiry data if this lead came from an offer inquiry
+  const fetchOfferInquiry = useCallback(async () => {
+    if (!leadId) return
+
+    try {
+      const { data } = await supabase
+        .from('offer_inquiries')
+        .select(`
+          id,
+          offer_id,
+          adults,
+          children,
+          customer_message,
+          qualification_data,
+          offer:offers(id, name)
+        `)
+        .eq('lead_id', leadId)
+        .maybeSingle()
+
+      if (data) {
+        setOfferInquiry({
+          ...data,
+          offer: Array.isArray(data.offer) ? data.offer[0] : data.offer,
+        } as OfferInquiryData)
+      } else {
+        setOfferInquiry(null)
+      }
+    } catch (err) {
+      console.error('Error fetching offer inquiry:', err)
+      setOfferInquiry(null)
+    }
+  }, [leadId, supabase])
+
   // Initial fetch
   useEffect(() => {
     if (isOpen && leadId) {
@@ -231,13 +292,15 @@ export default function ChatSlideOver({
       setError(null)
       setMetaConversation(null)
       setOfferQuotes([])
+      setOfferInquiry(null)
       fetchLead()
       fetchMessages()
       fetchStages()
       fetchMetaConversation()
       fetchOfferQuotes()
+      fetchOfferInquiry()
     }
-  }, [isOpen, leadId, fetchLead, fetchMessages, fetchStages, fetchMetaConversation, fetchOfferQuotes])
+  }, [isOpen, leadId, fetchLead, fetchMessages, fetchStages, fetchMetaConversation, fetchOfferQuotes, fetchOfferInquiry])
 
   // Realtime subscription for new messages
   useEffect(() => {
@@ -776,6 +839,46 @@ export default function ChatSlideOver({
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+          {/* Offer Inquiry Context Card */}
+          {offerInquiry && (
+            <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-4 mb-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
+                  <Package className="w-5 h-5 text-teal-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-teal-600 uppercase tracking-wide mb-1">
+                    Upit za paket
+                  </p>
+                  <h4 className="font-semibold text-slate-900 text-sm mb-2">
+                    {offerInquiry.offer?.name || lead?.metadata?.offer_name || 'Nepoznat paket'}
+                  </h4>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-white/70 rounded-md text-slate-600">
+                      <User className="w-3 h-3" />
+                      {offerInquiry.adults} odraslih
+                      {offerInquiry.children > 0 && `, ${offerInquiry.children} dece`}
+                    </span>
+                    {offerInquiry.qualification_data?.travel_dates?.start && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-white/70 rounded-md text-slate-600">
+                        <Clock className="w-3 h-3" />
+                        {new Date(offerInquiry.qualification_data.travel_dates.start).toLocaleDateString('sr-RS')}
+                        {offerInquiry.qualification_data.travel_dates.end && (
+                          <> - {new Date(offerInquiry.qualification_data.travel_dates.end).toLocaleDateString('sr-RS')}</>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  {offerInquiry.customer_message && (
+                    <p className="mt-2 text-sm text-slate-600 bg-white/50 rounded-lg p-2 italic">
+                      "{offerInquiry.customer_message}"
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center h-32">
               <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
