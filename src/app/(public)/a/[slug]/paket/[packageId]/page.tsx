@@ -425,12 +425,14 @@ export default function PaketPage() {
 
   // Build inquiry URL with all params (including contact info from promo)
   const buildInquiryUrl = useCallback((roomId: string, mealPlan: string) => {
+    const nights = qualification?.dates?.duration || pkg?.default_duration || 7
     const params = new URLSearchParams({
       date: selectedDate,
       room_type_id: roomId,
       meal_plan: mealPlan,
       adults: String(editableAdults),
       children: String(editableChildAges.length),
+      nights: String(nights),
     })
     if (editableChildAges.length > 0) {
       params.set('childAges', editableChildAges.join(','))
@@ -441,7 +443,7 @@ export default function PaketPage() {
     if (promoContact?.phone) params.set('phone', promoContact.phone)
 
     return `/a/${slug}/inquiry/${packageId}?${params.toString()}`
-  }, [selectedDate, editableAdults, editableChildAges, promoContact, slug, packageId])
+  }, [selectedDate, editableAdults, editableChildAges, promoContact, slug, packageId, qualification, pkg])
 
   if (loading) {
     return (

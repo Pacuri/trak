@@ -50,6 +50,7 @@ export default function InquiryPage() {
   const urlAdults = searchParams.get('adults')
   const urlChildren = searchParams.get('children')
   const urlChildAges = searchParams.get('childAges')
+  const urlNights = searchParams.get('nights')
   // Tracking ID from sent offer link
   const trackingId = searchParams.get('tid') || ''
   // Contact info from URL params (passed from promo flow via package page)
@@ -238,7 +239,7 @@ export default function InquiryPage() {
   const displayCity = pkg?.destination_city || offer?.city || ''
   const displayCountry = pkg?.destination_country || offer?.country || ''
   const displayStars = pkg?.hotel_stars || offer?.star_rating
-  const displayDuration = pkg?.default_duration
+  const displayDuration = urlNights ? parseInt(urlNights) : pkg?.default_duration
 
   // Get selected room type name
   const selectedRoomType = pkg?.room_types?.find(rt => rt.id === formData.selectedRoomTypeId)
