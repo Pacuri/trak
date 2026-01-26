@@ -115,12 +115,14 @@ export async function GET(request: NextRequest) {
                 .select('offer:offers(name)')
                 .eq('lead_id', lead.id)
                 .single()
-              // Supabase joins can return arrays, handle both cases
+              // Supabase joins can return arrays, handle all cases
               const offer = offerInquiry?.offer
-              if (Array.isArray(offer)) {
-                packageName = offer[0]?.name || null
-              } else {
-                packageName = (offer as { name: string } | null)?.name || null
+              if (offer) {
+                if (Array.isArray(offer)) {
+                  packageName = offer[0]?.name || null
+                } else if (typeof offer === 'object' && 'name' in offer) {
+                  packageName = (offer as { name: string }).name || null
+                }
               }
             }
           } else {
