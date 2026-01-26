@@ -504,11 +504,11 @@ export default function InquiryPage() {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-sm text-gray-500">{pkgPrice || offer ? 'Ukupna cena' : 'Cena'}</p>
-                    <p className="text-xs text-gray-400">
-                      {pkgPrice && displayDuration
-                        ? `${formData.adults + formData.children} os. × ${displayDuration} noći × €${pkgPrice.price_per_person}`
-                        : 'Tačna cena nakon potvrde raspoloživosti'}
-                    </p>
+                    {pkgPrice && displayDuration && (
+                      <p className="text-xs text-gray-400">
+                        {formData.adults + formData.children} os. × {displayDuration} noći × €{pkgPrice.price_per_person}
+                      </p>
+                    )}
                   </div>
                   {offer ? (
                     <span className="text-2xl font-bold text-gray-900">
