@@ -22,6 +22,12 @@ interface PackageData {
   room_types?: { id: string; name: string; max_persons?: number }[]
 }
 
+interface PriceData {
+  price_per_person: number
+  interval_name?: string
+  price_type?: string
+}
+
 const MEAL_LABELS: Record<string, string> = {
   ND: 'Samo smeštaj',
   BB: 'Doručak',
@@ -54,6 +60,7 @@ export default function InquiryPage() {
 
   const [offer, setOffer] = useState<Offer | null>(null)
   const [pkg, setPkg] = useState<PackageData | null>(null)
+  const [pkgPrice, setPkgPrice] = useState<PriceData | null>(null)
   const [qualification, setQualification] = useState<QualificationData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -122,6 +129,21 @@ export default function InquiryPage() {
           if (!response.ok) throw new Error('Package not found')
           const data = await response.json()
           setPkg(data)
+
+          // Also fetch price for the selected date/room/meal
+          if (selectedDate && selectedRoomTypeId) {
+            try {
+              const priceResponse = await fetch(
+                `/api/public/agencies/${slug}/packages/${offerId}/price-for-date?date=${selectedDate}&room_type_id=${selectedRoomTypeId}&meal_plan=${selectedMealPlan}`
+              )
+              if (priceResponse.ok) {
+                const priceData = await priceResponse.json()
+                setPkgPrice(priceData)
+              }
+            } catch (priceErr) {
+              console.log('Could not fetch price:', priceErr)
+            }
+          }
         } else {
           // Fetch offer details
           const response = await fetch(`/api/public/agencies/${slug}/offers?id=${offerId}`)
@@ -142,7 +164,7 @@ export default function InquiryPage() {
     }
 
     fetchData()
-  }, [slug, offerId, isPackageInquiry, urlAdults])
+  }, [slug, offerId, isPackageInquiry, urlAdults, selectedDate, selectedRoomTypeId, selectedMealPlan])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -262,7 +284,7 @@ export default function InquiryPage() {
                   </div>
                 )}
                 <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded text-xs font-medium text-gray-600">
-                  Na upit
+                  Raspoloživost na upit
                 </div>
               </div>
 
@@ -326,9 +348,20 @@ export default function InquiryPage() {
                       <span className="text-gray-500">Okvirna cena</span>
                       <span className="font-bold">€{offer.price_per_person}/os</span>
                     </div>
+                  ) : pkgPrice ? (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Cena po osobi</span>
+                        <span className="font-bold">€{pkgPrice.price_per_person}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Ukupno ({formData.adults + formData.children} os.)</span>
+                        <span className="font-bold text-teal-600">€{pkgPrice.price_per_person * (formData.adults + formData.children)}</span>
+                      </div>
+                    </div>
                   ) : (
                     <div className="text-center text-teal-600 font-semibold">
-                      Cena na upit
+                      Raspoloživost na upit
                     </div>
                   )}
                 </div>
@@ -412,40 +445,62 @@ export default function InquiryPage() {
                 </div>
               </div>
 
-              {/* Guest count */}
-              <div className="bg-white rounded-xl p-6 shadow-sm">
-                <h3 className="font-semibold text-gray-900 mb-4">Broj putnika</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Odrasli
-                    </label>
-                    <select
-                      value={formData.adults}
-                      onChange={(e) => setFormData({ ...formData, adults: Number(e.target.value) })}
-                      className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                        <option key={n} value={n}>{n}</option>
-                      ))}
-                    </select>
+              {/* Guest count - read-only for package inquiries, editable for offers */}
+              {isPackageInquiry ? (
+                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                  <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-teal-600" />
+                    Broj putnika
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white rounded-lg px-4 py-3 border border-gray-200">
+                      <span className="block text-xs text-gray-500 mb-1">Odrasli</span>
+                      <span className="text-lg font-semibold text-gray-900">{formData.adults}</span>
+                    </div>
+                    <div className="bg-white rounded-lg px-4 py-3 border border-gray-200">
+                      <span className="block text-xs text-gray-500 mb-1">Deca</span>
+                      <span className="text-lg font-semibold text-gray-900">{formData.children}</span>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Deca
-                    </label>
-                    <select
-                      value={formData.children}
-                      onChange={(e) => setFormData({ ...formData, children: Number(e.target.value) })}
-                      className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    >
-                      {[0, 1, 2, 3, 4].map((n) => (
-                        <option key={n} value={n}>{n}</option>
-                      ))}
-                    </select>
+                  <p className="text-xs text-gray-500 mt-3">
+                    Broj putnika izabran na stranici paketa
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl p-6 shadow-sm">
+                  <h3 className="font-semibold text-gray-900 mb-4">Broj putnika</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Odrasli
+                      </label>
+                      <select
+                        value={formData.adults}
+                        onChange={(e) => setFormData({ ...formData, adults: Number(e.target.value) })}
+                        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      >
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Deca
+                      </label>
+                      <select
+                        value={formData.children}
+                        onChange={(e) => setFormData({ ...formData, children: Number(e.target.value) })}
+                        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      >
+                        {[0, 1, 2, 3, 4].map((n) => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Message */}
               <div className="bg-white rounded-xl p-6 shadow-sm">
@@ -466,16 +521,20 @@ export default function InquiryPage() {
               <div className="bg-gray-100 rounded-xl p-6">
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-sm text-gray-500">{pkg ? 'Cena' : 'Okvirna cena'}</p>
-                    <p className="text-xs text-gray-400">Tačna cena nakon potvrde</p>
+                    <p className="text-sm text-gray-500">{pkgPrice || offer ? 'Ukupna cena' : 'Cena'}</p>
+                    <p className="text-xs text-gray-400">Tačna cena nakon potvrde raspoloživosti</p>
                   </div>
                   {offer ? (
                     <span className="text-2xl font-bold text-gray-900">
                       ~€{totalPrice.toLocaleString()}
                     </span>
+                  ) : pkgPrice ? (
+                    <span className="text-2xl font-bold text-teal-600">
+                      €{(pkgPrice.price_per_person * (formData.adults + formData.children)).toLocaleString()}
+                    </span>
                   ) : (
                     <span className="text-xl font-bold text-teal-600">
-                      Na upit
+                      Raspoloživost na upit
                     </span>
                   )}
                 </div>
