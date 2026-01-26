@@ -115,7 +115,13 @@ export async function GET(request: NextRequest) {
                 .select('offer:offers(name)')
                 .eq('lead_id', lead.id)
                 .single()
-              packageName = (offerInquiry?.offer as { name: string } | null)?.name || null
+              // Supabase joins can return arrays, handle both cases
+              const offer = offerInquiry?.offer
+              if (Array.isArray(offer)) {
+                packageName = offer[0]?.name || null
+              } else {
+                packageName = (offer as { name: string } | null)?.name || null
+              }
             }
           } else {
             // Regular custom_inquiry
